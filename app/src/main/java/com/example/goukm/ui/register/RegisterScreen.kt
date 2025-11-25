@@ -1,4 +1,4 @@
-package com.example.goukm.ui.login
+package com.example.goukm.ui.register
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -59,8 +59,9 @@ val PoppinsLight = FontFamily(
 )
 
 @Composable
-fun LoginScreen(modifier: Modifier = Modifier) {
-    var matricNumber by remember { mutableStateOf("") }
+fun RegisterScreen(modifier: Modifier = Modifier) {
+    var email by remember { mutableStateOf("") }
+    var phoneNum by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -81,7 +82,7 @@ fun LoginScreen(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text = "REGISTER/LOGIN",
+            text = "REGISTER ACCOUNT",
             color = Color.Black,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
@@ -89,18 +90,29 @@ fun LoginScreen(modifier: Modifier = Modifier) {
         )
 
         Text(
-            text = "Enter your matric number and password",
+            text = "Enter your detail",
             color = Color.Black,
             fontSize = 12.sp,
-            fontFamily = CanvaSansRegular
+            fontFamily = com.example.goukm.ui.login.CanvaSansRegular
         )
 
         Spacer(Modifier.height(32.dp))
 
         TextField(
-            value = matricNumber,
-            onValueChange = { matricNumber = it },
-            label = { Text("matric number", fontFamily = PoppinsLight) },
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("name", fontFamily = PoppinsLight) },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        TextField(
+            value = phoneNum,
+            onValueChange = { phoneNum = it },
+            label = { Text("Phone Number", fontFamily = PoppinsLight) },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
@@ -111,7 +123,7 @@ fun LoginScreen(modifier: Modifier = Modifier) {
         TextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("password", fontFamily = PoppinsLight) },
+            label = { Text("password", fontFamily = com.example.goukm.ui.login.PoppinsLight) },
             singleLine = true,
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             shape = RoundedCornerShape(16.dp),
@@ -155,8 +167,8 @@ fun LoginScreen(modifier: Modifier = Modifier) {
 
 @Preview(showBackground = true)
 @Composable
-fun LoginPreview() {
+fun RegisterPreview() {
     Scaffold { paddingValues ->
-        LoginScreen(modifier = Modifier.padding(paddingValues))
+        RegisterScreen(modifier = Modifier.padding(paddingValues))
     }
 }

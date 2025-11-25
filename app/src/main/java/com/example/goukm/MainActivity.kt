@@ -12,8 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.goukm.ui.theme.GoUKMTheme
-import com.example.goukm.ui.login.LoginScreen
-import com.example.goukm.ui.login.LoginPreview
+import com.example.goukm.ui.register.RegisterScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,7 +21,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             GoUKMTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    LoginScreen(
+                    RegisterScreen(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
