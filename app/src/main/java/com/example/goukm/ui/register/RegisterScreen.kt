@@ -101,7 +101,7 @@ fun RegisterScreen(modifier: Modifier = Modifier) {
         TextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("name", fontFamily = PoppinsLight) },
+            label = { Text("email", fontFamily = PoppinsLight) },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
@@ -145,7 +145,22 @@ fun RegisterScreen(modifier: Modifier = Modifier) {
 
         Button(
             onClick = {
-                println("Continue button clicked!")
+                if(!email.endsWith("@siswa.ukm.edu.my", ignoreCase = true)){
+                    println("Error: Email must end with @siswa.ukm.edu.my")
+                    return@Button
+                }
+
+                registerUserAndSave(
+                    email = email,
+                    password = password,
+                    phoneNumber = phoneNum,
+                    onSuccess = {
+                        println("User registered!")
+                    },
+                    onFailure = { errorMessage ->
+                        println("Registeration Failed: $errorMessage")
+                    }
+                )
             },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(
