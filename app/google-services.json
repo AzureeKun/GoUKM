@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1001976512790",
+    "project_id": "goukm-6ffe3",
+    "storage_bucket": "goukm-6ffe3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1001976512790:android:048b2a71a26d9582439037",
+        "android_client_info": {
+          "package_name": "com.company.goukm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOn_J-DLSyQAzPBdgq8vUjbnh8NshPJpc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
