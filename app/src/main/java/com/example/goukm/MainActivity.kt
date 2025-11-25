@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.goukm.ui.register.AccountNotFound
+import com.example.goukm.ui.register.NamePage
+import com.example.goukm.ui.register.RegisterOption
 import com.example.goukm.ui.theme.GoUKMTheme
 import com.example.goukm.ui.register.RegisterScreen
 
@@ -21,7 +24,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             GoUKMTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    RegisterScreen(
+                    AccountNotFound(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
