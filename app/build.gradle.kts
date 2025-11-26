@@ -63,6 +63,15 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation ("androidx.core:core-ktx:1.10.1")
+    implementation ("androidx.compose.ui:ui:1.5.0")
+    implementation ("androidx.navigation:navigation-compose:2.6.0")
+    implementation ("com.google.firebase:firebase-auth-ktx:22.1.0")
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.7.0")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation ("androidx.hilt:hilt-navigation-compose:1.1.0") // optional if using Hilt
+
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
 
@@ -74,4 +83,6 @@ dependencies {
 
     // Add the dependencies for any other desired Firebase products
     // https://firebase.google.com/docs/android/setup#available-libraries
+
+
 }

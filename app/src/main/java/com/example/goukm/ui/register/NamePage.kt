@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.example.goukm.R
 
 @Composable
-fun NamePage(modifier: Modifier = Modifier) {
+fun NamePage(modifier: Modifier = Modifier, onNavigateToRolePage: ()-> Unit = {}) {
     var name by remember { mutableStateOf("") }
 
 
@@ -90,7 +90,11 @@ fun NamePage(modifier: Modifier = Modifier) {
 
         // Continue Button
         Button(
-            onClick = { println("Continue button clicked!") },
+            onClick = {
+                RegistrationState.name = name
+                println("Navigate → RegisterOption")
+                onNavigateToRolePage()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),

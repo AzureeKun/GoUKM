@@ -42,8 +42,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.launch
 import com.example.goukm.R
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 
 val CBlue = Color(0xFF6b87c0)
 val CRed = Color(0xFFE53935)
@@ -59,14 +63,17 @@ val PoppinsLight = FontFamily(
 )
 
 @Composable
-fun RegisterScreen(modifier: Modifier = Modifier) {
+fun RegisterScreen(modifier: Modifier,onNavigateToName: () -> Unit = {}, onLoginSuccess: (String) -> Unit = {}) {
+
     var email by remember { mutableStateOf("") }
     var phoneNum by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
+
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(CBlue)
             .padding(horizontal = 32.dp),
@@ -150,17 +157,36 @@ fun RegisterScreen(modifier: Modifier = Modifier) {
                     return@Button
                 }
 
-                registerUserAndSave(
-                    email = email,
-                    password = password,
-                    phoneNumber = phoneNum,
-                    onSuccess = {
-                        println("User registered!")
-                    },
-                    onFailure = { errorMessage ->
-                        println("Registeration Failed: $errorMessage")
+                // Simpan sementara
+                RegistrationState.email = email
+                RegistrationState.password = password
+                RegistrationState.phoneNumber = phoneNum
+
+                // Check email exists
+                scope.launch {
+                    val exists = RegistrationRepository.checkEmailExists(email)
+
+                    if (exists) {
+                        // Login user
+                        val res = RegistrationRepository.loginUser(email, password)
+                        if (res.isSuccess) {
+                            // GET FIRESTORE ROLE
+                            val uid = res.getOrNull()!!
+                            val doc = FirebaseFirestore.getInstance()
+                                .collection("users")
+                                .document(uid)
+                                .get()
+                                .await()
+
+                            val role = doc.getString("role") ?: "customer"
+                            onLoginSuccess(role)
+                        } else {
+                            println("Login error: ${res.exceptionOrNull()?.message}")
+                        }
+                    } else {
+                        onNavigateToName()
                     }
-                )
+                }
             },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(

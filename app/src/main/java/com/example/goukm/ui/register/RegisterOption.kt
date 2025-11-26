@@ -16,6 +16,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.goukm.R
+import kotlinx.coroutines.launch
 
 val CBlack = Color(0xFF000000)
 val CWhite = Color(0xFFFFFFFF)
@@ -36,7 +38,8 @@ val CWhite = Color(0xFFFFFFFF)
 // MAIN UI SCREEN
 // ---------------------------------------------
 @Composable
-fun RegisterOption(modifier: Modifier = Modifier) {
+fun RegisterOption(modifier: Modifier = Modifier, onRegisterSuccess: (String) -> Unit = {}) {
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = modifier
@@ -78,7 +81,18 @@ fun RegisterOption(modifier: Modifier = Modifier) {
 
         // Passenger Button
         Button(
-            onClick = { println("Customer button clicked!") },
+            onClick = { scope.launch {
+                val res = RegistrationRepository.createUserWithRole(
+                    RegistrationState.email,
+                    RegistrationState.password,
+                    RegistrationState.phoneNumber,
+                    RegistrationState.name,
+                    "customer"
+                )
+
+                if (res.isSuccess) onRegisterSuccess("customer")
+                else println("Error: ${res.exceptionOrNull()?.message}")
+            } },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
@@ -99,7 +113,18 @@ fun RegisterOption(modifier: Modifier = Modifier) {
 
         // Driver Button
         Button(
-            onClick = { println("Driver button clicked!") },
+            onClick = { scope.launch {
+                val res = RegistrationRepository.createUserWithRole(
+                    RegistrationState.email,
+                    RegistrationState.password,
+                    RegistrationState.phoneNumber,
+                    RegistrationState.name,
+                    "driver"
+                )
+
+                if (res.isSuccess) onRegisterSuccess("driver")
+                else println("Error: ${res.exceptionOrNull()?.message}")
+            } },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
