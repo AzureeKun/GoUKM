@@ -103,11 +103,11 @@ fun BottomBar() {
             icon = {
                 Icon(
                     imageVector = Icons.Default.Message,
-                    contentDescription = "Bubble",
+                    contentDescription = "Chat",
                     tint = Color.White
                 )
             },
-            label = { Text("Bubble", color = Color.White) },
+            label = { Text("Chat", color = Color.White) },
             alwaysShowLabel = true
         )
 
