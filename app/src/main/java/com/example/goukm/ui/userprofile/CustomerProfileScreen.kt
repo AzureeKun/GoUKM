@@ -26,7 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.example.goukm.R
+import com.example.goukm.navigation.NavRoutes
 
 val CBlue = Color(0xFF6b87c0)
 val CRed = Color(0xFFE53935)
@@ -79,13 +82,13 @@ fun ReadOnlyField(
 }
 
 @Composable
-fun BottomBar() {
+fun BottomBar(navController: NavHostController) {
     NavigationBar(
         containerColor = CBlue
     ) {
         NavigationBarItem(
             selected = false,
-            onClick = { /* TODO: Navigate Home */ },
+            onClick = { navController.navigate(NavRoutes.CustomerDashboard.route) },
             icon = {
                 Icon(
                     imageVector = Icons.Default.Home,
@@ -129,7 +132,7 @@ fun BottomBar() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomerProfileScreen(user: UserProfile, modifier: Modifier = Modifier) {
+fun CustomerProfileScreen(user: UserProfile, navController: NavHostController, modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -153,7 +156,7 @@ fun CustomerProfileScreen(user: UserProfile, modifier: Modifier = Modifier) {
                 )
             )
         },
-        bottomBar = { BottomBar() }
+        bottomBar = { BottomBar(navController) }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -344,5 +347,8 @@ fun ProfileScreenPreview() {
         name = "Ahmad Bin Abu",
         matricNumber = "A18CS0123"
     )
-    CustomerProfileScreen(user = dummyUser)
+    CustomerProfileScreen(
+        user = dummyUser,
+        navController = rememberNavController()
+    )
 }

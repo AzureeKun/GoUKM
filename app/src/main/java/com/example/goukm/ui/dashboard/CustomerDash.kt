@@ -19,11 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.login.LoginScreen
 import com.example.goukm.ui.userprofile.CBlue
 
 @Composable
-fun BottomBar() {
+fun BottomBar(navController: NavHostController) {
     NavigationBar(
         containerColor = CBlue
     ) {
@@ -57,7 +59,7 @@ fun BottomBar() {
 
         NavigationBarItem(
             selected = false, // current screen
-            onClick = { /* Already on Profile */ },
+            onClick = { navController.navigate(NavRoutes.CustomerProfile.route) },
             icon = {
                 Icon(
                     imageVector = Icons.Default.Person,
@@ -72,9 +74,9 @@ fun BottomBar() {
 }
 
 @Composable
-fun CustomerDashboard() {
+fun CustomerDashboard(navController: NavHostController) {
     Scaffold(
-        bottomBar = { BottomBar() }
+        bottomBar = { BottomBar(navController) }
     ) { paddingValues ->
         Column(
             modifier = Modifier

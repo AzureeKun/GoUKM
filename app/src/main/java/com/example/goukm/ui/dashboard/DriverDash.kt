@@ -18,12 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import com.example.goukm.ui.userprofile.CBlue
 
 @Composable
-fun DriverDashboard() {
+fun DriverDashboard(navController: NavHostController) {
     Scaffold(
-        bottomBar = { BottomBar() }
+        bottomBar = { BottomBar(navController) }
     ) { paddingValues ->
         Column(
             modifier = Modifier

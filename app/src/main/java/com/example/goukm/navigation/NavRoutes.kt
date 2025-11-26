@@ -7,4 +7,6 @@ sealed class NavRoutes(val route: String) {
 
     object CustomerDashboard : NavRoutes("customer_dashboard")
     object DriverDashboard : NavRoutes("driver_dashboard")
+
+    object CustomerProfile : NavRoutes("customer_profile")
 }
