@@ -9,13 +9,24 @@ import com.example.goukm.ui.register.*
 import com.example.goukm.ui.dashboard.CustomerDashboard
 import com.example.goukm.ui.dashboard.DriverDashboard
 import com.example.goukm.ui.userprofile.CustomerProfileScreen
+import com.example.goukm.ui.userprofile.EditProfileScreen
 import com.example.goukm.ui.userprofile.UserProfile
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
+
+    var currentUser by remember {
+        mutableStateOf(UserProfile("Ahmad Bin Abu", "A18CS0123"))
+    }
+
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.Register.route
+        startDestination = NavRoutes.CustomerProfile.route
     ) {
 
         composable(NavRoutes.Register.route) {
@@ -62,8 +73,19 @@ fun AppNavGraph(navController: NavHostController) {
 
         composable(NavRoutes.CustomerProfile.route) {
             CustomerProfileScreen(
-                user = UserProfile("Ahmad Bin Abu", "A18CS0123"),
-                navController = navController
+                user = currentUser,
+                navController = navController,
+                onEditProfile = { navController.navigate("edit_profile") }
+            )
+        }
+
+        composable(NavRoutes.EditProfile.route) {
+            EditProfileScreen(
+                navController = navController,
+                user = currentUser,
+                onSave = { updatedUser ->
+                    currentUser = updatedUser
+                }
             )
         }
     }
