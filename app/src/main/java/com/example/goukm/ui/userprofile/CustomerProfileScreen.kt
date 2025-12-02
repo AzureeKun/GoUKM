@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
+import coil.compose.rememberAsyncImagePainter
+import androidx.compose.ui.layout.ContentScale
 
 val CBlue = Color(0xFF6b87c0)
 
@@ -83,7 +85,6 @@ fun CustomerProfileScreen(
     navController: NavHostController,
     onEditProfile: () -> Unit
 ) {
-    // gunakan user sebagai state supaya changes boleh reflect
     var currentUser by remember { mutableStateOf(user) }
 
     Scaffold(
@@ -105,16 +106,30 @@ fun CustomerProfileScreen(
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.AccountCircle,
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(CBlue)
-                            .padding(8.dp),
-                        tint = Color.White
-                    )
+
+                    // Image
+                    currentUser.profilePictureUrl?.let { url ->
+                        Image(
+                            painter = rememberAsyncImagePainter(url),
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } ?: run {
+                        Icon(
+                            Icons.Default.AccountCircle,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(CBlue)
+                                .padding(8.dp),
+                            tint = Color.White
+                        )
+                    }
+
                     Spacer(Modifier.width(20.dp))
                     Column {
                         Text(currentUser.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
