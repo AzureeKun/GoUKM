@@ -166,7 +166,7 @@
                     )
                 } ?: CircularProgressIndicator(
                     modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center)
-                ) // Show loading if user data is missing
+                ) // Show loading if user data is missing //
             }
 
             composable(NavRoutes.Loading.route) {
