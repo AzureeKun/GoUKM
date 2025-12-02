@@ -21,14 +21,14 @@ import androidx.compose.runtime.setValue
 fun AppNavGraph(navController: NavHostController) {
 
     var currentUser by remember {
-        mutableStateOf(UserProfile("Siti Farhana", "A203399", email = "a203399@siswa.ukm.edu.my", phoneNumber = "019-8501780"))
+        mutableStateOf<UserProfile?>(null)
     }
 
     var selectedDriverNavIndex by remember { mutableStateOf(0) }
 
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.CustomerProfile.route
+        startDestination = NavRoutes.Register.route
     ) {
 
         composable(NavRoutes.Register.route) {
@@ -94,13 +94,16 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable(NavRoutes.EditProfile.route) {
-            EditProfileScreen(
-                navController = navController,
-                user = currentUser,
-                onSave = { updatedUser ->
-                    currentUser = updatedUser
-                }
-            )
+            currentUser?.let { user ->
+                EditProfileScreen(
+                    navController = navController,
+                    user = user,
+                    onSave = { updatedUser ->
+                        currentUser = updatedUser
+                        navController.popBackStack()
+                    }
+                )
+            }
         }
     }
 }

@@ -82,8 +82,9 @@ fun BottomBarCust(navController: NavHostController) {
 @Composable
 fun CustomerProfileScreen(
     navController: NavHostController,
-    onEditProfile: () -> Unit,
+    onEditProfile: (UserProfile) -> Unit,
     onLogout: () -> Unit
+
 ) {
     var currentUser by remember { mutableStateOf<UserProfile?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -174,7 +175,7 @@ fun CustomerProfileScreen(
 
             item { Spacer(Modifier.height(20.dp)) }
 
-            /*item {
+            item {
                 Button(
                     onClick = { onEditProfile(currentUser!!) },
                     modifier = Modifier.fillMaxWidth(),
@@ -182,7 +183,7 @@ fun CustomerProfileScreen(
                 ) {
                     Text("Edit Profile", color = Color.White)
                 }
-            }*/
+            }
 
             item { Spacer(Modifier.height(20.dp)) }
 
