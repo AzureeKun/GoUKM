@@ -15,10 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.collectAsState
 
 
 @Composable
@@ -28,26 +24,9 @@ fun AppNavGraph(navController: NavHostController) {
         mutableStateOf(UserProfile("Siti Farhana", "A203399", email = "a203399@siswa.ukm.edu.my", phoneNumber = "019-8501780"))
     }
 
-    val authViewModel: AuthViewModel = viewModel(
-        factory = AuthViewModelFactory(LocalContext.current)
-    )
-
-    val authState by authViewModel.authState.collectAsState()
-
-    val startDestination = when (authState) {
-        is AuthState.Loading -> null
-        is AuthState.LoggedIn -> NavRoutes.CustomerDashboard.route
-        is AuthState.LoggedOut -> NavRoutes.Login.route // Assuming you add NavRoutes.Login
-    }
-
-    if (startDestination == null) {
-        CircularProgressIndicator()
-        return
-    }
-
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = NavRoutes.CustomerProfile.route
     ) {
 
         composable(NavRoutes.Register.route) {
@@ -96,15 +75,7 @@ fun AppNavGraph(navController: NavHostController) {
             CustomerProfileScreen(
                 user = currentUser,
                 navController = navController,
-                onEditProfile = { navController.navigate(NavRoutes.EditProfile.route) },
-                // 👈 Add Logout handler
-                onLogout = {
-                    authViewModel.logout() // Clear token and update state to LoggedOut
-                    navController.navigate(NavRoutes.Login.route) {
-                        // Clear all previous screens, leaving only Login
-                        popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
-                    }
-                }
+                onEditProfile = { navController.navigate("edit_profile") }
             )
         }
 
