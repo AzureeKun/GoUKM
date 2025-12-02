@@ -52,7 +52,7 @@ fun ReadOnlyField(label: String, value: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun BottomBar(navController: NavHostController) {
+fun BottomBarCust(navController: NavHostController) {
     NavigationBar(containerColor = CBlue) {
         NavigationBarItem(
             selected = false,
@@ -81,12 +81,18 @@ fun BottomBar(navController: NavHostController) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerProfileScreen(
-    user: UserProfile,
     navController: NavHostController,
     onEditProfile: () -> Unit
 ) {
-    // gunakan user sebagai state supaya changes boleh reflect
-    var currentUser by remember { mutableStateOf(user) }
+    var currentUser by remember { mutableStateOf<UserProfile?>(null) }
+    var loading by remember { mutableStateOf(true) }
+
+    // FETCH USER DATA FROM FIRESTORE
+    LaunchedEffect(Unit) {
+        val data = UserProfileRepository.getUserProfile()
+        currentUser = data
+        loading = false
+    }
 
     Scaffold(
         topBar = {
@@ -95,8 +101,34 @@ fun CustomerProfileScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
             )
         },
-        bottomBar = { BottomBar(navController) }
+        bottomBar = { BottomBarCust(navController) }
     ) { paddingValues ->
+        // LOADING STATE
+        if (loading) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
+        // ERROR / NULL STATE
+        if (currentUser == null) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Failed to load profile")
+            }
+            return@Scaffold
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -109,7 +141,7 @@ fun CustomerProfileScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
                     // Image
-                    currentUser.profilePictureUrl?.let { url ->
+                    currentUser!!.profilePictureUrl?.let { url ->
                         Image(
                             painter = rememberAsyncImagePainter(url),
                             contentDescription = "Profile Picture",
@@ -133,23 +165,23 @@ fun CustomerProfileScreen(
 
                     Spacer(Modifier.width(20.dp))
                     Column {
-                        Text(currentUser.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Text("@${currentUser.matricNumber}", fontSize = 16.sp, color = Color.Black.copy(alpha = 0.7f))
+                        Text(currentUser!!.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text("@${currentUser!!.matricNumber}", fontSize = 16.sp, color = Color.Black.copy(alpha = 0.7f))
                     }
                 }
             }
 
             item { Spacer(Modifier.height(20.dp)) }
 
-            item {
+            /*item {
                 Button(
-                    onClick = onEditProfile, // navigate ke edit
+                    onClick = { onEditProfile(currentUser!!) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = CBlue)
                 ) {
                     Text("Edit Profile", color = Color.White)
                 }
-            }
+            }*/
 
             item { Spacer(Modifier.height(20.dp)) }
 
@@ -160,9 +192,9 @@ fun CustomerProfileScreen(
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Contact Information", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
                         Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Email", value = currentUser.email)
+                        ReadOnlyField(label = "Email", value = currentUser!!.email)
                         Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Phone Number", value = currentUser.phoneNumber)
+                        ReadOnlyField(label = "Phone Number", value = currentUser!!.phoneNumber)
                     }
                 }
             }

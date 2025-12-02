@@ -22,10 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.login.LoginScreen
+import com.example.goukm.ui.userprofile.BottomBarCust
 import com.example.goukm.ui.userprofile.CBlue
 
 @Composable
-fun BottomBar(navController: NavHostController) {
+fun BottomNavBarCust(navController: NavHostController) {
     NavigationBar(
         containerColor = CBlue
     ) {
@@ -76,7 +77,7 @@ fun BottomBar(navController: NavHostController) {
 @Composable
 fun CustomerDashboard(navController: NavHostController) {
     Scaffold(
-        bottomBar = { BottomBar(navController) }
+        bottomBar = { BottomBarCust(navController) }
     ) { paddingValues ->
         Column(
             modifier = Modifier

@@ -97,9 +97,22 @@ fun EditProfileScreen(
             // Save Button
             Button(
                 onClick = {
-                    onSave(user.copy(name = name, matricNumber = matricNumber, profilePictureUrl = profilePictureUrl, phoneNumber = phoneNumber, email = email))
-                    // kembali ke screen sebelum ini
-                    navController?.popBackStack()
+                    val updatedUser = user.copy(
+                        name = name,
+                        matricNumber = matricNumber,
+                        profilePictureUrl = profilePictureUrl,
+                        phoneNumber = phoneNumber,
+                        email = email
+                    )
+
+                    // Update Firestore
+                    /*LaunchedEffect(Unit) {
+                        val success = UserProfileRepository.updateUserProfile(updatedUser)
+                        if (success) {
+                            onSave(updatedUser)
+                            navController.popBackStack()
+                        }
+                    }*/
                           },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = CBlue)
