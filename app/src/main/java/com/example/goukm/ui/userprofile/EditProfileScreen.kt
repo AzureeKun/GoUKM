@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,8 @@ fun EditProfileScreen(
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         profilePictureUrl = uri?.toString()
     }
+    val scope = rememberCoroutineScope()
+
 
     Scaffold(
         topBar = {
@@ -106,13 +109,13 @@ fun EditProfileScreen(
                     )
 
                     // Update Firestore
-                    /*LaunchedEffect(Unit) {
+                    scope.launch {
                         val success = UserProfileRepository.updateUserProfile(updatedUser)
                         if (success) {
                             onSave(updatedUser)
                             navController.popBackStack()
                         }
-                    }*/
+                    }
                           },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = CBlue)
