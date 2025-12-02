@@ -190,8 +190,21 @@ fun RegisterScreen(
                                 .get()
                                 .await()
 
+                            val storedPhoneNum = doc.getString("phoneNumber")
                             val role = doc.getString("role") ?: "customer"
-                            onLoginSuccess(role)
+
+                            if (storedPhoneNum == phoneNum) {
+                                // 3a. SEMUA BETUL: Nombor telefon, emel, dan password sepadan.
+                                authViewModel.handleLoginSuccess(uid) // Save token/session
+                                onLoginSuccess(role) // Navigate based on role
+
+                            } else {
+                                // 3b. RALAT: Password betul, tetapi Nombor Telefon yang dimasukkan salah.
+                                // Anda perlu sediakan fungsi/Toast untuk tunjukkan mesej ralat ini
+                                println("Error: Phone number does not match registered record.")
+                                // JANGAN lakukan navigasi
+                            }
+
                         } else {
                             println("Login error: ${res.exceptionOrNull()?.message}")
                         }
