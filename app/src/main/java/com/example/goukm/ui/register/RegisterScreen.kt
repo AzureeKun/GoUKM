@@ -217,11 +217,3 @@ fun RegisterScreen(
         Spacer(Modifier.height(80.dp))
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-fun RegisterPreview() {
-    Scaffold { paddingValues ->
-        RegisterScreen(modifier = Modifier.padding(paddingValues))
-    }
-}

@@ -24,6 +24,8 @@ fun AppNavGraph(navController: NavHostController) {
         mutableStateOf(UserProfile("Siti Farhana", "A203399", email = "a203399@siswa.ukm.edu.my", phoneNumber = "019-8501780"))
     }
 
+    var selectedDriverNavIndex by remember { mutableStateOf(0) }
+
     NavHost(
         navController = navController,
         startDestination = NavRoutes.CustomerProfile.route
@@ -68,14 +70,26 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable(NavRoutes.DriverDashboard.route) {
-            DriverDashboard(navController)
+            DriverDashboard(
+                navController = navController,
+                // 🔑 PROVIDE THE REQUIRED PARAMETER IMPLEMENTATIONS
+                onSkip = { request -> println("Driver skipped ride: ${request.customerName}") },
+                onOffer = { request -> println("Driver offered ride: ${request.customerName}") },
+                selectedNavIndex = selectedDriverNavIndex,
+                onNavSelected = { index -> selectedDriverNavIndex = index }
+            )
         }
 
         composable(NavRoutes.CustomerProfile.route) {
             CustomerProfileScreen(
-                user = currentUser,
+                // The 'user' parameter is REMOVED, as CustomerProfileScreen now fetches data internally
                 navController = navController,
-                onEditProfile = { navController.navigate("edit_profile") }
+                onEditProfile = { navController.navigate(NavRoutes.EditProfile.route) }, // Use NavRoutes
+                onLogout = { // 🔑 REQUIRED FOR LOGOUT
+                    // Assume AuthViewModel is injected here (as per previous steps)
+                    // authViewModel.logout()
+                    // navController.navigate(NavRoutes.Login.route) { ... }
+                }
             )
         }
 
