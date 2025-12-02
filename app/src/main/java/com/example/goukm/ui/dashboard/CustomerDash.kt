@@ -21,7 +21,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.goukm.navigation.NavRoutes
-import com.example.goukm.ui.login.LoginScreen
 import com.example.goukm.ui.userprofile.CBlue
 
 @Composable
