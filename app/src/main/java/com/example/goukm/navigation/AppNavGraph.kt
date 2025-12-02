@@ -5,6 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.goukm.R
+import com.example.goukm.booking.RideRequestModel
 import com.example.goukm.ui.register.*
 import com.example.goukm.ui.dashboard.CustomerDashboard
 import com.example.goukm.ui.dashboard.DriverDashboard
@@ -28,6 +30,7 @@ fun AppNavGraph(navController: NavHostController) {
         navController = navController,
         startDestination = NavRoutes.Register.route
     ) {
+
 
         composable(NavRoutes.Register.route) {
             RegisterScreen(
@@ -68,12 +71,23 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable(NavRoutes.DriverDashboard.route) {
-            DriverDashboard(navController)
+
+            DriverDashboard(
+                navController,
+                /*isOnline = true,
+                rideRequests = dummyRequests,
+                onToggleStatus = { },*/
+                onSkip = { },
+                onOffer = { },
+                selectedNavIndex = 0,
+                onNavSelected = { }
+            )
         }
+
 
         composable(NavRoutes.CustomerProfile.route) {
             CustomerProfileScreen(
-                user = currentUser,
+                //user = currentUser,
                 navController = navController,
                 onEditProfile = { navController.navigate("edit_profile") }
             )

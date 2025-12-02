@@ -43,6 +43,7 @@ object RegistrationRepository {
             val uid = user.user!!.uid
 
             val matricNumber = email.substringBefore("@siswa.ukm.edu.my")
+            val isDriver = role == "driver"
 
             val userData = hashMapOf(
                 "uid" to uid,
@@ -50,7 +51,8 @@ object RegistrationRepository {
                 "name" to name,
                 "phoneNumber" to phone,
                 "matricNumber" to matricNumber,
-                "role" to role,
+                "role_customer" to true,      // semua user adalah customer
+                "role_driver" to isDriver,    // hanya driver dapat TRUE
                 "createdAt" to com.google.firebase.Timestamp.now()
             )
 
