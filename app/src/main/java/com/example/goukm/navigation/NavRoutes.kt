@@ -1,6 +1,7 @@
 package com.example.goukm.navigation
 
 sealed class NavRoutes(val route: String) {
+    object Login : NavRoutes("login")
     object Register : NavRoutes("register")
     object NamePage : NavRoutes("name_page")
     object RegisterOption : NavRoutes("register_option")

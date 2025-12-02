@@ -5,8 +5,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.goukm.R
-import com.example.goukm.booking.RideRequestModel
 import com.example.goukm.ui.register.*
 import com.example.goukm.ui.dashboard.CustomerDashboard
 import com.example.goukm.ui.dashboard.DriverDashboard
@@ -26,11 +24,12 @@ fun AppNavGraph(navController: NavHostController) {
         mutableStateOf(UserProfile("Siti Farhana", "A203399", email = "a203399@siswa.ukm.edu.my", phoneNumber = "019-8501780"))
     }
 
+    var selectedDriverNavIndex by remember { mutableStateOf(0) }
+
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.Register.route
+        startDestination = NavRoutes.CustomerProfile.route
     ) {
-
 
         composable(NavRoutes.Register.route) {
             RegisterScreen(
@@ -71,25 +70,26 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable(NavRoutes.DriverDashboard.route) {
-
             DriverDashboard(
-                navController,
-                /*isOnline = true,
-                rideRequests = dummyRequests,
-                onToggleStatus = { },*/
-                onSkip = { },
-                onOffer = { },
-                selectedNavIndex = 0,
-                onNavSelected = { }
+                navController = navController,
+                // 🔑 PROVIDE THE REQUIRED PARAMETER IMPLEMENTATIONS
+                onSkip = { request -> println("Driver skipped ride: ${request.customerName}") },
+                onOffer = { request -> println("Driver offered ride: ${request.customerName}") },
+                selectedNavIndex = selectedDriverNavIndex,
+                onNavSelected = { index -> selectedDriverNavIndex = index }
             )
         }
 
-
         composable(NavRoutes.CustomerProfile.route) {
             CustomerProfileScreen(
-                //user = currentUser,
+                // The 'user' parameter is REMOVED, as CustomerProfileScreen now fetches data internally
                 navController = navController,
-                onEditProfile = { navController.navigate("edit_profile") }
+                onEditProfile = { navController.navigate(NavRoutes.EditProfile.route) }, // Use NavRoutes
+                onLogout = { // 🔑 REQUIRED FOR LOGOUT
+                    // Assume AuthViewModel is injected here (as per previous steps)
+                    // authViewModel.logout()
+                    // navController.navigate(NavRoutes.Login.route) { ... }
+                }
             )
         }
 

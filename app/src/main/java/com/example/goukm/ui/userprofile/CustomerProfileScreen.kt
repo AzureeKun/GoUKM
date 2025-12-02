@@ -82,7 +82,8 @@ fun BottomBarCust(navController: NavHostController) {
 @Composable
 fun CustomerProfileScreen(
     navController: NavHostController,
-    onEditProfile: () -> Unit
+    onEditProfile: () -> Unit,
+    onLogout: () -> Unit
 ) {
     var currentUser by remember { mutableStateOf<UserProfile?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -226,7 +227,7 @@ fun CustomerProfileScreen(
 
             item {
                 Button(
-                    onClick = { /* TODO: Logout */ },
+                    onClick = onLogout,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                     modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
