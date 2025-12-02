@@ -21,7 +21,7 @@ import androidx.compose.runtime.setValue
 fun AppNavGraph(navController: NavHostController) {
 
     var currentUser by remember {
-        mutableStateOf(UserProfile("Ahmad Bin Abu", "A18CS0123"))
+        mutableStateOf(UserProfile("Siti Farhana", "A203399", email = "a203399@siswa.ukm.edu.my", phoneNumber = "019-8501780"))
     }
 
     NavHost(

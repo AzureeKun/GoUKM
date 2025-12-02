@@ -29,6 +29,8 @@ fun EditProfileScreen(
     var name by remember { mutableStateOf(user.name) }
     var matricNumber by remember { mutableStateOf(user.matricNumber) }
     var profilePictureUrl by remember { mutableStateOf(user.profilePictureUrl) }
+    var email by remember { mutableStateOf(user.email) }
+    var phoneNumber by remember { mutableStateOf(user.phoneNumber)}
 
     // Image Picker
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -79,12 +81,22 @@ fun EditProfileScreen(
             // Matric Number Field
             OutlinedTextField(value = matricNumber, onValueChange = { matricNumber = it }, label = { Text("Matric Number") }, modifier = Modifier.fillMaxWidth())
 
+            Spacer(Modifier.height(12.dp))
+
+            // email Field
+            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+
+            Spacer(Modifier.height(12.dp))
+
+            // Phone Number Field
+            OutlinedTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = { Text("Phone Number") }, modifier = Modifier.fillMaxWidth())
+
             Spacer(Modifier.height(24.dp))
 
             // Save Button
             Button(
                 onClick = {
-                    onSave(user.copy(name = name, matricNumber = matricNumber, profilePictureUrl = profilePictureUrl))
+                    onSave(user.copy(name = name, matricNumber = matricNumber, profilePictureUrl = profilePictureUrl, phoneNumber = phoneNumber, email = email))
                     // kembali ke screen sebelum ini
                     navController?.popBackStack()
                           },

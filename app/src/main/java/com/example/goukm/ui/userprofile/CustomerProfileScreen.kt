@@ -27,7 +27,9 @@ val CBlue = Color(0xFF6b87c0)
 data class UserProfile(
     val name: String,
     val matricNumber: String,
-    val profilePictureUrl: String? = null
+    val profilePictureUrl: String? = null,
+    val email: String,
+    val phoneNumber: String
 )
 
 @Composable
@@ -142,9 +144,9 @@ fun CustomerProfileScreen(
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Contact Information", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
                         Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Email", value = "student@siswa.ukm.edu.my")
+                        ReadOnlyField(label = "Email", value = currentUser.email)
                         Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Phone Number", value = "012-3456789")
+                        ReadOnlyField(label = "Phone Number", value = currentUser.phoneNumber)
                     }
                 }
             }
