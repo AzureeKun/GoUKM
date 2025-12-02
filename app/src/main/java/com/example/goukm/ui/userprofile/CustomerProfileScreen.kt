@@ -83,7 +83,8 @@ fun BottomBar(navController: NavHostController) {
 fun CustomerProfileScreen(
     user: UserProfile,
     navController: NavHostController,
-    onEditProfile: () -> Unit
+    onEditProfile: () -> Unit,
+    onLogout: () -> Unit
 ) {
     // gunakan user sebagai state supaya changes boleh reflect
     var currentUser by remember { mutableStateOf(user) }
@@ -194,7 +195,7 @@ fun CustomerProfileScreen(
 
             item {
                 Button(
-                    onClick = { /* TODO: Logout */ },
+                    onClick = onLogout,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                     modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {

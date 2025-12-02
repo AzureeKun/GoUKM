@@ -48,6 +48,10 @@ import kotlinx.coroutines.launch
 import com.example.goukm.R
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.goukm.ui.register.AuthViewModel
+import com.example.goukm.ui.register.AuthViewModelFactory
 
 val CBlue = Color(0xFF6b87c0)
 val CRed = Color(0xFFE53935)
@@ -63,7 +67,14 @@ val PoppinsLight = FontFamily(
 )
 
 @Composable
-fun RegisterScreen(modifier: Modifier,onNavigateToName: () -> Unit = {}, onLoginSuccess: (String) -> Unit = {}) {
+fun RegisterScreen(
+    modifier: Modifier,
+    onNavigateToName: () -> Unit = {},
+    onLoginSuccess: (String) -> Unit = {},
+    authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(LocalContext.current)
+    )
+    ) {
 
     var email by remember { mutableStateOf("") }
     var phoneNum by remember { mutableStateOf("") }
@@ -100,7 +111,7 @@ fun RegisterScreen(modifier: Modifier,onNavigateToName: () -> Unit = {}, onLogin
             text = "Enter your detail",
             color = Color.Black,
             fontSize = 12.sp,
-            fontFamily = com.example.goukm.ui.login.CanvaSansRegular
+            fontFamily = CanvaSansRegular
         )
 
         Spacer(Modifier.height(32.dp))
@@ -130,7 +141,7 @@ fun RegisterScreen(modifier: Modifier,onNavigateToName: () -> Unit = {}, onLogin
         TextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("password", fontFamily = com.example.goukm.ui.login.PoppinsLight) },
+            label = { Text("password", fontFamily = PoppinsLight) },
             singleLine = true,
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             shape = RoundedCornerShape(16.dp),
@@ -172,6 +183,7 @@ fun RegisterScreen(modifier: Modifier,onNavigateToName: () -> Unit = {}, onLogin
                         if (res.isSuccess) {
                             // GET FIRESTORE ROLE
                             val uid = res.getOrNull()!!
+                            authViewModel.handleLoginSuccess(uid)
                             val doc = FirebaseFirestore.getInstance()
                                 .collection("users")
                                 .document(uid)
