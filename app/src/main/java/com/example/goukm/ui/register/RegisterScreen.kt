@@ -125,6 +125,7 @@ fun RegisterScreen(
                     color = Color.DarkGray
                 )
             },
+
             confirmButton = {
                 Row(
                     modifier = Modifier
@@ -132,7 +133,6 @@ fun RegisterScreen(
                         .padding(bottom = 8.dp, end = 8.dp),
                     horizontalArrangement = Arrangement.End
                 ){
-
 
                     TextButton(
                         onClick = {showPhoneMismatchDialog = false},
