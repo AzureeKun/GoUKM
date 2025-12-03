@@ -31,7 +31,10 @@ data class UserProfile(
     val matricNumber: String,
     val profilePictureUrl: String? = null,
     val email: String,
-    val phoneNumber: String
+    val phoneNumber: String,
+
+    val role_customer: Boolean = true,
+    val role_driver: Boolean = false
 )
 
 @Composable
@@ -84,7 +87,8 @@ fun CustomerProfileScreen(
     navController: NavHostController,
     user: UserProfile?,
     onEditProfile: (UserProfile) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onChangeMode: (String) -> Unit
 
 ) {
     if (user == null) {
@@ -96,6 +100,8 @@ fun CustomerProfileScreen(
         }
         return
     }
+
+    val isDriver = user.role_driver
 
     Scaffold(
         topBar = {
@@ -151,6 +157,29 @@ fun CustomerProfileScreen(
 
             item { Spacer(Modifier.height(20.dp)) }
 
+            if (isDriver) {
+                item { Spacer(Modifier.height(20.dp)) }
+
+                item {
+                    Button(
+                        onClick = {
+                            navController.navigate("driver_dashboard") // ✅ DIRECT NAVIGATION
+                            // OR use: onChangeMode("driver") if your app uses a central handler
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                    ) {
+                        Text(
+                            "Change to Driver Mode",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(20.dp)) }
+
             item {
                 Button(
                     onClick = { onEditProfile(user!!) },
@@ -180,21 +209,41 @@ fun CustomerProfileScreen(
             item { Spacer(Modifier.height(20.dp)) }
 
             item {
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CBlue)) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                if (!isDriver) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = CBlue)
                     ) {
-                        Text("Start Working", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Make side income by becoming our driver!", fontSize = 12.sp, color = Color.Black)
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = { navController.navigate("driver_application") },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("Apply Here", color = Color.Black)
+                            Text(
+                                "Start Working",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.Black
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Text(
+                                "Make side income by becoming our driver!",
+                                fontSize = 12.sp,
+                                color = Color.Black
+                            )
+
+                            Spacer(Modifier.height(16.dp))
+
+                            Button(
+                                onClick = {
+                                    navController.navigate("driver_application") // ✅ ONLY AVAILABLE TO NON-DRIVERS
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                                modifier = Modifier.fillMaxWidth().height(48.dp)
+                            ) {
+                                Text("Apply Here", color = Color.Black)
+                            }
                         }
                     }
                 }

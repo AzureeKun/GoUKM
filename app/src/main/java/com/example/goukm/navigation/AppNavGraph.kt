@@ -158,6 +158,14 @@
                         navController.navigate(NavRoutes.Register.route) {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
+                    }, // <-- TUKAR } KEPADA },
+                    onChangeMode = { role ->
+                        if (role == "driver") {
+                            // Navigasi ke papan pemuka pemandu
+                            navController.navigate(NavRoutes.DriverDashboard.route) {
+                                popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
+                            }
+                        }
                     }
                 )
             }
