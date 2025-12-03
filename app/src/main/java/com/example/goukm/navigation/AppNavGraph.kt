@@ -74,13 +74,23 @@ fun AppNavGraph(
             RegisterScreen(
                 authViewModel = authViewModel,
                 modifier = Modifier,
+                navController = navController,
                 onNavigateToName = {
                     navController.navigate(NavRoutes.NamePage.route)
                 },
                 onLoginSuccess = { role ->
-                    // role here is "customer" or "driver"
                     scope.launch {
                         authViewModel.fetchUserProfile()
+                        // Navigate to dashboard after login
+                        if (role == "customer") {
+                            navController.navigate(NavRoutes.CustomerDashboard.route) {
+                                popUpTo(NavRoutes.Register.route) { inclusive = true }
+                            }
+                        } else if (role == "driver") {
+                            navController.navigate(NavRoutes.DriverDashboard.route) {
+                                popUpTo(NavRoutes.Register.route) { inclusive = true }
+                            }
+                        }
                     }
                 }
             )
@@ -88,16 +98,12 @@ fun AppNavGraph(
 
         // NAME PAGE
         composable(NavRoutes.NamePage.route) {
-            NamePage(onNavigateToRolePage = { navController.navigate(NavRoutes.RegisterOption.route) })
+            NamePage(navController = navController)
         }
 
         // REGISTER OPTION
         composable(NavRoutes.RegisterOption.route) {
-            RegisterOption(onRegisterSuccess = { role ->
-                scope.launch {
-                    authViewModel.fetchUserProfile()
-                }
-            })
+            RegisterOption(navController = navController)
         }
 
         // CUSTOMER DASHBOARD

@@ -30,6 +30,16 @@ object RegistrationRepository {
         }
     }
 
+    suspend fun loginUserWithoutBroker(email: String, password: String): Result<String> {
+        return try {
+            val res = auth.signInWithEmailAndPassword(email, password).await()
+            val uid = res.user!!.uid
+            Result.success(uid)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // STEP 3: REGISTER NEW USER AFTER ROLE SELECTED
     suspend fun createUserWithRole(
         email: String,
@@ -64,4 +74,5 @@ object RegistrationRepository {
             Result.failure(e)
         }
     }
+
 }

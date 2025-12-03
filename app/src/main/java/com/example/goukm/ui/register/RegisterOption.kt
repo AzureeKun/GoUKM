@@ -28,6 +28,7 @@
     import androidx.compose.ui.tooling.preview.Preview
     import androidx.compose.ui.unit.dp
     import androidx.compose.ui.unit.sp
+    import androidx.navigation.NavController
     import com.example.goukm.R
     import kotlinx.coroutines.launch
 
@@ -38,7 +39,10 @@
     // MAIN UI SCREEN
     // ---------------------------------------------
     @Composable
-    fun RegisterOption(modifier: Modifier = Modifier, onRegisterSuccess: (String) -> Unit = {}) {
+    fun RegisterOption(
+        modifier: Modifier = Modifier,
+        navController: NavController
+    ) {
         val scope = rememberCoroutineScope()
 
         Column(
@@ -81,18 +85,26 @@
 
             // Passenger Button
             Button(
-                onClick = { scope.launch {
-                    val res = RegistrationRepository.createUserWithRole(
-                        RegistrationState.email,
-                        RegistrationState.password,
-                        RegistrationState.phoneNumber,
-                        RegistrationState.name,
-                        "customer"
-                    )
+                onClick = {
+                    scope.launch {
+                        val res = RegistrationRepository.createUserWithRole(
+                            RegistrationState.email,
+                            RegistrationState.password,
+                            RegistrationState.phoneNumber,
+                            RegistrationState.name,
+                            "customer"
+                        )
 
-                    if (res.isSuccess) onRegisterSuccess("customer")
-                    else println("Error: ${res.exceptionOrNull()?.message}")
-                } },
+                        if (res.isSuccess) {
+                            // ✅ Navigate to Customer Dashboard
+                            navController.navigate("customer_dashboard") {
+                                popUpTo("register_screen") { inclusive = true } // remove registration screens from back stack
+                            }
+                        } else {
+                            println("Error: ${res.exceptionOrNull()?.message}")
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -113,18 +125,26 @@
 
             // Driver Button
             Button(
-                onClick = { scope.launch {
-                    val res = RegistrationRepository.createUserWithRole(
-                        RegistrationState.email,
-                        RegistrationState.password,
-                        RegistrationState.phoneNumber,
-                        RegistrationState.name,
-                        "driver"
-                    )
+                onClick = {
+                    scope.launch {
+                        val res = RegistrationRepository.createUserWithRole(
+                            RegistrationState.email,
+                            RegistrationState.password,
+                            RegistrationState.phoneNumber,
+                            RegistrationState.name,
+                            "driver"
+                        )
 
-                    if (res.isSuccess) onRegisterSuccess("driver")
-                    else println("Error: ${res.exceptionOrNull()?.message}")
-                } },
+                        if (res.isSuccess) {
+                            // ✅ Navigate to Customer Dashboard (or Driver Dashboard if needed)
+                            navController.navigate("customer_dashboard") {
+                                popUpTo("register_screen") { inclusive = true }
+                            }
+                        } else {
+                            println("Error: ${res.exceptionOrNull()?.message}")
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -142,16 +162,5 @@
             }
 
             Spacer(Modifier.height(80.dp))
-        }
-    }
-
-    // ---------------------------------------------
-    // PREVIEW
-    // ---------------------------------------------
-    @Preview(showBackground = true)
-    @Composable
-    fun RegisterOptionPreview() {
-        Scaffold { paddingValues ->
-            RegisterOption(modifier = Modifier.padding(paddingValues))
         }
     }

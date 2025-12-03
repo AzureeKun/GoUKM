@@ -55,12 +55,14 @@ class AuthViewModel(
     }
 
 
-    fun fetchUserProfile() {
+    fun fetchUserProfile(defaultToCustomer: Boolean = false) {
         viewModelScope.launch {
             val user = UserProfileRepository.getUserProfile()
             _currentUser.value = user
             user?.let {
-                _activeRole.value = sessionManager.fetchActiveRole() ?: if (it.role_driver) "driver" else "customer"
+                _activeRole.value = if (defaultToCustomer) "customer"
+                else if (it.role_driver) "driver"
+                else "customer"
                 sessionManager.saveActiveRole(_activeRole.value)
             }
         }

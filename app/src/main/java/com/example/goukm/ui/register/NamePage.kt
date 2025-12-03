@@ -32,12 +32,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.goukm.R
 
 @Composable
-fun NamePage(modifier: Modifier = Modifier, onNavigateToRolePage: ()-> Unit = {}) {
+fun NamePage(
+    modifier: Modifier = Modifier,
+    navController: NavController
+) {
     var name by remember { mutableStateOf("") }
-
 
     Column(
         modifier = modifier
@@ -92,8 +95,8 @@ fun NamePage(modifier: Modifier = Modifier, onNavigateToRolePage: ()-> Unit = {}
         Button(
             onClick = {
                 RegistrationState.name = name
-                println("Navigate → RegisterOption")
-                onNavigateToRolePage()
+                // ✅ Navigate to RegisterOption
+                navController.navigate("register_option")
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,18 +114,6 @@ fun NamePage(modifier: Modifier = Modifier, onNavigateToRolePage: ()-> Unit = {}
             )
         }
 
-
         Spacer(Modifier.height(80.dp))
-    }
-}
-
-// ---------------------------------------------
-// PREVIEW
-// ---------------------------------------------
-@Preview(showBackground = true)
-@Composable
-fun NamePagePreview() {
-    Scaffold { paddingValues ->
-        NamePage(modifier = Modifier.padding(paddingValues))
     }
 }

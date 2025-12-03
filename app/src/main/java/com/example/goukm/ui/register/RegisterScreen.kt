@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.Credential
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.example.goukm.R
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -40,6 +41,7 @@ fun RegisterScreen(
     modifier: Modifier = Modifier,
     onNavigateToName: () -> Unit = {},
     onLoginSuccess: (String) -> Unit = {},
+    navController: NavController,
     authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(LocalContext.current))
 ) {
     var email by remember { mutableStateOf("") }
@@ -148,7 +150,7 @@ fun RegisterScreen(
                     Button(
                         onClick = {
                             showPhoneMismatchDialog = false
-                            onNavigateToName()
+                            navController.navigate("name")
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
@@ -267,21 +269,17 @@ fun RegisterScreen(
 
                 scope.launch {
                     try {
-                        // 🔍 CHECK IF PHONE NUMBER EXISTS IN ANY ACCOUNT
+                        // 🔹 Check if phone number exists
                         val phoneQuery = FirebaseFirestore.getInstance()
                             .collection("users")
                             .whereEqualTo("phoneNumber", phoneNum.trim())
                             .get()
                             .await()
 
-// Phone exists but email not same = suspicious = reject
                         if (!phoneQuery.isEmpty) {
                             val phoneOwnerEmail = phoneQuery.documents.first().getString("email") ?: ""
-
                             if (phoneOwnerEmail.lowercase() != email.lowercase()) {
-                                // Show dialog instead of showing error text
                                 showPhoneMismatchDialog = true
-
                                 isLoading = false
                                 return@launch
                             }
@@ -290,12 +288,16 @@ fun RegisterScreen(
                         val exists = RegistrationRepository.checkEmailExists(email)
 
                         if (exists) {
-                            // LOGIN USER
-                            val res = RegistrationRepository.loginUser(email, password)
+                            val res = try {
+                                RegistrationRepository.loginUser(email, password)
+                            } catch (se: SecurityException) {
+                                // 🔹 Fallback for debug / broker issue
+                                println("⚠️ SecurityException caught: ${se.message}")
+                                RegistrationRepository.loginUserWithoutBroker(email, password)
+                            }
+
                             if (res.isSuccess) {
                                 val uid = res.getOrNull()!!
-
-                                // 🔹 Check phone number BEFORE login success
                                 val doc = FirebaseFirestore.getInstance()
                                     .collection("users")
                                     .document(uid)
@@ -309,13 +311,13 @@ fun RegisterScreen(
                                     return@launch
                                 }
 
-                                // 🔹 Only now mark login success
                                 authViewModel.handleLoginSuccess(uid)
-                                val role = doc.getString("role") ?: "customer"
-                                onLoginSuccess(role)
+                                authViewModel.fetchUserProfile(defaultToCustomer = true)
+                                onLoginSuccess("customer")
                             } else {
                                 passwordError = "Wrong password. Please re-enter your password."
                             }
+
                         } else {
                             // NEW USER -> NAVIGATE TO NAME REGISTRATION
                             onNavigateToName()
