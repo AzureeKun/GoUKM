@@ -133,6 +133,7 @@ fun RegisterScreen(
                     horizontalArrangement = Arrangement.End
                 ){
 
+
                     TextButton(
                         onClick = {showPhoneMismatchDialog = false},
                         modifier = Modifier.weight(1f)
