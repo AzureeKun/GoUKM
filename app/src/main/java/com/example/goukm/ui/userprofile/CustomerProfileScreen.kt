@@ -213,7 +213,8 @@ fun CustomerProfileScreen(
             item { Spacer(Modifier.height(20.dp)) }
 
             item {
-                if (!isDriver) {
+                // Show "Start Working" only if user is not currently a driver AND hasn't already applied
+                if (!isDriver && !user.role_driver) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = CBlue)
