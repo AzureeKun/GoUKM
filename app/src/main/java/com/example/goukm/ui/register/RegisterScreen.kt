@@ -165,6 +165,8 @@ fun RegisterScreen(
                     }
                 }
             },
+
+
             dismissButton = {}
         )
     }
