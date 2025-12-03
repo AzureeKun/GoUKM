@@ -82,18 +82,19 @@ fun BottomBarCust(navController: NavHostController) {
 @Composable
 fun CustomerProfileScreen(
     navController: NavHostController,
+    user: UserProfile?,
     onEditProfile: (UserProfile) -> Unit,
     onLogout: () -> Unit
 
 ) {
-    var currentUser by remember { mutableStateOf<UserProfile?>(null) }
-    var loading by remember { mutableStateOf(true) }
-
-    // FETCH USER DATA FROM FIRESTORE
-    LaunchedEffect(Unit) {
-        val data = UserProfileRepository.getUserProfile()
-        currentUser = data
-        loading = false
+    if (user == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     Scaffold(
@@ -105,31 +106,6 @@ fun CustomerProfileScreen(
         },
         bottomBar = { BottomBarCust(navController) }
     ) { paddingValues ->
-        // LOADING STATE
-        if (loading) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-            return@Scaffold
-        }
-
-        // ERROR / NULL STATE
-        if (currentUser == null) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Failed to load profile")
-            }
-            return@Scaffold
-        }
 
         LazyColumn(
             modifier = Modifier
@@ -143,7 +119,7 @@ fun CustomerProfileScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
                     // Image
-                    currentUser!!.profilePictureUrl?.let { url ->
+                    user.profilePictureUrl?.let { url ->
                         Image(
                             painter = rememberAsyncImagePainter(url),
                             contentDescription = "Profile Picture",
@@ -167,8 +143,8 @@ fun CustomerProfileScreen(
 
                     Spacer(Modifier.width(20.dp))
                     Column {
-                        Text(currentUser!!.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Text("@${currentUser!!.matricNumber}", fontSize = 16.sp, color = Color.Black.copy(alpha = 0.7f))
+                        Text(user.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text("@${user.matricNumber}", fontSize = 16.sp, color = Color.Black.copy(alpha = 0.7f))
                     }
                 }
             }
@@ -177,7 +153,7 @@ fun CustomerProfileScreen(
 
             item {
                 Button(
-                    onClick = { onEditProfile(currentUser!!) },
+                    onClick = { onEditProfile(user!!) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = CBlue)
                 ) {
@@ -194,9 +170,9 @@ fun CustomerProfileScreen(
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Contact Information", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
                         Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Email", value = currentUser!!.email)
+                        ReadOnlyField(label = "Email", value = user.email)
                         Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Phone Number", value = currentUser!!.phoneNumber)
+                        ReadOnlyField(label = "Phone Number", value = user.phoneNumber)
                     }
                 }
             }

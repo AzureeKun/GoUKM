@@ -2,6 +2,8 @@ package com.example.goukm.ui.register
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.goukm.ui.userprofile.UserProfile
+import com.example.goukm.ui.userprofile.UserProfileRepository
 import com.example.goukm.util.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow // 👈 NEW
 import kotlinx.coroutines.flow.StateFlow // 👈 NEW
@@ -23,6 +25,9 @@ class AuthViewModel(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState
 
+    private val _currentUser = MutableStateFlow<UserProfile?>(null)
+    val currentUser: StateFlow<UserProfile?> = _currentUser
+
     // 2. Initializer to check session status on startup
     init {
         checkSession()
@@ -33,11 +38,34 @@ class AuthViewModel(
         viewModelScope.launch {
             if (sessionManager.fetchAuthToken() != null) {
                 _authState.value = AuthState.LoggedIn
+                fetchUserProfile()
             } else {
                 _authState.value = AuthState.LoggedOut
             }
         }
     }
+
+    fun fetchUserProfile() {
+        viewModelScope.launch {
+            val user = UserProfileRepository.getUserProfile()
+            _currentUser.value = user
+        }
+    }
+
+    fun updateUserProfile(updatedUser: UserProfile) {
+        viewModelScope.launch {
+            val success = UserProfileRepository.updateUserProfile(updatedUser)
+            if (success) {
+                _currentUser.value = updatedUser
+            }
+        }
+    }
+
+    fun clearUser() {
+        _currentUser.value = null
+    }
+
+
 
     // Renamed from handleLoginSuccess, used by LoginScreen
     fun handleLogin(
@@ -66,6 +94,7 @@ class AuthViewModel(
 
             // 2. Update the state to LoggedIn
             _authState.value = AuthState.LoggedIn
+            fetchUserProfile()
         }
     }
 
@@ -73,6 +102,7 @@ class AuthViewModel(
     fun logout() {
         viewModelScope.launch {
             sessionManager.clearSession()
+            clearUser()
             _authState.value = AuthState.LoggedOut // 👈 Update State
         }
     }

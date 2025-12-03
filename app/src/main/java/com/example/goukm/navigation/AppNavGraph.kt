@@ -135,15 +135,17 @@
             }
 
             composable(NavRoutes.CustomerProfile.route) {
+                val currentUser by authViewModel.currentUser.collectAsState()
                 CustomerProfileScreen(
                     navController = navController,
+                    user = currentUser,
                     onEditProfile = { navController.navigate(NavRoutes.EditProfile.route) },
                     onLogout = { // COMPLETE LOGOUT LOGIC
                         // 1. Clear the authentication session
                         authViewModel.logout()
 
-                        // 2. Clear the local profile data
-                        currentUser = null
+                        // 2. Clear USER profile data
+                        authViewModel.clearUser()
 
                         // 3. Navigate back to the Register screen and clear all history
                         navController.navigate(NavRoutes.Register.route) {
@@ -154,14 +156,18 @@
             }
 
             composable(NavRoutes.EditProfile.route) {
+                val currentUser by authViewModel.currentUser.collectAsState()
                 // Check if user data is available before navigating to the Edit screen
                 currentUser?.let { user ->
                     EditProfileScreen(
                         navController = navController,
                         user = user,
                         onSave = { updatedUser ->
-                            currentUser = updatedUser // Update the state after save
-                            navController.popBackStack()
+                            authViewModel.updateUserProfile(updatedUser) // Update the state after save
+                            navController.navigate(NavRoutes.CustomerProfile.route) {
+                                popUpTo(NavRoutes.CustomerProfile.route) { inclusive = false }
+                            }
+
                         }
                     )
                 } ?: CircularProgressIndicator(
