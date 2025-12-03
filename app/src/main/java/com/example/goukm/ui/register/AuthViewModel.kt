@@ -5,12 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.goukm.ui.userprofile.UserProfile
 import com.example.goukm.ui.userprofile.UserProfileRepository
 import com.example.goukm.util.SessionManager
-import kotlinx.coroutines.flow.MutableStateFlow // 👈 NEW
-import kotlinx.coroutines.flow.StateFlow // 👈 NEW
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 // Define the authentication status
-sealed class AuthState { // 👈 NEW
+sealed class AuthState {
     object Loading : AuthState()
     object LoggedIn : AuthState()
     object LoggedOut : AuthState()
@@ -65,6 +65,29 @@ class AuthViewModel(
         _currentUser.value = null
     }
 
+    // FUNGSI BAHARU: Kemas kini peranan pengguna
+    // Dipanggil dari DriverApplicationFormScreen.kt
+    suspend fun updateUserRole(newRole: String): Boolean {
+        val success = when (newRole) {
+            "driver" -> UserProfileRepository.updateDriverRoleTrue()
+            "customer" -> UserProfileRepository.updateCustomerRoleTrue()
+            else -> false
+        }
+
+        if (success) {
+            _currentUser.value?.let { user ->
+                _currentUser.value = when (newRole) {
+                    "driver" -> user.copy(role_driver = true)   // ✅ CUSTOMER → DRIVER
+                    "customer" -> user.copy(role_customer = true)
+                    else -> user
+                }
+            }
+        } else {
+            println("Error: Failed to update role in Firestore.")
+        }
+
+        return success
+    }
 
 
     // Renamed from handleLoginSuccess, used by LoginScreen

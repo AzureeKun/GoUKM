@@ -22,7 +22,9 @@ object UserProfileRepository {
             matricNumber = doc.getString("matricNumber") ?: "",
             profilePictureUrl = doc.getString("profilePictureUrl"),
             email = doc.getString("email") ?: "",
-            phoneNumber = doc.getString("phoneNumber") ?: ""
+            phoneNumber = doc.getString("phoneNumber") ?: "",
+            role_customer = doc.getBoolean("role_customer") ?: true,
+            role_driver = doc.getBoolean("role_driver") ?: false
         )
     }
 
@@ -35,7 +37,9 @@ object UserProfileRepository {
             "matricNumber" to user.matricNumber,
             "profilePictureUrl" to user.profilePictureUrl,
             "email" to user.email,
-            "phoneNumber" to user.phoneNumber
+            "phoneNumber" to user.phoneNumber,
+            "role_customer" to user.role_customer,
+            "role_driver" to user.role_driver
         )
 
         return try {
@@ -45,4 +49,39 @@ object UserProfileRepository {
             false
         }
     }
+
+    suspend fun updateDriverRoleTrue(): Boolean {
+        return try {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return false
+
+            FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(uid)
+                .update("role_driver", true) // ✅ ONLY UPDATE DRIVER ROLE
+                .await()
+
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun updateCustomerRoleTrue(): Boolean {
+        return try {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return false
+
+            FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(uid)
+                .update("role_customer", true)
+                .await()
+
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
 }

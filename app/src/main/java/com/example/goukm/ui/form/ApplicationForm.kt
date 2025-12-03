@@ -17,6 +17,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.goukm.ui.register.AuthViewModel
+import com.example.goukm.ui.register.AuthViewModelFactory
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 // Assuming CBlue is defined in the package scope, but defining locally for safety
 val CBlue = Color(0xFF6b87c0)
@@ -25,13 +30,17 @@ val CBlue = Color(0xFF6b87c0)
 @Composable
 fun DriverApplicationFormScreen(
     navController: NavHostController,
-    onApplicationSubmit: () -> Unit // Callback to navigate away on success
+    onApplicationSubmit: () -> Unit, // Callback to navigate away on success
+    authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(LocalContext.current)
+    )
 ) {
     // --- State for Form Fields ---
     var licenseNumber by remember { mutableStateOf("") }
     var vehiclePlateNumber by remember { mutableStateOf("") }
     var selectedVehicleType by remember { mutableStateOf("Motorcycle") }
     var acceptedTerms by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val vehicleTypes = listOf("Motorcycle", "Car", "Van")
 
@@ -137,15 +146,21 @@ fun DriverApplicationFormScreen(
                 Button(
                     onClick = {
                         if (acceptedTerms && licenseNumber.isNotBlank() && vehiclePlateNumber.isNotBlank()) {
-                            // Dummy logic: In a real app, this would call a ViewModel/Repository method
-                            // to upload the application data to Firestore.
-                            println("Driver Application Submitted:")
-                            println("License: $licenseNumber")
-                            println("Plate: $vehiclePlateNumber")
-                            println("Vehicle Type: $selectedVehicleType")
+                            scope.launch {
+                                // 1. Kemas kini Peranan Pengguna di Firestore dan AuthViewModel
+                                // Menukar peranan pengguna kepada "driver"
+                                val success = authViewModel.updateUserRole("driver")
 
-                            // Navigate the user to a confirmation screen or back to profile
-                            onApplicationSubmit()
+                                if (success) {
+                                    println("Driver Application Submitted and Role Updated.")
+                                    // 2. Navigasi kembali ke profil / dashboard pemandu
+                                    onApplicationSubmit()
+                                } else {
+                                    println("Error: Failed to update user role in AuthViewModel.")
+                                    // Walaupun gagal, kita masih navigasi keluar dari skrin borang.
+                                    onApplicationSubmit()
+                                }
+                            }
                         }
                     },
                     enabled = acceptedTerms && licenseNumber.isNotBlank() && vehiclePlateNumber.isNotBlank(),
