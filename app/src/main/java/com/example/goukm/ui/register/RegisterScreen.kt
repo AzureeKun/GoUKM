@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.Credential
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goukm.R
 import com.google.firebase.firestore.FirebaseFirestore
@@ -45,6 +46,8 @@ fun RegisterScreen(
     var phoneNum by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var showPhoneMismatchDialog by remember { mutableStateOf(false) }
+
 
     var emailError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
@@ -107,6 +110,63 @@ fun RegisterScreen(
         }
 
         return valid
+    }
+    if (showPhoneMismatchDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhoneMismatchDialog = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White,
+            title = { Text("Phone Number Already Exists") },
+            text = {
+                Text(
+                    "This phone number already exists but is registered under a different email.\n\n" +
+                            "Choose an option below:",
+                    fontSize = 14.sp,
+                    color = Color.DarkGray
+                )
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp, end = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ){
+
+                    TextButton(
+                        onClick = {showPhoneMismatchDialog = false},
+                        modifier = Modifier.weight(1f)
+                    ){
+                        Text(
+                            "Re-enter Details",
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        onClick = {
+                            showPhoneMismatchDialog = false
+                            onNavigateToName()
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CBlue
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ){
+                        Text(
+                            "Register",
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            },
+            dismissButton = {}
+        )
     }
 
     Column(
@@ -206,6 +266,26 @@ fun RegisterScreen(
 
                 scope.launch {
                     try {
+                        // 🔍 CHECK IF PHONE NUMBER EXISTS IN ANY ACCOUNT
+                        val phoneQuery = FirebaseFirestore.getInstance()
+                            .collection("users")
+                            .whereEqualTo("phoneNumber", phoneNum.trim())
+                            .get()
+                            .await()
+
+// Phone exists but email not same = suspicious = reject
+                        if (!phoneQuery.isEmpty) {
+                            val phoneOwnerEmail = phoneQuery.documents.first().getString("email") ?: ""
+
+                            if (phoneOwnerEmail.lowercase() != email.lowercase()) {
+                                // Show dialog instead of showing error text
+                                showPhoneMismatchDialog = true
+
+                                isLoading = false
+                                return@launch
+                            }
+                        }
+
                         val exists = RegistrationRepository.checkEmailExists(email)
 
                         if (exists) {
