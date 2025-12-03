@@ -20,6 +20,7 @@ sealed class AuthState {
 // Renamed from LoginViewModel to AuthViewModel
 class AuthViewModel(
     private val sessionManager: SessionManager
+
 ) : ViewModel() {
 
     // 1. State Flow to hold the current authentication status
@@ -29,6 +30,10 @@ class AuthViewModel(
     private val _currentUser = MutableStateFlow<UserProfile?>(null)
     val currentUser: StateFlow<UserProfile?> = _currentUser
 
+    private val _activeRole = MutableStateFlow("customer") // default customer
+    val activeRole: StateFlow<String> = _activeRole
+
+
     // 2. Initializer to check session status on startup
     init {
         checkSession()
@@ -37,8 +42,11 @@ class AuthViewModel(
     // Check if user session exists
     fun checkSession() {
         viewModelScope.launch {
-            if (sessionManager.fetchAuthToken() != null) {
+            val token = sessionManager.fetchAuthToken()
+            val role = sessionManager.fetchActiveRole() // get last active role
+            if (token != null) {
                 _authState.value = AuthState.LoggedIn
+                _activeRole.value = role ?: "customer" // default customer if missing
                 fetchUserProfile()
             } else {
                 _authState.value = AuthState.LoggedOut
@@ -46,10 +54,15 @@ class AuthViewModel(
         }
     }
 
+
     fun fetchUserProfile() {
         viewModelScope.launch {
             val user = UserProfileRepository.getUserProfile()
             _currentUser.value = user
+            user?.let {
+                _activeRole.value = sessionManager.fetchActiveRole() ?: if (it.role_driver) "driver" else "customer"
+                sessionManager.saveActiveRole(_activeRole.value)
+            }
         }
     }
 
@@ -64,6 +77,7 @@ class AuthViewModel(
 
     fun clearUser() {
         _currentUser.value = null
+        _activeRole.value = "customer"
     }
 
     // FUNGSI BAHARU: Kemas kini peranan pengguna
@@ -77,18 +91,22 @@ class AuthViewModel(
 
         if (success) {
             _currentUser.value?.let { user ->
-                _currentUser.value = when (newRole) {
-                    "driver" -> user.copy(role_driver = true)   // ✅ CUSTOMER → DRIVER
-                    "customer" -> user.copy(role_customer = true)
+
+                val updatedUser = when (newRole) {
+                    "driver" -> user.copy(role_driver = true, role_customer = false)
+                    "customer" -> user.copy(role_driver = false, role_customer = true)
                     else -> user
                 }
+
+                //_currentUser.value = updatedUser
+                sessionManager.saveActiveRole(newRole)
+                _activeRole.value = newRole
             }
-        } else {
-            println("Error: Failed to update role in Firestore.")
         }
 
         return success
     }
+
 
 
     // Renamed from handleLoginSuccess, used by LoginScreen
@@ -115,12 +133,17 @@ class AuthViewModel(
         viewModelScope.launch {
             // 1. Save the token (the UID from Firebase or similar)
             sessionManager.saveAuthToken(token)
-
             // 2. Update the state to LoggedIn
             _authState.value = AuthState.LoggedIn
             fetchUserProfile() // fetch profile termasuk gambar Storage
         }
     }
+
+    //SWITCH ACCOUNT
+    suspend fun switchActiveRole(newRole: String) {
+        updateUserRole(newRole) // this already persists in SessionManager
+    }
+
 
     // 3. Function to clear session (used by CustomerProfileScreen)
     fun logout() {

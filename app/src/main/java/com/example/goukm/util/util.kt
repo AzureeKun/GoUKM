@@ -11,6 +11,7 @@ class SessionManager(context: Context) {
 
     companion object {
         const val USER_TOKEN = "user_token"
+        const val ACTIVE_ROLE = "user_role"
         const val USER_NAME = "user_name"
         const val USER_MATRIC = "user_matric"
         // Add other user details you want to save
@@ -44,6 +45,14 @@ class SessionManager(context: Context) {
         return prefs.getString(USER_TOKEN, null)
     }
 
+    fun saveActiveRole(role: String) {
+        prefs.edit().putString("user_role", role).apply()
+    }
+
+    fun fetchActiveRole(): String? {
+        return prefs.getString("user_role", null)
+    }
+
     /**
      * Function to clear all session data
      */
@@ -52,4 +61,6 @@ class SessionManager(context: Context) {
         editor.clear()
         editor.apply()
     }
+
+
 }

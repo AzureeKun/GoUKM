@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,10 +26,13 @@ import androidx.navigation.NavHostController
 import com.example.goukm.R
 import com.example.goukm.booking.RideRequestCard
 import com.example.goukm.booking.RideRequestModel
+import com.example.goukm.ui.register.AuthViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun DriverDashboard(
     navController: NavHostController,
+    authViewModel: AuthViewModel,
 
     /*ADA FIREBASE BARU GUNA
     isOnline: Boolean,
@@ -41,6 +45,7 @@ fun DriverDashboard(
 ) {
     // ✅ ADD STATE DALAM NI (SENANG TEST)
     var isOnline by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // ✅ DUMMY DATA UNTUK TEST
     val rideRequests = listOf(
@@ -172,6 +177,35 @@ fun DriverDashboard(
                             fontSize = 14.sp,
                             color = Color.DarkGray
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = {
+                                // Switch driver → customer
+                                scope.launch {
+                                    authViewModel.switchActiveRole("customer") // persists role in SessionManager
+                                    navController.navigate("customer_dashboard") {
+                                        popUpTo("driver_dashboard") { inclusive = true }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                        ) {
+                            Text("Switch to Customer Mode")
+                        }
+                        // Logout Button
+                        Button(
+                            onClick = {
+                                authViewModel.logout()
+                                navController.navigate("register") {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                        ) {
+                            Text("Logout", color = Color.White)
+                        }
                     }
                 }
             }

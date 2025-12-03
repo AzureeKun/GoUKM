@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.layout.ContentScale
+import com.example.goukm.ui.register.AuthViewModel
+import kotlinx.coroutines.launch
 
 val CBlue = Color(0xFF6b87c0)
 
@@ -32,7 +34,6 @@ data class UserProfile(
     val profilePictureUrl: String? = null,
     val email: String,
     val phoneNumber: String,
-
     val role_customer: Boolean = true,
     val role_driver: Boolean = false
 )
@@ -86,11 +87,14 @@ fun BottomBarCust(navController: NavHostController) {
 fun CustomerProfileScreen(
     navController: NavHostController,
     user: UserProfile?,
+    authViewModel: AuthViewModel,
     onEditProfile: (UserProfile) -> Unit,
-    onLogout: () -> Unit,
-    onChangeMode: (String) -> Unit
-
+    onLogout: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+    val activeRole by authViewModel.activeRole.collectAsState()
+    val isDriver = activeRole == "driver"
+
     if (user == null) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -100,8 +104,6 @@ fun CustomerProfileScreen(
         }
         return
     }
-
-    val isDriver = user.role_driver
 
     Scaffold(
         topBar = {
@@ -157,24 +159,26 @@ fun CustomerProfileScreen(
 
             item { Spacer(Modifier.height(20.dp)) }
 
-            if (isDriver) {
-                item { Spacer(Modifier.height(20.dp)) }
-
-                item {
-                    Button(
-                        onClick = {
-                            navController.navigate("driver_dashboard") // ✅ DIRECT NAVIGATION
-                            // OR use: onChangeMode("driver") if your app uses a central handler
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                    ) {
-                        Text(
-                            "Change to Driver Mode",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+            item {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            scope.launch {
+                                authViewModel.switchActiveRole("driver") // suspend call
+                                navController.navigate("driver_dashboard") {
+                                    popUpTo("customer_dashboard") { inclusive = true }
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text(
+                        text = "Switch to Driver Mode",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
