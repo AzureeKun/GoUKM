@@ -143,7 +143,6 @@ fun RegisterScreen(
                             fontWeight = FontWeight.Medium
                         )
                     }
-
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Button(
