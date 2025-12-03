@@ -34,6 +34,7 @@ fun EditProfileScreen(
     var email by remember { mutableStateOf(user.email) }
     var phoneNumber by remember { mutableStateOf(user.phoneNumber)}
 
+
     // Image Picker
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         profilePictureUrl = uri?.toString()
