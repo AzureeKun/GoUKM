@@ -43,10 +43,10 @@ class AuthViewModel(
     fun checkSession() {
         viewModelScope.launch {
             val token = sessionManager.fetchAuthToken()
-            val role = sessionManager.fetchActiveRole() // get last active role
+            val role = sessionManager.fetchActiveRole() ?: "customer" // get last active role
             if (token != null) {
                 _authState.value = AuthState.LoggedIn
-                _activeRole.value = role ?: "customer" // default customer if missing
+                _activeRole.value = role // default customer if missing
                 fetchUserProfile()
             } else {
                 _authState.value = AuthState.LoggedOut
@@ -148,8 +148,10 @@ class AuthViewModel(
     // 3. Function to clear session (used by CustomerProfileScreen)
     fun logout() {
         viewModelScope.launch {
-            sessionManager.clearSession()
-            clearUser()
+            sessionManager.clearSession()          // clear token, etc.
+            clearUser()                            // clear currentUser
+            _activeRole.value = "customer"         // ✅ reset role to customer
+            sessionManager.saveActiveRole("customer") // persist default role
             _authState.value = AuthState.LoggedOut
         }
     }
