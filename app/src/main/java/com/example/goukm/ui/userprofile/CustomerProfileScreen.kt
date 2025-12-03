@@ -190,7 +190,7 @@ fun CustomerProfileScreen(
                         Text("Make side income by becoming our driver!", fontSize = 12.sp, color = Color.Black)
                         Spacer(Modifier.height(16.dp))
                         Button(
-                            onClick = { /* TODO */ },
+                            onClick = { navController.navigate("driver_application") },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                             modifier = Modifier.fillMaxWidth().height(48.dp)
                         ) {

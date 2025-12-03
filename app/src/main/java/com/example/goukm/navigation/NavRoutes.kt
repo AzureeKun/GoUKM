@@ -11,5 +11,6 @@ sealed class NavRoutes(val route: String) {
 
     object CustomerProfile : NavRoutes("customer_profile")
     object EditProfile : NavRoutes("edit_profile")
+    object DriverApplication : NavRoutes("driver_application")
     object Loading : NavRoutes("loading")
 }

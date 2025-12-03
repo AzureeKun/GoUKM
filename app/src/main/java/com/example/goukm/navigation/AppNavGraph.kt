@@ -14,6 +14,7 @@
     import com.example.goukm.ui.userprofile.CustomerProfileScreen
     import com.example.goukm.ui.userprofile.EditProfileScreen
     import com.example.goukm.ui.userprofile.UserProfile
+    import com.example.goukm.ui.form.DriverApplicationFormScreen
     import androidx.compose.runtime.mutableStateOf
     import androidx.compose.runtime.remember
     import androidx.compose.runtime.getValue
@@ -68,6 +69,7 @@
             startDestination = startDestination
         ) {
 
+            //REGISTER
             composable(NavRoutes.Register.route) {
                 RegisterScreen(
                     authViewModel = authViewModel,
@@ -94,6 +96,7 @@
                 )
             }
 
+            //NAME PAGE
             composable(NavRoutes.NamePage.route) {
                 NamePage(
                     onNavigateToRolePage = {
@@ -102,6 +105,7 @@
                 )
             }
 
+            //REGISTER OPTION
             composable(NavRoutes.RegisterOption.route) {
                 RegisterOption(
                     onRegisterSuccess = { role ->
@@ -119,10 +123,12 @@
                 )
             }
 
+            //CUSTOMER DASHBOARD
             composable(NavRoutes.CustomerDashboard.route) {
                 CustomerDashboard(navController)
             }
 
+            //DRIVER DASHBOARD
             composable(NavRoutes.DriverDashboard.route) {
                 var localSelectedDriverNavIndex by remember { mutableStateOf(0) }
                 DriverDashboard(
@@ -134,6 +140,7 @@
                 )
             }
 
+            //CUSTOMER PROFILE
             composable(NavRoutes.CustomerProfile.route) {
                 val currentUser by authViewModel.currentUser.collectAsState()
                 CustomerProfileScreen(
@@ -155,6 +162,7 @@
                 )
             }
 
+            //EDIT PROFILE
             composable(NavRoutes.EditProfile.route) {
                 val currentUser by authViewModel.currentUser.collectAsState()
                 // Check if user data is available before navigating to the Edit screen
@@ -175,6 +183,20 @@
                 ) // Show loading if user data is missing //
             }
 
+            //FORM APPLICATION
+            composable(NavRoutes.DriverApplication.route) {
+                DriverApplicationFormScreen(
+                    navController = navController,
+                    onApplicationSubmit = {
+                        navController.navigate(NavRoutes.CustomerProfile.route) {
+                            popUpTo(NavRoutes.CustomerProfile.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+
+            //LOADING
             composable(NavRoutes.Loading.route) {
                 CircularProgressIndicator(
                     modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center)
