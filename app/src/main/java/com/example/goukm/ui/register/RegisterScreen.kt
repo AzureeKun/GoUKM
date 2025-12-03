@@ -125,7 +125,6 @@ fun RegisterScreen(
                     color = Color.DarkGray
                 )
             },
-
             confirmButton = {
                 Row(
                     modifier = Modifier
