@@ -1,5 +1,6 @@
 package com.example.goukm.ui.register
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.goukm.ui.userprofile.UserProfile
@@ -33,7 +34,7 @@ class AuthViewModel(
         checkSession()
     }
 
-    // Function to check saved session
+    // Check if user session exists
     fun checkSession() {
         viewModelScope.launch {
             if (sessionManager.fetchAuthToken() != null) {
@@ -102,7 +103,7 @@ class AuthViewModel(
             // On conceptual success:
             if (matricNumber.isNotBlank() && password.isNotBlank()) {
                 val authToken = "jwt_token_${matricNumber}_${System.currentTimeMillis()}"
-                handleLoginSuccess(authToken) // Use the new function
+                handleLoginSuccess(authToken)
                 onLoginSuccess(authToken)
             } else {
                 // Handle failure
@@ -117,7 +118,7 @@ class AuthViewModel(
 
             // 2. Update the state to LoggedIn
             _authState.value = AuthState.LoggedIn
-            fetchUserProfile()
+            fetchUserProfile() // fetch profile termasuk gambar Storage
         }
     }
 
@@ -126,7 +127,8 @@ class AuthViewModel(
         viewModelScope.launch {
             sessionManager.clearSession()
             clearUser()
-            _authState.value = AuthState.LoggedOut // 👈 Update State
+            _authState.value = AuthState.LoggedOut
         }
     }
+
 }

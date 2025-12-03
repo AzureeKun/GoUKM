@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import androidx.navigation.NavHostController
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,13 +34,29 @@ fun EditProfileScreen(
     var profilePictureUrl by remember { mutableStateOf(user.profilePictureUrl) }
     var email by remember { mutableStateOf(user.email) }
     var phoneNumber by remember { mutableStateOf(user.phoneNumber)}
+    var isUploading by remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
 
     // Image Picker
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        profilePictureUrl = uri?.toString()
+        uri?.let {
+            scope.launch {
+                try {
+                    isUploading = true
+                    val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+                    val url = UserProfileRepository.uploadProfilePicture(uid, it)
+                    profilePictureUrl = url
+                } catch (e: Exception) {
+                    // Handle upload error
+                    e.printStackTrace()
+                } finally {
+                    isUploading = false
+                }
+            }
+        }
     }
-    val scope = rememberCoroutineScope()
+
 
 
     Scaffold(
@@ -113,8 +130,9 @@ fun EditProfileScreen(
                     scope.launch {
                         val success = UserProfileRepository.updateUserProfile(updatedUser)
                         if (success) {
+
                             onSave(updatedUser)
-                            navController.popBackStack()
+                            //navController.popBackStack()
                         }
                     }
                           },

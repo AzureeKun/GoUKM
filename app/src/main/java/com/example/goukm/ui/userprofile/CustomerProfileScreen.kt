@@ -137,7 +137,7 @@ fun CustomerProfileScreen(
                     } ?: run {
                         Icon(
                             Icons.Default.AccountCircle,
-                            contentDescription = "Profile Picture",
+                            contentDescription = "Default Picture",
                             modifier = Modifier
                                 .size(80.dp)
                                 .clip(CircleShape)
@@ -182,7 +182,7 @@ fun CustomerProfileScreen(
 
             item {
                 Button(
-                    onClick = { onEditProfile(user!!) },
+                    onClick = { onEditProfile(user) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = CBlue)
                 ) {

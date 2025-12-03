@@ -1,20 +1,22 @@
 package com.example.goukm.ui.userprofile
 
+import android.net.Uri
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 
 object UserProfileRepository {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
+    private val storage = FirebaseStorage.getInstance().reference
 
     // GET user profile
     suspend fun getUserProfile(): UserProfile? {
         val uid = auth.currentUser?.uid ?: return null
 
         val doc = db.collection("users").document(uid).get().await()
-
         if (!doc.exists()) return null
 
         return UserProfile(
@@ -28,7 +30,14 @@ object UserProfileRepository {
         )
     }
 
-    // UPDATE user profile
+    // Upload gambar ke Storage dan return download URL
+    suspend fun uploadProfilePicture(uid: String, uri: Uri): String {
+        val fileRef = storage.child("profile_pictures/$uid/profile.jpg")
+        fileRef.putFile(uri).await()
+        return fileRef.downloadUrl.await().toString()
+    }
+
+    // UPDATE user profile di Firestore
     suspend fun updateUserProfile(user: UserProfile): Boolean {
         val uid = auth.currentUser?.uid ?: return false
 
@@ -46,6 +55,7 @@ object UserProfileRepository {
             db.collection("users").document(uid).update(updates).await()
             true
         } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }
