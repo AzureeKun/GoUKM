@@ -78,19 +78,11 @@ fun AppNavGraph(
                 onNavigateToName = {
                     navController.navigate(NavRoutes.NamePage.route)
                 },
-                onLoginSuccess = { role ->
+                onLoginSuccess = {
                     scope.launch {
-                        authViewModel.fetchUserProfile()
-                        // Navigate to dashboard after login
-                        if (role == "customer") {
-                            navController.navigate(NavRoutes.CustomerDashboard.route) {
-                                popUpTo(NavRoutes.Register.route) { inclusive = true }
-                            }
-                        } else if (role == "driver") {
-                            navController.navigate(NavRoutes.DriverDashboard.route) {
-                                popUpTo(NavRoutes.Register.route) { inclusive = true }
-                            }
-                        }
+                        authViewModel.fetchUserProfile(defaultToCustomer = true)
+                        // ✅ DO NOT navigate here
+                        // ✅ LaunchedEffect will handle navigation automatically
                     }
                 }
             )

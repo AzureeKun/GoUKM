@@ -1,14 +1,16 @@
 package com.example.goukm.ui.register
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.goukm.ui.userprofile.UserProfile
 import com.example.goukm.ui.userprofile.UserProfileRepository
 import com.example.goukm.util.SessionManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 // Define the authentication status
 sealed class AuthState {
@@ -22,6 +24,8 @@ class AuthViewModel(
     private val sessionManager: SessionManager
 
 ) : ViewModel() {
+
+    private val auth = FirebaseAuth.getInstance()
 
     // 1. State Flow to hold the current authentication status
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
@@ -43,11 +47,16 @@ class AuthViewModel(
     fun checkSession() {
         viewModelScope.launch {
             val token = sessionManager.fetchAuthToken()
-            val role = sessionManager.fetchActiveRole() ?: "customer" // get last active role
+
             if (token != null) {
                 _authState.value = AuthState.LoggedIn
-                _activeRole.value = role // default customer if missing
-                fetchUserProfile()
+
+                // Restore saved role from SessionManager, default to "customer" if not found
+                val savedRole = sessionManager.fetchActiveRole() ?: "customer"
+                _activeRole.value = savedRole
+
+                // Fetch user profile without forcing customer mode, so it respects the saved role
+                fetchUserProfile(defaultToCustomer = false)
             } else {
                 _authState.value = AuthState.LoggedOut
             }
@@ -57,14 +66,25 @@ class AuthViewModel(
 
     fun fetchUserProfile(defaultToCustomer: Boolean = false) {
         viewModelScope.launch {
-            val user = UserProfileRepository.getUserProfile()
+            val uid = auth.currentUser?.uid ?: return@launch
+
+            val doc = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(uid)
+                .get()
+                .await()
+
+            val user = doc.toObject(UserProfile::class.java)
             _currentUser.value = user
-            user?.let {
-                _activeRole.value = if (defaultToCustomer) "customer"
-                else if (it.role_driver) "driver"
-                else "customer"
-                sessionManager.saveActiveRole(_activeRole.value)
+
+            // Restore from Firestore or default to customer
+            _activeRole.value = if (defaultToCustomer) {
+                "customer"
+            } else {
+                sessionManager.fetchActiveRole() ?: "customer"
             }
+
+            _authState.value = AuthState.LoggedIn
         }
     }
 
@@ -101,8 +121,9 @@ class AuthViewModel(
                 }
 
                 //_currentUser.value = updatedUser
-                sessionManager.saveActiveRole(newRole)
+                _currentUser.value = updatedUser
                 _activeRole.value = newRole
+                sessionManager.saveActiveRole(newRole)
             }
         }
 
@@ -143,17 +164,19 @@ class AuthViewModel(
 
     //SWITCH ACCOUNT
     suspend fun switchActiveRole(newRole: String) {
-        updateUserRole(newRole) // this already persists in SessionManager
+        updateUserRole(newRole) // updates Firestore
+        sessionManager.saveActiveRole(newRole) // ✅ persist to disk
+        _activeRole.value = newRole // ✅ update in-memory
     }
 
 
     // 3. Function to clear session (used by CustomerProfileScreen)
     fun logout() {
         viewModelScope.launch {
-            sessionManager.clearSession()          // clear token, etc.
-            clearUser()                            // clear currentUser
-            _activeRole.value = "customer"         // ✅ reset role to customer
-            sessionManager.saveActiveRole("customer") // persist default role
+            auth.signOut()                         // ✅ sign out firebase
+            sessionManager.clearSession()         // ✅ clear token
+            sessionManager.saveActiveRole("customer") // ✅ RESET TO CUSTOMER
+            clearUser()
             _authState.value = AuthState.LoggedOut
         }
     }

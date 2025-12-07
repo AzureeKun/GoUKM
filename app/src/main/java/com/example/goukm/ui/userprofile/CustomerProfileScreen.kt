@@ -29,11 +29,11 @@ import kotlinx.coroutines.launch
 val CBlue = Color(0xFF6b87c0)
 
 data class UserProfile(
-    val name: String,
-    val matricNumber: String,
+    val name: String = "",
+    val matricNumber: String = "",
     val profilePictureUrl: String? = null,
-    val email: String,
-    val phoneNumber: String,
+    val email: String = "",
+    val phoneNumber: String = "",
     val role_customer: Boolean = true,
     val role_driver: Boolean = false
 )
