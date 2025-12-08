@@ -87,7 +87,7 @@ fun CustomerDashboard(navController: NavHostController) {
         ) {
             Text("CUSTOMER DASHBOARD", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(20.dp))
-            Button(onClick = { println("Book Ride Clicked!") }) {
+            Button(onClick = { navController.navigate(NavRoutes.BookingRequest.route) }) {
                 Text("Book a Ride")
             }
         }

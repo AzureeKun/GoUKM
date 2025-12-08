@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import com.example.goukm.ui.register.*
 import com.example.goukm.ui.dashboard.CustomerDashboard
 import com.example.goukm.ui.dashboard.DriverDashboard
+import com.example.goukm.ui.booking.BookingRequestScreen
 import com.example.goukm.ui.userprofile.CustomerProfileScreen
 import com.example.goukm.ui.userprofile.EditProfileScreen
 import com.example.goukm.ui.userprofile.UserProfile
@@ -101,6 +102,11 @@ fun AppNavGraph(
         // CUSTOMER DASHBOARD
         composable(NavRoutes.CustomerDashboard.route) {
             CustomerDashboard(navController)
+        }
+
+        // BOOKING REQUEST
+        composable(NavRoutes.BookingRequest.route) {
+            BookingRequestScreen(navController = navController)
         }
 
         // DRIVER DASHBOARD
