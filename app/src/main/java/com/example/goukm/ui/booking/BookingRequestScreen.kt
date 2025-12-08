@@ -51,10 +51,12 @@ fun BookingRequestScreen(navController: NavHostController) {
     var selectedSeat by remember { mutableStateOf("4-Seat") }
     var pickup by remember { mutableStateOf("Kolej Aminuddin Baki") }
     var dropOff by remember { mutableStateOf("Kolej Pendeta Za'ba") }
+    var isSearching by remember { mutableStateOf(false) }
 
     val mapPlaceholder = Color(0xFFE6ECF4)
     val textFieldBg = Color(0xFFF2F3F5)
     val accentYellow = Color(0xFFFFD60A)
+    val bannerBlue = Color(0xFF6B87C0)
 
     val sheetState = rememberStandardBottomSheetState(
         initialValue = SheetValue.PartiallyExpanded,
@@ -82,6 +84,26 @@ fun BookingRequestScreen(navController: NavHostController) {
                         .width(42.dp)
                         .height(4.dp)
                         .background(Color.LightGray, RoundedCornerShape(50))
+                )
+
+                // Status banner when searching
+                if (isSearching) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(bannerBlue, RoundedCornerShape(12.dp))
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("We're finding you a driver", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                Text(
+                    text = if (selectedSeat.startsWith("4")) "4 seater ride" else "6 seater ride",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
 
                 Row(
@@ -157,9 +179,12 @@ fun BookingRequestScreen(navController: NavHostController) {
 
                 Button(
                     onClick = {
-                        // TODO: hook to booking flow
-                        navController.navigate(NavRoutes.CustomerDashboard.route) {
-                            popUpTo(NavRoutes.BookingRequest.route) { inclusive = true }
+                        if (isSearching) {
+                            // cancel booking
+                            isSearching = false
+                        } else {
+                            // start searching
+                            isSearching = true
                         }
                     },
                     modifier = Modifier
@@ -168,7 +193,12 @@ fun BookingRequestScreen(navController: NavHostController) {
                     colors = ButtonDefaults.buttonColors(containerColor = accentYellow),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Booking Ride", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        if (isSearching) "Cancel Booking" else "Booking Ride",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
             }
         }

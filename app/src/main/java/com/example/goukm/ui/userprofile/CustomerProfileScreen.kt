@@ -160,25 +160,26 @@ fun CustomerProfileScreen(
             item { Spacer(Modifier.height(20.dp)) }
 
             item {
-                Button(
-                    onClick = {
-                        scope.launch {
+                // Only show switch-to-driver when this account is approved as driver
+                if (user.role_driver) {
+                    Button(
+                        onClick = {
                             scope.launch {
                                 authViewModel.switchActiveRole("driver") // suspend call
                                 navController.navigate("driver_dashboard") {
                                     popUpTo("customer_dashboard") { inclusive = true }
                                 }
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                ) {
-                    Text(
-                        text = "Switch to Driver Mode",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                    ) {
+                        Text(
+                            text = "Switch to Driver Mode",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
