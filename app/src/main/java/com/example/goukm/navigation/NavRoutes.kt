@@ -14,4 +14,8 @@ sealed class NavRoutes(val route: String) {
     object EditProfile : NavRoutes("edit_profile")
     object DriverApplication : NavRoutes("driver_application")
     object Loading : NavRoutes("loading")
+    object verificationIC : NavRoutes("verification_ic")
+    object verificationDocuments : NavRoutes("verification_doc")
+
+
 }

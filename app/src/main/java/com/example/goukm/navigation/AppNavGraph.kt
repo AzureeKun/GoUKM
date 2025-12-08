@@ -166,7 +166,7 @@ fun AppNavGraph(
             DriverApplicationFormScreen(
                 navController = navController,
                 onApplicationSubmit = {
-                    navController.navigate(NavRoutes.CustomerProfile.route) {
+                    navController.navigate(NavRoutes.verificationIC.route) {
                         popUpTo(NavRoutes.CustomerProfile.route) { inclusive = true }
                         launchSingleTop = true
                     }
