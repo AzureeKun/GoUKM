@@ -106,21 +106,23 @@ fun BookingRequestScreen(navController: NavHostController) {
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    SeatChip(
-                        label = "4-Seat",
-                        isSelected = selectedSeat == "4-Seat",
-                        onClick = { selectedSeat = "4-Seat" }
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    SeatChip(
-                        label = "6-Seat",
-                        isSelected = selectedSeat == "6-Seat",
-                        onClick = { selectedSeat = "6-Seat" }
-                    )
+                if (!isSearching) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        SeatChip(
+                            label = "4-Seat",
+                            isSelected = selectedSeat == "4-Seat",
+                            onClick = { selectedSeat = "4-Seat" }
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        SeatChip(
+                            label = "6-Seat",
+                            isSelected = selectedSeat == "6-Seat",
+                            onClick = { selectedSeat = "6-Seat" }
+                        )
+                    }
                 }
 
                 Card(

@@ -101,7 +101,10 @@ fun AppNavGraph(
 
         // CUSTOMER DASHBOARD
         composable(NavRoutes.CustomerDashboard.route) {
-            CustomerDashboard(navController)
+            CustomerDashboard(
+                navController = navController,
+                userImageUrl = currentUser?.profilePictureUrl
+            )
         }
 
         // BOOKING REQUEST

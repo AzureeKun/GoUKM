@@ -1,25 +1,49 @@
 package com.example.goukm.ui.dashboard
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Text
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import coil.compose.rememberAsyncImagePainter
 import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.userprofile.CBlue
 
@@ -73,31 +97,134 @@ fun BottomBar(navController: NavHostController) {
 }
 
 @Composable
-fun CustomerDashboard(navController: NavHostController) {
-    Scaffold(
-        bottomBar = { BottomBar(navController) }
-    ) { paddingValues ->
-        Column(
+fun CustomerDashboard(
+    navController: NavHostController,
+    userImageUrl: String? = null
+) {
+    val headerBlue = Color(0xFF6B87C0)
+    val searchBg = Color(0xFFF5F6FA)
+
+    Scaffold(bottomBar = { BottomBar(navController) }) { paddingValues ->
+        Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFE3F2FD))
                 .padding(paddingValues),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+            color = Color.White
         ) {
-            Text("CUSTOMER DASHBOARD", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(20.dp))
-            Button(onClick = { navController.navigate(NavRoutes.BookingRequest.route) }) {
-                Text("Book a Ride")
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(headerBlue)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Dashboard", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("Need a ride today?", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        if (userImageUrl != null) {
+                            Image(
+                                painter = rememberAsyncImagePainter(userImageUrl),
+                                contentDescription = "Profile",
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp)),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile",
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                    .padding(4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text("History", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+
+                    FavouriteRow("Fakulti Teknologi dan Sains Maklumat, Jalan")
+                    FavouriteRow("Kolej Pendeta Za'ba - UKM, Jalan Tun Isma")
+                    FavouriteRow("Kolej Ibrahim Yaakub - UKM, Jalan Tun Isma")
+
+                    Text("Rides for your every need", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        FeatureCard(
+                            title = "Book a ride",
+                            icon = Icons.Outlined.DirectionsCar,
+                            bgColor = Color(0xFFFFE4E4),
+                            onClick = { navController.navigate(NavRoutes.BookingRequest.route) }
+                        )
+                        FeatureCard(
+                            title = "Booking history",
+                            icon = Icons.Outlined.History,
+                            bgColor = Color(0xFFDCE6FF),
+                            onClick = { /* TODO: navigate to booking history */ }
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-/*@Preview(showBackground = true)
 @Composable
-fun CustDashboardPreview() {
-    Scaffold { paddingValues ->
-        CustomerDashboard(modifier = Modifier.padding(paddingValues))
+private fun FavouriteRow(text: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Outlined.StarBorder, contentDescription = null, tint = Color.Black)
+        Spacer(Modifier.width(8.dp))
+        Text(text, color = Color.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
-}*/
+}
+
+@Composable
+private fun RowScope.FeatureCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    bgColor: Color,
+    onClick: (() -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier
+            .weight(1f)
+            .height(120.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        onClick = { onClick?.invoke() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.Black)
+            Text(title, color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
