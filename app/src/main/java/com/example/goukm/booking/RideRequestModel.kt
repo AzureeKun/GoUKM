@@ -1,7 +1,7 @@
 package com.example.goukm.booking
 
 data class RideRequestModel(
-    val customerImageRes: Int? = null,
+    val customerImageRes: Int,
     val customerName: String,
     val pickupPoint: String,
     val dropOffPoint: String,

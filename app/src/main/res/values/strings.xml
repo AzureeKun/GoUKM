@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">GoUKM</string>
+    <string name ="google_maps_key">AIzaSyD0q5u5llAb9ROWkiK0_NSkv_P459Zvt9M</string>
 </resources>

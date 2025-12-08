@@ -31,6 +31,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,12 +39,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.userprofile.CBlue
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapType
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.rememberCameraPositionState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +67,33 @@ fun BookingRequestScreen(navController: NavHostController) {
     var dropOff by remember { mutableStateOf("Kolej Pendeta Za'ba") }
     var isSearching by remember { mutableStateOf(false) }
 
-    val mapPlaceholder = Color(0xFFE6ECF4)
+    val context = LocalContext.current
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasLocationPermission = isGranted
+    }
+
+    // Request permission when screen loads if not already granted
+    LaunchedEffect(Unit) {
+        if (!hasLocationPermission) {
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
     val textFieldBg = Color(0xFFF2F3F5)
     val accentYellow = Color(0xFFFFD60A)
     val bannerBlue = Color(0xFF6B87C0)
@@ -210,10 +250,33 @@ fun BookingRequestScreen(navController: NavHostController) {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(mapPlaceholder),
-            contentAlignment = Alignment.Center
         ) {
-            Text("Map preview", color = Color.Gray)
+            // UKM Bangi coordinates (approximate center)
+            val ukmLocation = LatLng(2.9300, 101.7774)
+            val cameraPositionState = rememberCameraPositionState {
+                position = CameraPosition.fromLatLngZoom(ukmLocation, 15f)
+            }
+            
+            val mapProperties = MapProperties(
+                mapType = MapType.NORMAL,
+                isMyLocationEnabled = hasLocationPermission
+            )
+            
+            val mapUiSettings = MapUiSettings(
+                zoomControlsEnabled = true,
+                myLocationButtonEnabled = hasLocationPermission,
+                mapToolbarEnabled = false
+            )
+            
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = mapProperties,
+                uiSettings = mapUiSettings,
+                onMapLoaded = {
+                    // Map is ready
+                }
+            )
         }
     }
 }
