@@ -16,6 +16,7 @@ sealed class NavRoutes(val route: String) {
     object Loading : NavRoutes("loading")
     object verificationIC : NavRoutes("verification_ic")
     object verificationDocuments : NavRoutes("verification_doc")
+    object DriverApplicationStatus : NavRoutes("driver_application_status")
 
 
     object DriverProfile : NavRoutes("driver_profile")

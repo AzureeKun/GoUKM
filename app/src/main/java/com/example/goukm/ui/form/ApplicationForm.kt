@@ -21,7 +21,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goukm.ui.register.AuthViewModel
 import com.example.goukm.ui.register.AuthViewModelFactory
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.launch
 
 // Assuming CBlue is defined in the package scope, but defining locally for safety
 val CBlue = Color(0xFF6b87c0)
@@ -33,14 +32,15 @@ fun DriverApplicationFormScreen(
     onApplicationSubmit: () -> Unit, // Callback to navigate away on success
     authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(LocalContext.current)
-    )
+    ),
+    applicationViewModel: DriverApplicationViewModel = viewModel()
 ) {
     // --- State for Form Fields ---
-    var licenseNumber by remember { mutableStateOf("") }
-    var vehiclePlateNumber by remember { mutableStateOf("") }
-    var selectedVehicleType by remember { mutableStateOf("Motorcycle") }
+    var licenseNumber by remember { mutableStateOf(applicationViewModel.licenseNumber) }
+    var vehiclePlateNumber by remember { mutableStateOf(applicationViewModel.vehiclePlateNumber) }
+    var selectedVehicleType by remember { mutableStateOf(applicationViewModel.vehicleType) }
     var acceptedTerms by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
 
     val vehicleTypes = listOf("Motorcycle", "Car", "Van")
 
@@ -69,6 +69,16 @@ fun DriverApplicationFormScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (applicationStatus == "under_review") {
+                item {
+                    Text(
+                        "Your application is currently under review. You will be notified once it is approved.",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+            }
+
             item {
                 Text(
                     "Vehicle & Licensing Details",
@@ -146,33 +156,28 @@ fun DriverApplicationFormScreen(
                 Button(
                     onClick = {
                         if (acceptedTerms && licenseNumber.isNotBlank() && vehiclePlateNumber.isNotBlank()) {
-                            // 1. Submit Application via AuthViewModel
-                            authViewModel.submitDriverApplication(
-                                licenseNumber = licenseNumber,
-                                vehiclePlateNumber = vehiclePlateNumber,
-                                vehicleType = selectedVehicleType
-                            ) { success ->
-                                if (success) {
-                                    println("Driver Application Submitted and Role Updated.")
+                            applicationViewModel.setVehicleInfo(
+                                license = licenseNumber,
+                                plate = vehiclePlateNumber,
+                                type = selectedVehicleType
+                            )
                                     onApplicationSubmit()
-                                } else {
-                                    println("Error: Failed to update user profile.")
-                                    // Handle error? For now, maybe just stay or show toast. 
-                                    // User flow logic says we navigate, but let's just stick to success path navigation or user choice.
-                                    // The previous code navigated anyway. Let's do the same for robustness? 
-                                    // No, let's only navigate on success to ensure data is saved.
-                                    // But to be consistent with previous 'navigate anyway' style but better:
-                                    onApplicationSubmit() 
-                                }
-                            }
                         }
                     },
-                    enabled = acceptedTerms && licenseNumber.isNotBlank() && vehiclePlateNumber.isNotBlank(),
+                    enabled = acceptedTerms &&
+                            licenseNumber.isNotBlank() &&
+                            vehiclePlateNumber.isNotBlank() &&
+                            applicationStatus != "under_review",
                     colors = ButtonDefaults.buttonColors(containerColor = CBlue),
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Submit Application", color = Color.White, fontSize = 18.sp)
+                    Text(
+                        if (applicationStatus == "under_review") "Application Pending"
+                        else "Next",
+                        color = Color.White,
+                        fontSize = 18.sp
+                    )
                 }
             }
         }

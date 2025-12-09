@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.goukm.ui.register.AuthViewModel
+import com.example.goukm.ui.register.AuthViewModelFactory
 
 enum class VerificationSide { FRONT, BACK }
 
@@ -100,15 +103,19 @@ fun verificationICScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun verificationIC(
-    onUploadComplete: (() -> Unit)? = null
+    onUploadComplete: (() -> Unit)? = null,
+    applicationViewModel: DriverApplicationViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(LocalContext.current)
+    )
 ) {
     val context = LocalContext.current
-    val scroll = rememberScrollState()
 
-    var frontUri by remember { mutableStateOf<Uri?>(null) }
-    var backUri by remember { mutableStateOf<Uri?>(null) }
+    var frontUri by remember { mutableStateOf<Uri?>(applicationViewModel.icFrontUri) }
+    var backUri by remember { mutableStateOf<Uri?>(applicationViewModel.icBackUri) }
     var capturingSide by remember { mutableStateOf<VerificationSide?>(null) }
     var capturedUri by remember { mutableStateOf<Uri?>(null) }
+    val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
 
     // Camera launcher
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -117,8 +124,14 @@ fun verificationIC(
         if (success) {
             capturedUri?.let { uri ->
                 when (capturingSide) {
-                    VerificationSide.FRONT -> frontUri = uri
-                    VerificationSide.BACK -> backUri = uri
+                    VerificationSide.FRONT -> {
+                        frontUri = uri
+                        applicationViewModel.setIc(front = uri, back = backUri)
+                    }
+                    VerificationSide.BACK -> {
+                        backUri = uri
+                        applicationViewModel.setIc(front = frontUri, back = uri)
+                    }
                     else -> {}
                 }
                 capturingSide = null
@@ -146,8 +159,14 @@ fun verificationIC(
     ) { uri: Uri? ->
         uri?.let {
             when (capturingSide) {
-                VerificationSide.FRONT -> frontUri = it
-                VerificationSide.BACK -> backUri = it
+                VerificationSide.FRONT -> {
+                    frontUri = it
+                    applicationViewModel.setIc(front = it, back = backUri)
+                }
+                VerificationSide.BACK -> {
+                    backUri = it
+                    applicationViewModel.setIc(front = frontUri, back = it)
+                }
                 else -> {}
             }
             capturingSide = null
@@ -187,7 +206,10 @@ fun verificationIC(
                             capturingSide = VerificationSide.FRONT
                             galleryLauncher.launch("image/*")
                         },
-                        onRemove = { frontUri = null },
+                        onRemove = {
+                            frontUri = null
+                            applicationViewModel.setIc(front = null, back = backUri)
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -203,7 +225,10 @@ fun verificationIC(
                             capturingSide = VerificationSide.BACK
                             galleryLauncher.launch("image/*")
                         },
-                        onRemove = { backUri = null },
+                        onRemove = {
+                            backUri = null
+                            applicationViewModel.setIc(front = frontUri, back = null)
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -216,10 +241,13 @@ fun verificationIC(
                             onUploadComplete?.invoke()
                         }
                     },
-                    enabled = frontUri != null && backUri != null,
+                    enabled = frontUri != null && backUri != null && applicationStatus != "under_review",
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Upload for Verification")
+                    Text(
+                        if (applicationStatus == "under_review") "Application Pending"
+                        else "Next"
+                    )
                 }
             }
         }

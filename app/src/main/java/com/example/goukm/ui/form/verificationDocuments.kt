@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.goukm.ui.register.AuthViewModel
+import com.example.goukm.ui.register.AuthViewModelFactory
+import kotlinx.coroutines.launch
 
 // Enum to track which document
 enum class DocumentType { DRIVING_LICENSE, VEHICLE_INSURANCE, BANK_QR }
@@ -108,15 +112,21 @@ fun verificationDocumentsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun verificationDocuments(
-    onUploadComplete: (() -> Unit)? = null
+    onUploadComplete: (() -> Unit)? = null,
+    applicationViewModel: DriverApplicationViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(LocalContext.current)
+    )
 ) {
     val context = LocalContext.current
     val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
 
     // State for each document
-    var drivingLicenseUri by remember { mutableStateOf<Uri?>(null) }
-    var vehicleInsuranceUri by remember { mutableStateOf<Uri?>(null) }
-    var bankQrUri by remember { mutableStateOf<Uri?>(null) }
+    var drivingLicenseUri by remember { mutableStateOf<Uri?>(applicationViewModel.drivingLicenseUri) }
+    var vehicleInsuranceUri by remember { mutableStateOf<Uri?>(applicationViewModel.vehicleInsuranceUri) }
+    var bankQrUri by remember { mutableStateOf<Uri?>(applicationViewModel.bankQrUri) }
 
     var capturingType by remember { mutableStateOf<DocumentType?>(null) }
     var capturedUri by remember { mutableStateOf<Uri?>(null) }
@@ -128,9 +138,30 @@ fun verificationDocuments(
         if (success) {
             capturedUri?.let { uri ->
                 when (capturingType) {
-                    DocumentType.DRIVING_LICENSE -> drivingLicenseUri = uri
-                    DocumentType.VEHICLE_INSURANCE -> vehicleInsuranceUri = uri
-                    DocumentType.BANK_QR -> bankQrUri = uri
+                    DocumentType.DRIVING_LICENSE -> {
+                        drivingLicenseUri = uri
+                        applicationViewModel.setDocuments(
+                            driving = uri,
+                            insurance = vehicleInsuranceUri,
+                            bank = bankQrUri
+                        )
+                    }
+                    DocumentType.VEHICLE_INSURANCE -> {
+                        vehicleInsuranceUri = uri
+                        applicationViewModel.setDocuments(
+                            driving = drivingLicenseUri,
+                            insurance = uri,
+                            bank = bankQrUri
+                        )
+                    }
+                    DocumentType.BANK_QR -> {
+                        bankQrUri = uri
+                        applicationViewModel.setDocuments(
+                            driving = drivingLicenseUri,
+                            insurance = vehicleInsuranceUri,
+                            bank = uri
+                        )
+                    }
                     else -> {}
                 }
                 capturingType = null
@@ -158,9 +189,30 @@ fun verificationDocuments(
     ) { uri: Uri? ->
         uri?.let {
             when (capturingType) {
-                DocumentType.DRIVING_LICENSE -> drivingLicenseUri = it
-                DocumentType.VEHICLE_INSURANCE -> vehicleInsuranceUri = it
-                DocumentType.BANK_QR -> bankQrUri = it
+                DocumentType.DRIVING_LICENSE -> {
+                    drivingLicenseUri = it
+                    applicationViewModel.setDocuments(
+                        driving = it,
+                        insurance = vehicleInsuranceUri,
+                        bank = bankQrUri
+                    )
+                }
+                DocumentType.VEHICLE_INSURANCE -> {
+                    vehicleInsuranceUri = it
+                    applicationViewModel.setDocuments(
+                        driving = drivingLicenseUri,
+                        insurance = it,
+                        bank = bankQrUri
+                    )
+                }
+                DocumentType.BANK_QR -> {
+                    bankQrUri = it
+                    applicationViewModel.setDocuments(
+                        driving = drivingLicenseUri,
+                        insurance = vehicleInsuranceUri,
+                        bank = it
+                    )
+                }
                 else -> {}
             }
             capturingType = null
@@ -197,7 +249,14 @@ fun verificationDocuments(
                         capturingType = DocumentType.DRIVING_LICENSE
                         galleryLauncher.launch("image/*")
                     },
-                    onRemove = { drivingLicenseUri = null },
+                    onRemove = {
+                        drivingLicenseUri = null
+                        applicationViewModel.setDocuments(
+                            driving = null,
+                            insurance = vehicleInsuranceUri,
+                            bank = bankQrUri
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -212,7 +271,14 @@ fun verificationDocuments(
                         capturingType = DocumentType.VEHICLE_INSURANCE
                         galleryLauncher.launch("image/*")
                     },
-                    onRemove = { vehicleInsuranceUri = null },
+                    onRemove = {
+                        vehicleInsuranceUri = null
+                        applicationViewModel.setDocuments(
+                            driving = drivingLicenseUri,
+                            insurance = null,
+                            bank = bankQrUri
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -227,7 +293,14 @@ fun verificationDocuments(
                         capturingType = DocumentType.BANK_QR
                         galleryLauncher.launch("image/*")
                     },
-                    onRemove = { bankQrUri = null },
+                    onRemove = {
+                        bankQrUri = null
+                        applicationViewModel.setDocuments(
+                            driving = drivingLicenseUri,
+                            insurance = vehicleInsuranceUri,
+                            bank = null
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -236,21 +309,38 @@ fun verificationDocuments(
                 Button(
                     onClick = {
                         if (drivingLicenseUri != null && vehicleInsuranceUri != null && bankQrUri != null) {
+                            scope.launch {
+                                val success = applicationViewModel.submitApplication(context)
+                                if (success) {
                             onUploadComplete?.invoke()
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        applicationViewModel.lastError ?: "Upload failed",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
                         }
                     },
-                    enabled = drivingLicenseUri != null && vehicleInsuranceUri != null && bankQrUri != null,
+                    enabled = drivingLicenseUri != null &&
+                            vehicleInsuranceUri != null &&
+                            bankQrUri != null &&
+                            !applicationViewModel.isSubmitting &&
+                            applicationStatus != "under_review",
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Upload for Verification")
+                    Text(
+                        when {
+                            applicationStatus == "under_review" -> "Application Pending"
+                            applicationViewModel.isSubmitting -> "Uploading..."
+                            else -> "Submit Application"
+                        }
+                    )
                 }
             }
         }
     )
-}
-
-private fun Modifier.verticalScroll() {
-    TODO("Not yet implemented")
 }
 
 // ---------------------------

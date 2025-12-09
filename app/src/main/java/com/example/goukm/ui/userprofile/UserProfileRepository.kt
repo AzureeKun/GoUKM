@@ -73,7 +73,12 @@ object UserProfileRepository {
             FirebaseFirestore.getInstance()
                 .collection("users")
                 .document(uid)
-                .update("role_driver", true) // ✅ ONLY UPDATE DRIVER ROLE
+                .update(
+                    mapOf(
+                        "role_driver" to true,
+                        "role_customer" to true // keep both so user can switch modes
+                    )
+                ) // ✅ Enable driver while preserving customer access
                 .await()
 
             true
@@ -90,7 +95,12 @@ object UserProfileRepository {
             FirebaseFirestore.getInstance()
                 .collection("users")
                 .document(uid)
-                .update("role_customer", true)
+                .update(
+                    mapOf(
+                        "role_customer" to true,
+                        "role_driver" to true // do not remove driver access when switching view
+                    )
+                )
                 .await()
 
             true

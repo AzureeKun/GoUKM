@@ -22,6 +22,8 @@ import com.example.goukm.ui.form.DriverApplicationFormScreen
 import kotlinx.coroutines.launch
 import com.example.goukm.ui.form.verificationIC
 import com.example.goukm.ui.form.verificationDocuments
+import com.example.goukm.ui.form.DriverApplicationStatusScreen
+import com.example.goukm.ui.form.DriverApplicationViewModel
 import com.example.goukm.ui.userprofile.DriverProfileScreen
 
 
@@ -36,17 +38,24 @@ fun AppNavGraph(
     val authState by authViewModel.authState.collectAsState()
     val activeRole by authViewModel.activeRole.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
+    val driverApplicationStatus by authViewModel.driverApplicationStatus.collectAsState()
+    val applicationViewModel: DriverApplicationViewModel = viewModel()
 
     // 🚀 Auto redirect based on authState + activeRole
-    LaunchedEffect(authState, activeRole) {
+    LaunchedEffect(authState, activeRole, driverApplicationStatus) {
         if (authState == AuthState.LoggedIn) {
-            when (activeRole) {
-                "driver" -> navController.navigate(NavRoutes.DriverDashboard.route) {
+            when {
+                activeRole == "driver" -> navController.navigate(NavRoutes.DriverDashboard.route) {
                     popUpTo(navController.graph.id) { inclusive = true }
                     launchSingleTop = true
                 }
-
-                "customer" -> navController.navigate(NavRoutes.CustomerDashboard.route) {
+                driverApplicationStatus == "under_review" || driverApplicationStatus == "rejected" -> {
+                    navController.navigate(NavRoutes.DriverApplicationStatus.route) {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                    launchSingleTop = true
+                }
+                }
+                activeRole == "customer" -> navController.navigate(NavRoutes.CustomerDashboard.route) {
                     popUpTo(navController.graph.id) { inclusive = true }
                     launchSingleTop = true
                 }
@@ -127,7 +136,7 @@ fun AppNavGraph(
                 onSkip = { request -> println("Driver skipped ride: ${request.customerName}") },
                 onOffer = { request -> println("Driver offered ride: ${request.customerName}") },
                 selectedNavIndex = localSelectedDriverNavIndex,
-                onNavSelected = { index -> 
+                onNavSelected = { index ->
                     localSelectedDriverNavIndex = index
                     if (index == 3) {
                          navController.navigate(NavRoutes.DriverProfile.route)
@@ -174,7 +183,9 @@ fun AppNavGraph(
                         popUpTo(NavRoutes.CustomerProfile.route) { inclusive = true }
                         launchSingleTop = true
                     }
-                }
+                },
+                authViewModel = authViewModel,
+                applicationViewModel = applicationViewModel
             )
         }
 
@@ -192,15 +203,37 @@ fun AppNavGraph(
                         popUpTo(NavRoutes.verificationIC.route) { inclusive = true }
                         launchSingleTop = true
                     }
-                }
+                },
+                applicationViewModel = applicationViewModel,
+                authViewModel = authViewModel
             )
         }
 
         composable(NavRoutes.verificationDocuments.route) {
             verificationDocuments(
                 onUploadComplete = {
-                    navController.navigate(NavRoutes.DriverDashboard.route) {
+                    navController.navigate(NavRoutes.DriverApplicationStatus.route) {
                         popUpTo(NavRoutes.verificationDocuments.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                applicationViewModel = applicationViewModel,
+                authViewModel = authViewModel
+            )
+        }
+
+        composable(NavRoutes.DriverApplicationStatus.route) {
+            DriverApplicationStatusScreen(
+                status = driverApplicationStatus,
+                onResubmit = {
+                    navController.navigate(NavRoutes.DriverApplication.route) {
+                        popUpTo(NavRoutes.DriverApplicationStatus.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onBackToDashboard = {
+                    navController.navigate(NavRoutes.CustomerDashboard.route) {
+                        popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
                     }
                 }

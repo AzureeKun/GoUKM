@@ -7,6 +7,7 @@ import com.example.goukm.ui.userprofile.UserProfileRepository
 import com.example.goukm.util.SessionManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -36,6 +37,11 @@ class AuthViewModel(
 
     private val _activeRole = MutableStateFlow("customer") // default customer
     val activeRole: StateFlow<String> = _activeRole
+
+    private val _driverApplicationStatus = MutableStateFlow<String?>(null)
+    val driverApplicationStatus: StateFlow<String?> = _driverApplicationStatus
+
+    private var applicationListener: ListenerRegistration? = null
 
 
     // 2. Initializer to check session status on startup
@@ -83,6 +89,8 @@ class AuthViewModel(
             } else {
                 sessionManager.fetchActiveRole() ?: "customer"
             }
+
+            listenToDriverApplication(uid)
 
             _authState.value = AuthState.LoggedIn
         }
@@ -177,6 +185,8 @@ class AuthViewModel(
             sessionManager.clearSession()         // ✅ clear token
             sessionManager.saveActiveRole("customer") // ✅ RESET TO CUSTOMER
             clearUser()
+            _driverApplicationStatus.value = null
+            applicationListener?.remove()
             _authState.value = AuthState.LoggedOut
         }
     }
@@ -213,4 +223,30 @@ class AuthViewModel(
         }
     }
 
+    private fun listenToDriverApplication(uid: String) {
+        applicationListener?.remove()
+        applicationListener = FirebaseFirestore.getInstance()
+            .collection("driverApplications")
+            .document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                val status = snapshot?.getString("status")
+                _driverApplicationStatus.value = status
+
+                // When approved, refresh profile and persist driver flag.
+                // Do NOT auto-switch active role; let user choose mode.
+                if (status == "approved") {
+                    viewModelScope.launch {
+                        // Persist driver role in Firestore so profile shows driver access
+                        UserProfileRepository.updateDriverRoleTrue()
+                        fetchUserProfile(defaultToCustomer = false)
+                    }
+                }
+            }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        applicationListener?.remove()
+    }
 }
