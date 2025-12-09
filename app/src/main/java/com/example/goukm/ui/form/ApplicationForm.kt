@@ -47,7 +47,7 @@ fun DriverApplicationFormScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Driver Application", color = Color.White) },
+                title = { Text("Step 1 of 4: Enter Vehicle Details", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {

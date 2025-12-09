@@ -1,279 +1,373 @@
+// File: VerificationICWithCameraX.kt
 package com.example.goukm.ui.form
 
 import android.Manifest
-import android.content.ContentValues
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import coil.compose.rememberAsyncImagePainter
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.goukm.ui.register.AuthViewModel
-import com.example.goukm.ui.register.AuthViewModelFactory
+import java.io.File
+import java.io.InputStream
+import java.util.concurrent.Executor
 
 enum class VerificationSide { FRONT, BACK }
 
-@Composable
-fun verificationICScreen(
-    label: String,
-    imageUri: Uri?,
-    onCaptureClick: () -> Unit,
-    onPickClick: () -> Unit,
-    onRemove: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.height(220.dp),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(label, style = MaterialTheme.typography.titleMedium)
+// ---------- Helpers ----------
+fun isFileTooLarge(context: Context, uri: Uri, maxMB: Int = 5): Boolean {
+    val afd = context.contentResolver.openAssetFileDescriptor(uri, "r") ?: return false
+    val size = afd.length
+    afd.close()
+    val maxBytes = maxMB * 1024L * 1024L
+    return size > maxBytes
+}
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (imageUri != null) {
-                    Image(
-                        painter = rememberAsyncImagePainter(imageUri),
-                        contentDescription = "$label image",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                    )
-                } else {
-                    Text(
-                        "No image",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    )
-                }
+fun isLandscapeImage(context: Context, uri: Uri): Boolean {
+    var input: InputStream? = null
+    return try {
+        input = context.contentResolver.openInputStream(uri)
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeStream(input, null, opts)
+        opts.outWidth > opts.outHeight
+    } catch (e: Exception) {
+        false
+    } finally {
+        input?.close()
+    }
+}
+
+// ---------- Camera Overlay ----------
+@Composable
+fun CameraOverlay(
+    onCaptured: (Uri) -> Unit,
+    onCancel: () -> Unit,
+    executor: Executor
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                val previewView = PreviewView(ctx)
+                val preview = Preview.Builder().build()
+                val capture = ImageCapture.Builder()
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .build()
+                imageCapture = capture
+
+                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                cameraProviderFuture.addListener({
+                    val cameraProvider = cameraProviderFuture.get()
+                    cameraProvider.unbindAll()
+                    try {
+                        preview.setSurfaceProvider(previewView.surfaceProvider)
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            CameraSelector.DEFAULT_BACK_CAMERA,
+                            preview,
+                            capture
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }, ContextCompat.getMainExecutor(ctx))
+                previewView
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(width = 340.dp, height = 220.dp)
+                .border(3.dp, Color.White, RoundedCornerShape(8.dp))
+        )
+
+        Text(
+            text = "Align inside the box",
+            color = Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 120.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onCancel) {
+                Text("Cancel", color = Color.White)
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    TextButton(onClick = onCaptureClick) { Text("Capture") }
-                    TextButton(onClick = onPickClick) { Text("Pick") }
-                }
-                if (imageUri != null) {
-                    IconButton(onClick = onRemove) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Remove $label",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+            Button(onClick = {
+                val capture = imageCapture ?: return@Button
+                val file = File(context.cacheDir, "ic_${System.currentTimeMillis()}.jpg")
+                val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
+                capture.takePicture(
+                    outputOptions,
+                    executor,
+                    object : ImageCapture.OnImageSavedCallback {
+                        override fun onError(exception: ImageCaptureException) {
+                            exception.printStackTrace()
+                            Toast.makeText(context, "Capture failed", Toast.LENGTH_SHORT).show()
+                        }
+
+                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                            onCaptured(Uri.fromFile(file))
+                        }
                     }
-                }
+                )
+            }) {
+                Text("Capture")
             }
         }
     }
 }
 
+// ---------- Main Verification IC ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun verificationIC(
-    onUploadComplete: (() -> Unit)? = null,
-    applicationViewModel: DriverApplicationViewModel = viewModel(),
-    authViewModel: AuthViewModel = viewModel(
-        factory = AuthViewModelFactory(LocalContext.current)
-    )
+    onUploadComplete: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val executor = ContextCompat.getMainExecutor(context)
 
-    var frontUri by remember { mutableStateOf<Uri?>(applicationViewModel.icFrontUri) }
-    var backUri by remember { mutableStateOf<Uri?>(applicationViewModel.icBackUri) }
-    var capturingSide by remember { mutableStateOf<VerificationSide?>(null) }
-    var capturedUri by remember { mutableStateOf<Uri?>(null) }
-    val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
+    var frontUri by remember { mutableStateOf<Uri?>(null) }
+    var backUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Camera launcher
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success) {
-            capturedUri?.let { uri ->
-                when (capturingSide) {
-                    VerificationSide.FRONT -> {
-                        frontUri = uri
-                        applicationViewModel.setIc(front = uri, back = backUri)
-                    }
-                    VerificationSide.BACK -> {
-                        backUri = uri
-                        applicationViewModel.setIc(front = frontUri, back = uri)
-                    }
-                    else -> {}
-                }
-                capturingSide = null
-                capturedUri = null
-            }
-        }
-    }
+    var showCameraOverlay by remember { mutableStateOf(false) }
+    var cameraForSide by remember { mutableStateOf<VerificationSide?>(null) }
 
-    // Camera permission launcher
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+    var showFileTooLargeDialog by remember { mutableStateOf(false) }
+    var showOrientationDialog by remember { mutableStateOf(false) }
+
+    val applicationStatus by remember { mutableStateOf("draft") }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted && capturingSide != null) {
-            val uri = createImageFileUri(context)
-            capturedUri = uri
-            cameraLauncher.launch(uri)
+        if (granted && cameraForSide != null) {
+            showCameraOverlay = true
         } else if (!granted) {
             Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Gallery picker launcher
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            when (capturingSide) {
-                VerificationSide.FRONT -> {
-                    frontUri = it
-                    applicationViewModel.setIc(front = it, back = backUri)
-                }
-                VerificationSide.BACK -> {
-                    backUri = it
-                    applicationViewModel.setIc(front = frontUri, back = it)
-                }
+            if (isFileTooLarge(context, it)) {
+                showFileTooLargeDialog = true
+            }
+            if (!isLandscapeImage(context, it)) {
+                showOrientationDialog = true
+            }
+            when (cameraForSide) {
+                VerificationSide.FRONT -> frontUri = it
+                VerificationSide.BACK -> backUri = it
                 else -> {}
             }
-            capturingSide = null
+            cameraForSide = null
         }
+    }
+
+    fun onCameraCaptured(uri: Uri) {
+        if (isFileTooLarge(context, uri)) {
+            try { File(uri.path!!).delete() } catch (_: Exception) {}
+            showFileTooLargeDialog = true
+            showCameraOverlay = false
+            cameraForSide = null
+            return
+        }
+        if (!isLandscapeImage(context, uri)) {
+            try { File(uri.path!!).delete() } catch (_: Exception) {}
+            showOrientationDialog = true
+            showCameraOverlay = false
+            cameraForSide = null
+            return
+        }
+        when (cameraForSide) {
+            VerificationSide.FRONT -> frontUri = uri
+            VerificationSide.BACK -> backUri = uri
+            else -> {}
+        }
+        cameraForSide = null
+        showCameraOverlay = false
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Verification", color = Color.White) },
+                title = { Text("Step 2 of 4: Upload Identity Card For Verification", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
             )
-        },
-        content = { padding ->
+        }
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding)) {
             Column(
                 modifier = Modifier
-                    .padding(padding)
                     .fillMaxSize()
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Upload or capture your IC (front & back)", fontSize = 16.sp)
+                Text("Upload or capture your IC (front & back)")
 
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // FRONT
-                    verificationICScreen(
-                        label = "Front",
-                        imageUri = frontUri,
-                        onCaptureClick = {
-                            capturingSide = VerificationSide.FRONT
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                        },
-                        onPickClick = {
-                            capturingSide = VerificationSide.FRONT
-                            galleryLauncher.launch("image/*")
-                        },
-                        onRemove = {
-                            frontUri = null
-                            applicationViewModel.setIc(front = null, back = backUri)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // BACK
-                    verificationICScreen(
-                        label = "Back",
-                        imageUri = backUri,
-                        onCaptureClick = {
-                            capturingSide = VerificationSide.BACK
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                        },
-                        onPickClick = {
-                            capturingSide = VerificationSide.BACK
-                            galleryLauncher.launch("image/*")
-                        },
-                        onRemove = {
-                            backUri = null
-                            applicationViewModel.setIc(front = frontUri, back = null)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                // FRONT IC
+                Card(modifier = Modifier.fillMaxWidth().height(220.dp), shape = RoundedCornerShape(12.dp)) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.CenterHorizontally // <-- center everything
+                    ) {
+                        Text("Front", style = MaterialTheme.typography.titleMedium)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .background(Color.LightGray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            frontUri?.let {
+                                androidx.compose.foundation.Image(
+                                    painter = rememberAsyncImagePainter(it),
+                                    contentDescription = "Front IC",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } ?: Text("No image")
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = {
+                                cameraForSide = VerificationSide.FRONT
+                                permissionLauncher.launch(Manifest.permission.CAMERA)
+                            }) { Text("Capture") }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(onClick = {
+                                cameraForSide = VerificationSide.FRONT
+                                galleryLauncher.launch("image/*")
+                            }) { Text("Pick") }
+                            if (frontUri != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(onClick = { frontUri = null }) { Text("Remove") }
+                            }
+                        }
+                    }
                 }
 
+// BACK IC
+                Card(modifier = Modifier.fillMaxWidth().height(220.dp), shape = RoundedCornerShape(12.dp)) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.CenterHorizontally // <-- center everything
+                    ) {
+                        Text("Back", style = MaterialTheme.typography.titleMedium)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .background(Color.LightGray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            backUri?.let {
+                                androidx.compose.foundation.Image(
+                                    painter = rememberAsyncImagePainter(it),
+                                    contentDescription = "Back IC",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } ?: Text("No image")
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = {
+                                cameraForSide = VerificationSide.BACK
+                                permissionLauncher.launch(Manifest.permission.CAMERA)
+                            }) { Text("Capture") }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(onClick = {
+                                cameraForSide = VerificationSide.BACK
+                                galleryLauncher.launch("image/*")
+                            }) { Text("Pick") }
+                            if (backUri != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(onClick = { backUri = null }) { Text("Remove") }
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
-                    onClick = {
-                        if (frontUri != null && backUri != null) {
-                            onUploadComplete?.invoke()
-                        }
-                    },
+                    onClick = { if (frontUri != null && backUri != null) onUploadComplete?.invoke() },
                     enabled = frontUri != null && backUri != null && applicationStatus != "under_review",
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        if (applicationStatus == "under_review") "Application Pending"
-                        else "Next"
-                    )
+                    Text(if (applicationStatus == "under_review") "Application Pending" else "Next")
                 }
             }
-        }
-    )
-}
 
-// Helper: create URI for camera capture
-fun createImageFileUri(context: Context): Uri {
-    val filename = "ic_capture_${System.currentTimeMillis()}.jpg"
-    val resolver = context.contentResolver
+            // Camera overlay
+            if (showCameraOverlay) {
+                CameraOverlay(
+                    onCaptured = { uri -> onCameraCaptured(uri) },
+                    onCancel = { showCameraOverlay = false; cameraForSide = null },
+                    executor = executor
+                )
+            }
 
-    val contentValues = ContentValues().apply {
-        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Verification")
+            // Dialogs
+            if (showFileTooLargeDialog) {
+                AlertDialog(
+                    onDismissRequest = { showFileTooLargeDialog = false },
+                    title = { Text("File Too Large") },
+                    text = { Text("Please use an image smaller than 5MB.") },
+                    confirmButton = { TextButton(onClick = { showFileTooLargeDialog = false }) { Text("OK") } }
+                )
+            }
+            if (showOrientationDialog) {
+                AlertDialog(
+                    onDismissRequest = { showOrientationDialog = false },
+                    title = { Text("Wrong Orientation") },
+                    text = { Text("Please take the IC in landscape orientation.") },
+                    confirmButton = { TextButton(onClick = { showOrientationDialog = false }) { Text("OK") } }
+                )
+            }
         }
     }
-
-    return resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-        ?: throw IllegalStateException("Unable to create media store entry")
-}
-
-// Preview
-@Preview(showBackground = true)
-@Composable
-fun PreviewVerificationIC() {
-    verificationIC()
 }

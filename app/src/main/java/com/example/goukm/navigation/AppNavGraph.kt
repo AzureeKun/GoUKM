@@ -203,10 +203,7 @@ fun AppNavGraph(
                         popUpTo(NavRoutes.verificationIC.route) { inclusive = true }
                         launchSingleTop = true
                     }
-                },
-                applicationViewModel = applicationViewModel,
-                authViewModel = authViewModel
-            )
+                },)
         }
 
         composable(NavRoutes.verificationDocuments.route) {
@@ -217,9 +214,7 @@ fun AppNavGraph(
                         launchSingleTop = true
                     }
                 },
-                applicationViewModel = applicationViewModel,
-                authViewModel = authViewModel
-            )
+           )
         }
 
         composable(NavRoutes.DriverApplicationStatus.route) {
