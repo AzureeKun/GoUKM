@@ -3,14 +3,7 @@ package com.example.goukm.navigation
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +20,9 @@ import com.example.goukm.ui.userprofile.EditProfileScreen
 import com.example.goukm.ui.userprofile.UserProfile
 import com.example.goukm.ui.form.DriverApplicationFormScreen
 import kotlinx.coroutines.launch
+import com.example.goukm.ui.form.verificationIC
+import com.example.goukm.ui.form.verificationDocuments
+
 
 @Composable
 fun AppNavGraph(
@@ -48,10 +44,12 @@ fun AppNavGraph(
                     popUpTo(navController.graph.id) { inclusive = true }
                     launchSingleTop = true
                 }
+
                 "customer" -> navController.navigate(NavRoutes.CustomerDashboard.route) {
                     popUpTo(navController.graph.id) { inclusive = true }
                     launchSingleTop = true
                 }
+
                 else -> navController.navigate(NavRoutes.Register.route) {
                     popUpTo(navController.graph.id) { inclusive = true }
                 }
@@ -178,6 +176,28 @@ fun AppNavGraph(
         composable(NavRoutes.Loading.route) {
             CircularProgressIndicator(
                 modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center)
+            )
+        }
+
+        composable(NavRoutes.verificationIC.route) {
+            verificationIC(
+                onUploadComplete = {
+                    navController.navigate(NavRoutes.verificationDocuments.route) {
+                        popUpTo(NavRoutes.verificationIC.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(NavRoutes.verificationDocuments.route) {
+            verificationDocuments(
+                onUploadComplete = {
+                    navController.navigate(NavRoutes.DriverDashboard.route) {
+                        popUpTo(NavRoutes.verificationDocuments.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
     }
