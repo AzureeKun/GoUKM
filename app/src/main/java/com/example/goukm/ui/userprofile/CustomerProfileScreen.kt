@@ -35,7 +35,10 @@ data class UserProfile(
     val email: String = "",
     val phoneNumber: String = "",
     val role_customer: Boolean = true,
-    val role_driver: Boolean = false
+    val role_driver: Boolean = false,
+    val licenseNumber: String = "",
+    val vehiclePlateNumber: String = "",
+    val vehicleType: String = ""
 )
 
 @Composable
@@ -153,6 +156,7 @@ fun CustomerProfileScreen(
                     Column {
                         Text(user.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         Text("@${user.matricNumber}", fontSize = 16.sp, color = Color.Black.copy(alpha = 0.7f))
+                        Text("Customer Account", fontSize = 14.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
                     }
                 }
             }

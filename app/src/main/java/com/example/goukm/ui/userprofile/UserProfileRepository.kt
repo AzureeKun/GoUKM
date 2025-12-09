@@ -26,7 +26,10 @@ object UserProfileRepository {
             email = doc.getString("email") ?: "",
             phoneNumber = doc.getString("phoneNumber") ?: "",
             role_customer = doc.getBoolean("role_customer") ?: true,
-            role_driver = doc.getBoolean("role_driver") ?: false
+            role_driver = doc.getBoolean("role_driver") ?: false,
+            licenseNumber = doc.getString("licenseNumber") ?: "",
+            vehiclePlateNumber = doc.getString("vehiclePlateNumber") ?: "",
+            vehicleType = doc.getString("vehicleType") ?: ""
         )
     }
 
@@ -48,7 +51,10 @@ object UserProfileRepository {
             "email" to user.email,
             "phoneNumber" to user.phoneNumber,
             "role_customer" to user.role_customer,
-            "role_driver" to user.role_driver
+            "role_driver" to user.role_driver,
+            "licenseNumber" to user.licenseNumber,
+            "vehiclePlateNumber" to user.vehiclePlateNumber,
+            "vehicleType" to user.vehicleType
         )
 
         return try {

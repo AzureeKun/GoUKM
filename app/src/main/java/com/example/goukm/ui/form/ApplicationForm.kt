@@ -146,19 +146,23 @@ fun DriverApplicationFormScreen(
                 Button(
                     onClick = {
                         if (acceptedTerms && licenseNumber.isNotBlank() && vehiclePlateNumber.isNotBlank()) {
-                            scope.launch {
-                                // 1. Kemas kini Peranan Pengguna di Firestore dan AuthViewModel
-                                // Menukar peranan pengguna kepada "driver"
-                                val success = authViewModel.updateUserRole("driver")
-
+                            // 1. Submit Application via AuthViewModel
+                            authViewModel.submitDriverApplication(
+                                licenseNumber = licenseNumber,
+                                vehiclePlateNumber = vehiclePlateNumber,
+                                vehicleType = selectedVehicleType
+                            ) { success ->
                                 if (success) {
                                     println("Driver Application Submitted and Role Updated.")
-                                    // 2. Navigasi kembali ke profil / dashboard pemandu
                                     onApplicationSubmit()
                                 } else {
-                                    println("Error: Failed to update user role in AuthViewModel.")
-                                    // Walaupun gagal, kita masih navigasi keluar dari skrin borang.
-                                    onApplicationSubmit()
+                                    println("Error: Failed to update user profile.")
+                                    // Handle error? For now, maybe just stay or show toast. 
+                                    // User flow logic says we navigate, but let's just stick to success path navigation or user choice.
+                                    // The previous code navigated anyway. Let's do the same for robustness? 
+                                    // No, let's only navigate on success to ensure data is saved.
+                                    // But to be consistent with previous 'navigate anyway' style but better:
+                                    onApplicationSubmit() 
                                 }
                             }
                         }

@@ -115,8 +115,8 @@ class AuthViewModel(
             _currentUser.value?.let { user ->
 
                 val updatedUser = when (newRole) {
-                    "driver" -> user.copy(role_driver = true, role_customer = false)
-                    "customer" -> user.copy(role_driver = false, role_customer = true)
+                    "driver" -> user.copy(role_driver = true)
+                    "customer" -> user.copy(role_customer = true)
                     else -> user
                 }
 
@@ -178,6 +178,38 @@ class AuthViewModel(
             sessionManager.saveActiveRole("customer") // ✅ RESET TO CUSTOMER
             clearUser()
             _authState.value = AuthState.LoggedOut
+        }
+    }
+
+
+    // Submit Driver Application with vehicle details
+    fun submitDriverApplication(
+        licenseNumber: String,
+        vehiclePlateNumber: String,
+        vehicleType: String,
+        onResult: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            val user = _currentUser.value
+            if (user == null) {
+                onResult(false)
+                return@launch
+            }
+
+            val updatedUser = user.copy(
+                role_driver = true, // Grant driver role
+                licenseNumber = licenseNumber,
+                vehiclePlateNumber = vehiclePlateNumber,
+                vehicleType = vehicleType
+            )
+
+            val success = UserProfileRepository.updateUserProfile(updatedUser)
+            if (success) {
+                _currentUser.value = updatedUser
+                _activeRole.value = "driver" // Switch to driver mode immediately
+                sessionManager.saveActiveRole("driver")
+            }
+            onResult(success)
         }
     }
 

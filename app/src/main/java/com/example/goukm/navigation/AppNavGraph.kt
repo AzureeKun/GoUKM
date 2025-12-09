@@ -22,6 +22,7 @@ import com.example.goukm.ui.form.DriverApplicationFormScreen
 import kotlinx.coroutines.launch
 import com.example.goukm.ui.form.verificationIC
 import com.example.goukm.ui.form.verificationDocuments
+import com.example.goukm.ui.userprofile.DriverProfileScreen
 
 
 @Composable
@@ -126,7 +127,12 @@ fun AppNavGraph(
                 onSkip = { request -> println("Driver skipped ride: ${request.customerName}") },
                 onOffer = { request -> println("Driver offered ride: ${request.customerName}") },
                 selectedNavIndex = localSelectedDriverNavIndex,
-                onNavSelected = { index -> localSelectedDriverNavIndex = index }
+                onNavSelected = { index -> 
+                    localSelectedDriverNavIndex = index
+                    if (index == 3) {
+                         navController.navigate(NavRoutes.DriverProfile.route)
+                    }
+                }
             )
         }
 
@@ -198,6 +204,17 @@ fun AppNavGraph(
                         launchSingleTop = true
                     }
                 }
+            )
+        }
+        // DRIVER PROFILE
+        composable(NavRoutes.DriverProfile.route) {
+            DriverProfileScreen(
+                navController = navController,
+                user = currentUser,
+                authViewModel = authViewModel,
+                onEditProfile = { navController.navigate(NavRoutes.EditProfile.route) },
+                onLogout = { authViewModel.logout() },
+                selectedNavIndex = 3
             )
         }
     }

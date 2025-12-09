@@ -3,6 +3,7 @@ package com.example.goukm.ui.dashboard
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -30,6 +31,12 @@ fun BottomNavigationBarDriver(selectedIndex: Int, onSelected: (Int) -> Unit) {
             label = { Text("Earning") },
             selected = selectedIndex == 2,
             onClick = { onSelected(2) }
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+            label = { Text("Profile") },
+            selected = selectedIndex == 3,
+            onClick = { onSelected(3) }
         )
     }
 }
