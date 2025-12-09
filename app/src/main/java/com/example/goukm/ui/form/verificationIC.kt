@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -102,6 +103,7 @@ fun verificationIC(
     onUploadComplete: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val scroll = rememberScrollState()
 
     var frontUri by remember { mutableStateOf<Uri?>(null) }
     var backUri by remember { mutableStateOf<Uri?>(null) }
