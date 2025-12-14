@@ -40,7 +40,7 @@ fun NamePage(
     modifier: Modifier = Modifier,
     navController: NavController
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(RegistrationState.name) }
 
     Column(
         modifier = modifier

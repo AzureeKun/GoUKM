@@ -30,6 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,6 +68,7 @@ fun BookingRequestScreen(navController: NavHostController) {
     var pickup by remember { mutableStateOf("Kolej Aminuddin Baki") }
     var dropOff by remember { mutableStateOf("Kolej Pendeta Za'ba") }
     var isSearching by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     var hasLocationPermission by remember {
@@ -219,11 +222,58 @@ fun BookingRequestScreen(navController: NavHostController) {
                     }
                 }
 
+                // Cancel Confirmation Dialog
+                if (showCancelDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showCancelDialog = false },
+                        containerColor = Color(0xFFFFEBEE),
+                        title = {
+                            Text(
+                                text = "Cancel Booking",
+                                color = Color(0xFFD32F2F),
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "Do you really want to cancel the booking?",
+                                color = Color.Black
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    showCancelDialog = false
+                                    isSearching = false
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFD32F2F)
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Yes", color = Color.White)
+                            }
+                        },
+                        dismissButton = {
+                            Button(
+                                onClick = { showCancelDialog = false },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.Gray
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("No", color = Color.White)
+                            }
+                        },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                }
+
                 Button(
                     onClick = {
                         if (isSearching) {
-                            // cancel booking
-                            isSearching = false
+                            // Show confirmation dialog
+                            showCancelDialog = true
                         } else {
                             // start searching
                             isSearching = true
