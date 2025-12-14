@@ -44,15 +44,11 @@ fun RegisterScreen(
     navController: NavController,
     authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(LocalContext.current))
 ) {
-    var email by remember { mutableStateOf("") }
-    var phoneNum by remember { mutableStateOf("") }
+    var matricNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var showPhoneMismatchDialog by remember { mutableStateOf(false) }
 
-
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var phoneError by remember { mutableStateOf<String?>(null) }
+    var matricError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var generalError by remember { mutableStateOf<String?>(null) }
 
@@ -62,45 +58,31 @@ fun RegisterScreen(
 
     fun validateFields(): Boolean {
         var valid = true
-        emailError = null
-        phoneError = null
+        matricError = null
         passwordError = null
         generalError = null
 
-        val domain = "@siswa.ukm.edu.my"
-
-        // EMAIL
-        if (email.isBlank()) {
-            emailError = "Email cannot be empty"
+        // MATRIC NUMBER VALIDATION
+        val normalizedMatric = matricNumber.trim().uppercase()
+        if (normalizedMatric.isBlank()) {
+            matricError = "Matriculation number cannot be empty"
             valid = false
-        } else if (!email.endsWith(domain, ignoreCase = true)) {
-            emailError = "Email must end with $domain"
+        } else if (normalizedMatric.length != 7) {
+            matricError = "Matriculation number must be 7 characters (e.g., A203399)"
             valid = false
-        } else {
-            val matric = email.substringBefore(domain)
-            if (matric.length != 7 || !matric.startsWith("A", ignoreCase = true)) {
-                emailError = "Invalid student matric number"
-                valid = false
-            }
-        }
-
-        // PHONE
-        if (phoneNum.isBlank()) {
-            phoneError = "Phone number cannot be empty"
+        } else if (!normalizedMatric.startsWith("A", ignoreCase = true)) {
+            matricError = "Matriculation number must start with 'A'"
             valid = false
-        } else if (!phoneNum.all { it.isDigit() }) {
-            phoneError = "Phone number must contain digits only"
-            valid = false
-        } else if (phoneNum.length !in 10..11) {
-            phoneError = "Phone number must be 10–11 digits"
+        } else if (!normalizedMatric.substring(1).all { it.isDigit() }) {
+            matricError = "Matriculation number must be A followed by 6 digits"
             valid = false
         }
 
-        // PASSWORD
+        // PASSWORD VALIDATION
         if (password.isBlank()) {
             passwordError = "Password cannot be empty"
             valid = false
-        } else if (password.length !in 6..20) {
+        } else if (password.length < 6 || password.length > 20) {
             passwordError = "Password must be 6–20 characters"
             valid = false
         } else if (!password.any { it.isUpperCase() }) {
@@ -112,64 +94,6 @@ fun RegisterScreen(
         }
 
         return valid
-    }
-    if (showPhoneMismatchDialog) {
-        AlertDialog(
-            onDismissRequest = { showPhoneMismatchDialog = false },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
-            title = { Text("Phone Number Already Exists") },
-            text = {
-                Text(
-                    "This phone number already exists but is registered under a different email.\n\n" +
-                            "Choose an option below:",
-                    fontSize = 14.sp,
-                    color = Color.DarkGray
-                )
-            },
-            confirmButton = {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp, end = 8.dp),
-                    horizontalArrangement = Arrangement.End
-                ){
-
-                    TextButton(
-                        onClick = {showPhoneMismatchDialog = false},
-                        modifier = Modifier.weight(1f)
-                    ){
-                        Text(
-                            "Re-enter Details",
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(
-                        onClick = {
-                            showPhoneMismatchDialog = false
-                            navController.navigate("name")
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = CBlue
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ){
-                        Text(
-                            "Register",
-                            color = Color.White,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            },
-
-
-            dismissButton = {}
-        )
     }
 
     Column(
@@ -205,31 +129,18 @@ fun RegisterScreen(
 
         Spacer(Modifier.height(32.dp))
 
-        // EMAIL
+        // MATRIC NUMBER
         TextField(
-            value = email,
-            onValueChange = { email = it; emailError = null },
-            label = { Text("Email", fontFamily = PoppinsLight) },
-            isError = emailError != null,
+            value = matricNumber,
+            onValueChange = { matricNumber = it; matricError = null },
+            label = { Text("Matrics Number", fontFamily = PoppinsLight) },
+            placeholder = { Text("e.g., A203399", fontFamily = PoppinsLight) },
+            isError = matricError != null,
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         )
-        emailError?.let { Text(it, color = Color.Red, fontSize = 12.sp) }
-
-        Spacer(Modifier.height(12.dp))
-
-        // PHONE
-        TextField(
-            value = phoneNum,
-            onValueChange = { phoneNum = it; phoneError = null },
-            label = { Text("Phone Number", fontFamily = PoppinsLight) },
-            isError = phoneError != null,
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        )
-        phoneError?.let { Text(it, color = Color.Red, fontSize = 12.sp) }
+        matricError?.let { Text(it, color = Color.Red, fontSize = 12.sp) }
 
         Spacer(Modifier.height(12.dp))
 
@@ -263,64 +174,66 @@ fun RegisterScreen(
                 if (!validateFields()) return@Button
 
                 isLoading = true
+                val normalizedMatric = matricNumber.trim().uppercase()
+                val email = "${normalizedMatric.lowercase()}@siswa.ukm.edu.my"
                 RegistrationState.email = email
                 RegistrationState.password = password
-                RegistrationState.phoneNumber = phoneNum
 
                 scope.launch {
                     try {
-                        // 🔹 Check if phone number exists
-                        val phoneQuery = FirebaseFirestore.getInstance()
-                            .collection("users")
-                            .whereEqualTo("phoneNumber", phoneNum.trim())
-                            .get()
-                            .await()
-
-                        if (!phoneQuery.isEmpty) {
-                            val phoneOwnerEmail = phoneQuery.documents.first().getString("email") ?: ""
-                            if (phoneOwnerEmail.lowercase() != email.lowercase()) {
-                                showPhoneMismatchDialog = true
-                                isLoading = false
-                                return@launch
-                            }
+                        // Authenticate using matric number and password
+                        // This will check GoUKM database first, then Mock SMPWeb if not found
+                        val res = try {
+                            RegistrationRepository.loginUser(normalizedMatric, password)
+                        } catch (se: SecurityException) {
+                            // Fallback for debug / broker issue
+                            println("⚠️ SecurityException caught: ${se.message}")
+                            RegistrationRepository.loginUserWithoutBroker(normalizedMatric, password)
                         }
 
-                        val exists = RegistrationRepository.checkEmailExists(email)
-
-                        if (exists) {
-                            val res = try {
-                                RegistrationRepository.loginUser(email, password)
-                            } catch (se: SecurityException) {
-                                // 🔹 Fallback for debug / broker issue
-                                println("⚠️ SecurityException caught: ${se.message}")
-                                RegistrationRepository.loginUserWithoutBroker(email, password)
-                            }
-
-                            if (res.isSuccess) {
-                                val uid = res.getOrNull()!!
-                                val doc = FirebaseFirestore.getInstance()
-                                    .collection("users")
-                                    .document(uid)
-                                    .get()
-                                    .await()
-
-                                val storedPhone = (doc.getString("phoneNumber") ?: "").trim()
-                                if (storedPhone != phoneNum.trim()) {
-                                    phoneError = "Phone number does not match our records"
-                                    isLoading = false
-                                    return@launch
-                                }
-
-                                authViewModel.handleLoginSuccess(uid)
-                                authViewModel.fetchUserProfile(defaultToCustomer = true)
-                                onLoginSuccess("customer")
-                            } else {
-                                passwordError = "Wrong password. Please re-enter your password."
-                            }
-
+                        if (res.isSuccess) {
+                            // User exists in GoUKM - login successful
+                            val uid = res.getOrNull()!!
+                            authViewModel.handleLoginSuccess(uid)
+                            authViewModel.fetchUserProfile(defaultToCustomer = true)
+                            onLoginSuccess("customer")
                         } else {
-                            // NEW USER -> NAVIGATE TO NAME REGISTRATION
-                            onNavigateToName()
+                            val error = res.exceptionOrNull()
+                            val errorMessage = error?.message ?: ""
+                            
+                            // Check if this is a new user from Mock SMPWeb
+                            if (errorMessage.startsWith("NEW_USER_FROM_SMPWEB:")) {
+                                // Extract matric and store student data for registration flow
+                                val student = RegistrationRepository.checkSMPWebExists(normalizedMatric)
+                                if (student != null) {
+                                    // Store student data in RegistrationState for use in NamePage/RegisterOption
+                                    RegistrationState.email = student.email
+                                    RegistrationState.phoneNumber = student.phoneNumber
+                                    RegistrationState.name = student.fullName
+                                    RegistrationState.smpWebStudent = student // Store full student data
+                                    
+                                    // Navigate to NamePage for registration
+                                    onNavigateToName()
+                                } else {
+                                    generalError = "Student data not found. Please try again."
+                                }
+                            } else {
+                                // Handle other errors
+                                when {
+                                    errorMessage.contains("Invalid matriculation number", ignoreCase = true) -> {
+                                        matricError = "Invalid matriculation number"
+                                    }
+                                    errorMessage.contains("Invalid password", ignoreCase = true) -> {
+                                        passwordError = "Wrong password. Please re-enter your password."
+                                    }
+                                    errorMessage.contains("wrong-password", ignoreCase = true) -> {
+                                        passwordError = "Wrong password. Please re-enter your password."
+                                    }
+                                    else -> {
+                                        generalError = errorMessage.ifEmpty { "Authentication failed. Please try again." }
+                                    }
+                                }
+                            }
                         }
                     } catch (e: Exception) {
                         generalError = "An error occurred: ${e.message}"

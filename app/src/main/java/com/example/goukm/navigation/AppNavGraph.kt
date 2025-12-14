@@ -49,15 +49,19 @@ fun AppNavGraph(
                     popUpTo(navController.graph.id) { inclusive = true }
                     launchSingleTop = true
                 }
-                driverApplicationStatus == "under_review" || driverApplicationStatus == "rejected" -> {
+                driverApplicationStatus == "rejected" -> {
+                    // Only redirect rejected applications to status screen
                     navController.navigate(NavRoutes.DriverApplicationStatus.route) {
-                    popUpTo(navController.graph.id) { inclusive = true }
-                    launchSingleTop = true
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
-                }
-                activeRole == "customer" -> navController.navigate(NavRoutes.CustomerDashboard.route) {
-                    popUpTo(navController.graph.id) { inclusive = true }
-                    launchSingleTop = true
+                activeRole == "customer" || driverApplicationStatus == "under_review" -> {
+                    // If application is under review, user stays as customer and goes to customer dashboard
+                    navController.navigate(NavRoutes.CustomerDashboard.route) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
 
                 else -> navController.navigate(NavRoutes.Register.route) {
@@ -111,7 +115,7 @@ fun AppNavGraph(
 
         // REGISTER OPTION
         composable(NavRoutes.RegisterOption.route) {
-            RegisterOption(navController = navController)
+            RegisterOption(navController = navController, authViewModel = authViewModel)
         }
 
         // CUSTOMER DASHBOARD
@@ -203,7 +207,8 @@ fun AppNavGraph(
                         popUpTo(NavRoutes.verificationIC.route) { inclusive = true }
                         launchSingleTop = true
                     }
-                },)
+                },
+            )
         }
 
         composable(NavRoutes.verificationDocuments.route) {

@@ -1,5 +1,6 @@
 package com.example.goukm.ui.userprofile
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import com.example.goukm.ui.register.AuthViewModel
+import com.example.goukm.util.DriverEligibilityChecker
 import kotlinx.coroutines.launch
 
 val CBlue = Color(0xFF6b87c0)
@@ -38,7 +41,14 @@ data class UserProfile(
     val role_driver: Boolean = false,
     val licenseNumber: String = "",
     val vehiclePlateNumber: String = "",
-    val vehicleType: String = ""
+    val vehicleType: String = "",
+    // Academic information from SMPWeb
+    val faculty: String = "",
+    val academicProgram: String = "",
+    val yearOfStudy: Int = 0,
+    val enrolmentLevel: String = "",
+    val academicStatus: String = "",
+    val batch: String = ""
 )
 
 @Composable
@@ -97,6 +107,7 @@ fun CustomerProfileScreen(
     val scope = rememberCoroutineScope()
     val activeRole by authViewModel.activeRole.collectAsState()
     val isDriver = activeRole == "driver"
+    val context = LocalContext.current
 
     if (user == null) {
         Box(
@@ -220,6 +231,8 @@ fun CustomerProfileScreen(
             item {
                 // Show "Start Working" only if user is not currently a driver AND hasn't already applied
                 if (!isDriver && !user.role_driver) {
+                    val eligibilityResult = DriverEligibilityChecker.checkEligibility(user)
+                    
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = CBlue)
@@ -243,11 +256,29 @@ fun CustomerProfileScreen(
                                 color = Color.Black
                             )
 
+                            // Show eligibility status
+                            if (!eligibilityResult.isEligible) {
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    eligibilityResult.reason,
+                                    fontSize = 12.sp,
+                                    color = Color.Red,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                            }
+
                             Spacer(Modifier.height(16.dp))
 
                             Button(
                                 onClick = {
-                                    navController.navigate("driver_application") // ✅ ONLY AVAILABLE TO NON-DRIVERS
+                                    if (eligibilityResult.isEligible) {
+                                        navController.navigate("driver_application")
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "You must be in Year 2 and above to become a driver.",
+                                            Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                                 modifier = Modifier.fillMaxWidth().height(48.dp)

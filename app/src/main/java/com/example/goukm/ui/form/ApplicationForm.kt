@@ -20,6 +20,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goukm.ui.register.AuthViewModel
 import com.example.goukm.ui.register.AuthViewModelFactory
+import com.example.goukm.util.DriverEligibilityChecker
+import com.example.goukm.util.EligibilityResult
 import androidx.compose.ui.platform.LocalContext
 
 // Assuming CBlue is defined in the package scope, but defining locally for safety
@@ -41,8 +43,15 @@ fun DriverApplicationFormScreen(
     var selectedVehicleType by remember { mutableStateOf(applicationViewModel.vehicleType) }
     var acceptedTerms by remember { mutableStateOf(false) }
     val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
+    val currentUser by authViewModel.currentUser.collectAsState()
 
     val vehicleTypes = listOf("Motorcycle", "Car", "Van")
+    
+    // Check eligibility
+    val eligibilityResult = remember(currentUser) {
+        currentUser?.let { DriverEligibilityChecker.checkEligibility(it) }
+            ?: EligibilityResult(isEligible = false, reason = "User profile not available")
+    }
 
     Scaffold(
         topBar = {
@@ -69,6 +78,39 @@ fun DriverApplicationFormScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Show eligibility error if not eligible
+            if (!eligibilityResult.isEligible) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                "Not Eligible to Apply",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Red
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                eligibilityResult.reason,
+                                fontSize = 14.sp,
+                                color = Color.Black
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                DriverEligibilityChecker.getEligibilityRequirementsMessage(),
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+            }
+            
             if (applicationStatus == "under_review") {
                 item {
                     Text(
@@ -164,7 +206,8 @@ fun DriverApplicationFormScreen(
                                     onApplicationSubmit()
                         }
                     },
-                    enabled = acceptedTerms &&
+                    enabled = eligibilityResult.isEligible &&
+                            acceptedTerms &&
                             licenseNumber.isNotBlank() &&
                             vehiclePlateNumber.isNotBlank() &&
                             applicationStatus != "under_review",

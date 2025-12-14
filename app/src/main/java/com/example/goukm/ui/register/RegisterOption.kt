@@ -30,7 +30,9 @@
     import androidx.compose.ui.unit.sp
     import androidx.navigation.NavController
     import com.example.goukm.R
+    import com.google.firebase.firestore.FirebaseFirestore
     import kotlinx.coroutines.launch
+    import kotlinx.coroutines.tasks.await
 
     val CBlack = Color(0xFF000000)
     val CWhite = Color(0xFFFFFFFF)
@@ -41,7 +43,8 @@
     @Composable
     fun RegisterOption(
         modifier: Modifier = Modifier,
-        navController: NavController
+        navController: NavController,
+        authViewModel: AuthViewModel
     ) {
         val scope = rememberCoroutineScope()
 
@@ -92,10 +95,14 @@
                             RegistrationState.password,
                             RegistrationState.phoneNumber,
                             RegistrationState.name,
-                            "customer"
+                            "customer",
+                            RegistrationState.smpWebStudent
                         )
 
                         if (res.isSuccess) {
+                            val uid = res.getOrNull()!!
+                            // ✅ Save session and notify AuthViewModel
+                            authViewModel.handleLoginSuccess(uid)
                             // ✅ Navigate to Customer Dashboard
                             navController.navigate("customer_dashboard") {
                                 popUpTo("register_screen") { inclusive = true } // remove registration screens from back stack
@@ -132,13 +139,32 @@
                             RegistrationState.password,
                             RegistrationState.phoneNumber,
                             RegistrationState.name,
-                            "driver"
+                            "driver",
+                            RegistrationState.smpWebStudent
                         )
 
                         if (res.isSuccess) {
-                            // ✅ Navigate to Customer Dashboard (or Driver Dashboard if needed)
-                            navController.navigate("customer_dashboard") {
-                                popUpTo("register_screen") { inclusive = true }
+                            val uid = res.getOrNull()!!
+                            // ✅ Save session and notify AuthViewModel
+                            authViewModel.handleLoginSuccess(uid)
+                            
+                            // Check if user already has a pending application
+                            val firestore = FirebaseFirestore.getInstance()
+                            val appDoc = firestore.collection("driverApplications")
+                                .document(uid)
+                                .get()
+                                .await()
+                            
+                            if (appDoc.exists() && appDoc.getString("status") == "under_review") {
+                                // Application already submitted - go to customer dashboard
+                                navController.navigate("customer_dashboard") {
+                                    popUpTo("register_screen") { inclusive = true }
+                                }
+                            } else {
+                                // ✅ Navigate to Driver Application Form
+                                navController.navigate("driver_application") {
+                                    popUpTo("register_screen") { inclusive = true }
+                                }
                             }
                         } else {
                             println("Error: ${res.exceptionOrNull()?.message}")

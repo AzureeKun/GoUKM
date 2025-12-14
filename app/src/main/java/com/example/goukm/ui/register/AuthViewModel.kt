@@ -74,13 +74,8 @@ class AuthViewModel(
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: return@launch
 
-            val doc = FirebaseFirestore.getInstance()
-                .collection("users")
-                .document(uid)
-                .get()
-                .await()
-
-            val user = doc.toObject(UserProfile::class.java)
+            // Use UserProfileRepository for proper field mapping
+            val user = UserProfileRepository.getUserProfile()
             _currentUser.value = user
 
             // Restore from Firestore or default to customer

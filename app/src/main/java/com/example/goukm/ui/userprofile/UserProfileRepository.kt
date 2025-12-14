@@ -29,7 +29,13 @@ object UserProfileRepository {
             role_driver = doc.getBoolean("role_driver") ?: false,
             licenseNumber = doc.getString("licenseNumber") ?: "",
             vehiclePlateNumber = doc.getString("vehiclePlateNumber") ?: "",
-            vehicleType = doc.getString("vehicleType") ?: ""
+            vehicleType = doc.getString("vehicleType") ?: "",
+            faculty = doc.getString("faculty") ?: "",
+            academicProgram = doc.getString("academicProgram") ?: "",
+            yearOfStudy = (doc.getLong("yearOfStudy") ?: 0).toInt(),
+            enrolmentLevel = doc.getString("enrolmentLevel") ?: "",
+            academicStatus = doc.getString("academicStatus") ?: "",
+            batch = doc.getString("batch") ?: ""
         )
     }
 
@@ -54,7 +60,13 @@ object UserProfileRepository {
             "role_driver" to user.role_driver,
             "licenseNumber" to user.licenseNumber,
             "vehiclePlateNumber" to user.vehiclePlateNumber,
-            "vehicleType" to user.vehicleType
+            "vehicleType" to user.vehicleType,
+            "faculty" to user.faculty,
+            "academicProgram" to user.academicProgram,
+            "yearOfStudy" to user.yearOfStudy,
+            "enrolmentLevel" to user.enrolmentLevel,
+            "academicStatus" to user.academicStatus,
+            "batch" to user.batch
         )
 
         return try {
