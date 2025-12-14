@@ -21,4 +21,10 @@ sealed class NavRoutes(val route: String) {
 
     object DriverProfile : NavRoutes("driver_profile")
     object FareOffer : NavRoutes("fare_offer/{customerName}/{pickup}/{dropOff}/{seats}")
+    
+    // Chat Routes
+    object CustomerChatList : NavRoutes("customer_chat_list")
+    object CustomerChat : NavRoutes("customer_chat/{chatId}/{contactName}")
+    object DriverChatList : NavRoutes("driver_chat_list")
+    object DriverChat : NavRoutes("driver_chat/{chatId}/{contactName}")
 }

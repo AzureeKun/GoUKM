@@ -68,7 +68,7 @@ fun BottomBar(navController: NavHostController) {
 
         NavigationBarItem(
             selected = false,
-            onClick = { /* TODO: Navigate Bubble */ },
+            onClick = { navController.navigate(NavRoutes.CustomerChatList.route) },
             icon = {
                 Icon(
                     imageVector = Icons.Default.Message,

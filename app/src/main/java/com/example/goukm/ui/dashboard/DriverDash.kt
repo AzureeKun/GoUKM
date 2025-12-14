@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -116,6 +117,15 @@ fun DriverDashboard(
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
+
+                // Chat Button
+                IconButton(onClick = { navController.navigate("driver_chat_list") }) {
+                    Icon(
+                        imageVector = Icons.Default.Message,
+                        contentDescription = "Chat",
+                        tint = Color.White
+                    )
+                }
 
                 IconButton(onClick = { /* TODO: Settings */ }) {
                     Icon(

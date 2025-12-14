@@ -28,6 +28,10 @@ import com.example.goukm.ui.userprofile.DriverProfileScreen
 import com.example.goukm.ui.driver.FareOfferScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.goukm.ui.chat.CustomerChatListScreen
+import com.example.goukm.ui.chat.CustomerChatScreen
+import com.example.goukm.ui.chat.DriverChatListScreen
+import com.example.goukm.ui.chat.DriverChatScreen
 
 
 @Composable
@@ -268,6 +272,46 @@ fun AppNavGraph(
                 pickup = backStackEntry.arguments?.getString("pickup") ?: "",
                 dropOff = backStackEntry.arguments?.getString("dropOff") ?: "",
                 seats = backStackEntry.arguments?.getInt("seats") ?: 0
+            )
+        }
+        
+        // CUSTOMER CHAT LIST
+        composable(NavRoutes.CustomerChatList.route) {
+            CustomerChatListScreen(navController = navController)
+        }
+        
+        // CUSTOMER CHAT
+        composable(
+            route = "customer_chat/{chatId}/{contactName}",
+            arguments = listOf(
+                navArgument("chatId") { type = NavType.StringType },
+                navArgument("contactName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            CustomerChatScreen(
+                navController = navController,
+                chatId = backStackEntry.arguments?.getString("chatId") ?: "",
+                contactName = backStackEntry.arguments?.getString("contactName") ?: ""
+            )
+        }
+        
+        // DRIVER CHAT LIST
+        composable(NavRoutes.DriverChatList.route) {
+            DriverChatListScreen(navController = navController)
+        }
+        
+        // DRIVER CHAT
+        composable(
+            route = "driver_chat/{chatId}/{contactName}",
+            arguments = listOf(
+                navArgument("chatId") { type = NavType.StringType },
+                navArgument("contactName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            DriverChatScreen(
+                navController = navController,
+                chatId = backStackEntry.arguments?.getString("chatId") ?: "",
+                contactName = backStackEntry.arguments?.getString("contactName") ?: ""
             )
         }
     }
