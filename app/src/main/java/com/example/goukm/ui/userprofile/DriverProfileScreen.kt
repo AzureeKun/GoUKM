@@ -58,14 +58,14 @@ fun DriverProfileScreen(
             BottomNavigationBarDriver(
                 selectedIndex = selectedNavIndex, // 3 is usually Profile if we added it, but let's assume valid index is passed
                 onSelected = { index ->
-                    if (index == 0) {
-                        navController.navigate("driver_dashboard") {
+                    when (index) {
+                        0 -> navController.navigate("driver_dashboard") {
                             popUpTo("driver_dashboard") { inclusive = true }
                         }
-                    } else if (index == 3) {
-                         // Already here
+                        1 -> navController.navigate("driver_chat_list")
+                        2 -> navController.navigate("driver_earning")
+                        // 3 is current screen
                     }
-                    // Handle other indices if needed or ignore for now as per simple req
                 }
             )
         }

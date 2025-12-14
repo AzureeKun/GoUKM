@@ -61,6 +61,7 @@ fun DriverChatListScreen(navController: NavHostController) {
                         0 -> navController.navigate("driver_dashboard") { 
                             popUpTo("driver_dashboard") { inclusive = true }
                         }
+                        2 -> navController.navigate("driver_earning")
                         3 -> navController.navigate("driver_profile")
                     }
                 }

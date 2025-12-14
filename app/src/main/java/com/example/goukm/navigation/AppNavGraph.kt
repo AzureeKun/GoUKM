@@ -32,6 +32,7 @@ import com.example.goukm.ui.chat.CustomerChatListScreen
 import com.example.goukm.ui.chat.CustomerChatScreen
 import com.example.goukm.ui.chat.DriverChatListScreen
 import com.example.goukm.ui.chat.DriverChatScreen
+import com.example.goukm.ui.driver.DriverEarningScreen
 
 
 @Composable
@@ -147,8 +148,9 @@ fun AppNavGraph(
                 selectedNavIndex = localSelectedDriverNavIndex,
                 onNavSelected = { index ->
                     localSelectedDriverNavIndex = index
-                    if (index == 3) {
-                         navController.navigate(NavRoutes.DriverProfile.route)
+                    when (index) {
+                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
+                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
                     }
                 }
             )
@@ -313,6 +315,11 @@ fun AppNavGraph(
                 chatId = backStackEntry.arguments?.getString("chatId") ?: "",
                 contactName = backStackEntry.arguments?.getString("contactName") ?: ""
             )
+        }
+        
+        // DRIVER EARNING
+        composable(NavRoutes.DriverEarning.route) {
+            DriverEarningScreen(navController = navController)
         }
     }
 }
