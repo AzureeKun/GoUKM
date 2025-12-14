@@ -25,6 +25,9 @@ import com.example.goukm.ui.form.verificationDocuments
 import com.example.goukm.ui.form.DriverApplicationStatusScreen
 import com.example.goukm.ui.form.DriverApplicationViewModel
 import com.example.goukm.ui.userprofile.DriverProfileScreen
+import com.example.goukm.ui.driver.FareOfferScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 
 @Composable
@@ -137,8 +140,6 @@ fun AppNavGraph(
             DriverDashboard(
                 navController = navController,
                 authViewModel = authViewModel,
-                onSkip = { request -> println("Driver skipped ride: ${request.customerName}") },
-                onOffer = { request -> println("Driver offered ride: ${request.customerName}") },
                 selectedNavIndex = localSelectedDriverNavIndex,
                 onNavSelected = { index ->
                     localSelectedDriverNavIndex = index
@@ -248,6 +249,25 @@ fun AppNavGraph(
                 onEditProfile = { navController.navigate(NavRoutes.EditProfile.route) },
                 onLogout = { authViewModel.logout() },
                 selectedNavIndex = 3
+            )
+        }
+        
+        // FARE OFFER
+        composable(
+            route = "fare_offer/{customerName}/{pickup}/{dropOff}/{seats}",
+            arguments = listOf(
+                navArgument("customerName") { type = NavType.StringType },
+                navArgument("pickup") { type = NavType.StringType },
+                navArgument("dropOff") { type = NavType.StringType },
+                navArgument("seats") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            FareOfferScreen(
+                navController = navController,
+                customerName = backStackEntry.arguments?.getString("customerName") ?: "",
+                pickup = backStackEntry.arguments?.getString("pickup") ?: "",
+                dropOff = backStackEntry.arguments?.getString("dropOff") ?: "",
+                seats = backStackEntry.arguments?.getInt("seats") ?: 0
             )
         }
     }

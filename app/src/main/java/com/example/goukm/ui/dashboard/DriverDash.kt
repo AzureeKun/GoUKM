@@ -31,15 +31,13 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun DriverDashboard(
-    navController: NavHostController,
+            navController: NavHostController,
     authViewModel: AuthViewModel,
 
     /*ADA FIREBASE BARU GUNA
     isOnline: Boolean,
     rideRequests: List<RideRequestModel>,
     onToggleStatus: () -> Unit,*/
-    onSkip: (RideRequestModel) -> Unit,
-    onOffer: (RideRequestModel) -> Unit,
     selectedNavIndex: Int,
     onNavSelected: (Int) -> Unit
 ) {
@@ -142,8 +140,12 @@ fun DriverDashboard(
                     items(rideRequests) { request ->
                         RideRequestCard(
                             request = request,
-                            onSkip = { onSkip(request) },
-                            onOffer = { onOffer(request) }
+                            onSkip = { },
+                            onOffer = {
+                                navController.navigate(
+                                    "fare_offer/${request.customerName}/${request.pickupPoint}/${request.dropOffPoint}/${request.seats}"
+                                )
+                            }
                         )
                     }
                 }

@@ -20,4 +20,5 @@ sealed class NavRoutes(val route: String) {
 
 
     object DriverProfile : NavRoutes("driver_profile")
+    object FareOffer : NavRoutes("fare_offer/{customerName}/{pickup}/{dropOff}/{seats}")
 }
