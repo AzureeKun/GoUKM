@@ -48,7 +48,8 @@ data class UserProfile(
     val yearOfStudy: Int = 0,
     val enrolmentLevel: String = "",
     val academicStatus: String = "",
-    val batch: String = ""
+    val batch: String = "",
+    val isAvailable: Boolean = false
 )
 
 @Composable

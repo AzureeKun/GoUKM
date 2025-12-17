@@ -35,7 +35,8 @@ object UserProfileRepository {
             yearOfStudy = (doc.getLong("yearOfStudy") ?: 0).toInt(),
             enrolmentLevel = doc.getString("enrolmentLevel") ?: "",
             academicStatus = doc.getString("academicStatus") ?: "",
-            batch = doc.getString("batch") ?: ""
+            batch = doc.getString("batch") ?: "",
+            isAvailable = doc.getBoolean("isAvailable") ?: false
         )
     }
 
@@ -113,6 +114,23 @@ object UserProfileRepository {
                         "role_driver" to true // do not remove driver access when switching view
                     )
                 )
+                .await()
+
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun updateDriverAvailability(isAvailable: Boolean): Boolean {
+        return try {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return false
+
+            FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(uid)
+                .update("isAvailable", isAvailable)
                 .await()
 
             true

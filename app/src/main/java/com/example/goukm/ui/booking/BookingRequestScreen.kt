@@ -60,6 +60,8 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +71,11 @@ fun BookingRequestScreen(navController: NavHostController) {
     var dropOff by remember { mutableStateOf("Kolej Pendeta Za'ba") }
     var isSearching by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
+    
+    // Hoisted State and Dependencies
+    val scope = rememberCoroutineScope()
+    val bookingRepository = remember { BookingRepository() }
+    var currentBookingId by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     var hasLocationPermission by remember {
@@ -222,52 +229,7 @@ fun BookingRequestScreen(navController: NavHostController) {
                     }
                 }
 
-                // Cancel Confirmation Dialog
-                if (showCancelDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showCancelDialog = false },
-                        containerColor = Color(0xFFFFEBEE),
-                        title = {
-                            Text(
-                                text = "Cancel Booking",
-                                color = Color(0xFFD32F2F),
-                                fontWeight = FontWeight.Bold
-                            )
-                        },
-                        text = {
-                            Text(
-                                text = "Do you really want to cancel the booking?",
-                                color = Color.Black
-                            )
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = {
-                                    showCancelDialog = false
-                                    isSearching = false
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFD32F2F)
-                                ),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Yes", color = Color.White)
-                            }
-                        },
-                        dismissButton = {
-                            Button(
-                                onClick = { showCancelDialog = false },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Gray
-                                ),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("No", color = Color.White)
-                            }
-                        },
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                }
+                var showValidationToast by remember { mutableStateOf(false) }
 
                 Button(
                     onClick = {
@@ -275,8 +237,24 @@ fun BookingRequestScreen(navController: NavHostController) {
                             // Show confirmation dialog
                             showCancelDialog = true
                         } else {
-                            // start searching
-                            isSearching = true
+                            // Validate input
+                            if (pickup.isBlank() || dropOff.isBlank()) {
+                                // For Simplicity using a simple state to show error, ideally Toast/Snackbar
+                                // Since context is available:
+                                android.widget.Toast.makeText(context, "Please enter pickup and drop-off locations", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                // Create Booking
+                                scope.launch {
+                                    val result = bookingRepository.createBooking(pickup, dropOff, selectedSeat)
+                                    result.onSuccess { bookingId ->
+                                         currentBookingId = bookingId
+                                         isSearching = true
+                                         android.widget.Toast.makeText(context, "Booking Request Sent!", android.widget.Toast.LENGTH_SHORT).show()
+                                    }.onFailure { e ->
+                                         android.widget.Toast.makeText(context, "Failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
                         }
                     },
                     modifier = Modifier
@@ -306,28 +284,82 @@ fun BookingRequestScreen(navController: NavHostController) {
             val cameraPositionState = rememberCameraPositionState {
                 position = CameraPosition.fromLatLngZoom(ukmLocation, 15f)
             }
-            
+             
             val mapProperties = MapProperties(
                 mapType = MapType.NORMAL,
                 isMyLocationEnabled = hasLocationPermission
             )
-            
+             
             val mapUiSettings = MapUiSettings(
                 zoomControlsEnabled = true,
                 myLocationButtonEnabled = hasLocationPermission,
                 mapToolbarEnabled = false
             )
-            
+             
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 properties = mapProperties,
                 uiSettings = mapUiSettings,
-                onMapLoaded = {
-                    // Map is ready
-                }
+                onMapLoaded = { /* Map is ready */ }
             )
-        }
+            
+            // Cancel Confirmation Dialog
+            if (showCancelDialog) {
+                AlertDialog(
+                    onDismissRequest = { showCancelDialog = false },
+                    containerColor = Color(0xFFFFEBEE),
+                    title = {
+                        Text(
+                            text = "Cancel Booking",
+                            color = Color(0xFFD32F2F),
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Do you really want to cancel the booking?",
+                            color = Color.Black
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    if (currentBookingId != null) {
+                                        val result = bookingRepository.updateStatus(currentBookingId!!, BookingStatus.CANCELLED)
+                                        result.onSuccess {
+                                            android.widget.Toast.makeText(context, "Booking Cancelled", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    showCancelDialog = false
+                                    isSearching = false
+                                    currentBookingId = null
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD32F2F)
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Yes", color = Color.White)
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showCancelDialog = false },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Gray
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("No", color = Color.White)
+                        }
+                    },
+                    shape = RoundedCornerShape(16.dp)
+                )
+            }
+        }    
     }
 }
 

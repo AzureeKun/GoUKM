@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,13 @@ fun DriverDashboard(
     // ✅ ADD STATE DALAM NI (SENANG TEST)
     var isOnline by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+         val profile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile()
+         if (profile != null) {
+             isOnline = profile.isAvailable
+         }
+    }
 
     // ✅ DUMMY DATA UNTUK TEST
     val rideRequests = listOf(
@@ -95,8 +103,10 @@ fun DriverDashboard(
                 Switch(
                     checked = isOnline,
                     onCheckedChange = {
-                        isOnline = it      // ✅ LOCAL CHANGE
-                        // onToggleStatus() // ❌ NANTI dulu (data sebenar)
+                        isOnline = it
+                        scope.launch {
+                             com.example.goukm.ui.userprofile.UserProfileRepository.updateDriverAvailability(it)
+                        }
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.Green,
