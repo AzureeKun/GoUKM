@@ -30,6 +30,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.wrapContentWidth
+import com.example.goukm.ui.booking.BookingStatus
+import com.example.goukm.navigation.NavRoutes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,15 +63,46 @@ data class DriverOffer(
 @Composable
 fun FareOffersScreen(
     navController: NavHostController,
-    offers: List<DriverOffer> = sampleOffers,
-    seatLabel: String = "4 seater ride",
-    pickup: String = "Kolej Aminuddin Baki",
-    dropOff: String = "Kolej Pendeta Za'ba"
+    bookingId: String
 ) {
     val headerBlue = Color(0xFF6B87C0)
     val cardBg = Color.White
     val yellow = Color(0xFFFFD60A)
     val grayBg = Color(0xFFF6F6F6)
+
+    var isLoading by remember { mutableStateOf(true) }
+    var offer by remember { mutableStateOf<DriverOffer?>(null) }
+    var pickup by remember { mutableStateOf("") }
+    var dropOff by remember { mutableStateOf("") }
+    var seatLabel by remember { mutableStateOf("") }
+
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(bookingId) {
+        val result = bookingRepository.getBooking(bookingId)
+        val booking = result.getOrNull()
+        if (booking != null) {
+             pickup = booking.pickup
+             dropOff = booking.dropOff
+             seatLabel = "${booking.seatType.filter { it.isDigit() }} seater ride"
+             
+             if (booking.driverId.isNotEmpty()) {
+                 val driver = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
+                 if (driver != null) {
+                     offer = DriverOffer(
+                         name = driver.name,
+                         fareLabel = "RM ${booking.offeredFare}",
+                         carBrand = driver.vehicleType, 
+                         carName = "", 
+                         carColor = "", 
+                         plate = driver.vehiclePlateNumber
+                     )
+                 }
+             }
+        }
+        isLoading = false
+    }
 
     Scaffold(
         bottomBar = { BottomBar(navController) }
@@ -71,56 +113,81 @@ fun FareOffersScreen(
                 .padding(padding),
             color = headerBlue
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Header
-                Text(
-                    text = "Ride Offer",
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-
-                // Trip summary card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardBg),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            if (isLoading) {
+                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                     androidx.compose.material3.CircularProgressIndicator(color = Color.White)
+                 }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
+                    // Header
+                    Text(
+                        text = "Ride Offer",
+                        color = Color.White,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    // Trip summary card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(seatLabel, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            Text("Pickup Point", fontWeight = FontWeight.Bold)
+                            ChipField(
+                                leadingIcon = Icons.Default.Send,
+                                text = pickup
+                            )
+                            Text("Drop-Off Point", fontWeight = FontWeight.Bold)
+                            ChipField(
+                                leadingIcon = Icons.Default.Place,
+                                text = dropOff
+                            )
+                        }
+                    }
+
+                    // Offers list
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(seatLabel, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Text("Pickup Point", fontWeight = FontWeight.Bold)
-                        ChipField(
-                            leadingIcon = Icons.Default.Send,
-                            text = pickup
-                        )
-                        Text("Drop-Off Point", fontWeight = FontWeight.Bold)
-                        ChipField(
-                            leadingIcon = Icons.Default.Place,
-                            text = dropOff
-                        )
-                    }
-                }
-
-                // Only offers list scrolls
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(offers) { offer ->
-                        OfferCard(offer = offer, badgeColor = yellow, cardBg = cardBg, grayBg = grayBg)
+                        if (offer != null) {
+                            item {
+                                OfferCard(
+                                    offer = offer!!, 
+                                    badgeColor = yellow, 
+                                    cardBg = cardBg, 
+                                    grayBg = grayBg,
+                                    onAccept = {
+                                        scope.launch {
+                                            bookingRepository.updateStatus(bookingId, BookingStatus.ACCEPTED)
+                                            navController.navigate(NavRoutes.CustomerDashboard.route) {
+                                                popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        } else {
+                            item {
+                                Text("Waiting for offers...", color = Color.White)
+                            }
+                        }
                     }
                 }
             }
@@ -149,7 +216,8 @@ private fun OfferCard(
     offer: DriverOffer,
     badgeColor: Color,
     cardBg: Color,
-    grayBg: Color
+    grayBg: Color,
+    onAccept: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -212,11 +280,11 @@ private fun OfferCard(
                     Text(offer.fareLabel, fontWeight = FontWeight.ExtraBold, color = Color.Black)
                 }
                 Button(
-                    onClick = { /* TODO: handle accept offer */ },
+                    onClick = onAccept,
                     colors = ButtonDefaults.buttonColors(containerColor = badgeColor),
-                    modifier = Modifier.width(80.dp),
+                    modifier = Modifier.wrapContentWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    contentPadding = ButtonDefaults.ContentPadding
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text("Accept", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }

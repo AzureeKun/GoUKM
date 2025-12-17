@@ -86,7 +86,7 @@ dependencies {
     // Google Places
     implementation("com.google.android.libraries.places:places:3.3.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    
+
     // Google Maps Compose
 
     implementation("com.google.maps.android:maps-compose:4.3.0")
@@ -102,7 +102,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
 
-        //
+    //
     // Add the dependencies for any other desired Firebase products
     // https://firebase.google.com/docs/android/setup#available-libraries
 

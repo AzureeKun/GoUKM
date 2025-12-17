@@ -34,6 +34,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -104,7 +113,45 @@ fun CustomerDashboard(
     val headerBlue = Color(0xFF6B87C0)
     val searchBg = Color(0xFFF5F6FA)
 
+    val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
+    val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance() }
+    var activeBooking by remember { mutableStateOf<com.example.goukm.ui.booking.Booking?>(null) }
+
+    DisposableEffect(Unit) {
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val listener = db.collection("bookings")
+                .whereEqualTo("userId", currentUser.uid)
+                .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED"))
+                .addSnapshotListener { snapshot, e ->
+                     if (e != null || snapshot == null || snapshot.isEmpty) {
+                         activeBooking = null
+                         return@addSnapshotListener
+                     }
+                     val doc = snapshot.documents.firstOrNull()
+                     if (doc != null) {
+                         activeBooking = com.example.goukm.ui.booking.Booking(
+                            id = doc.id,
+                            userId = doc.getString("userId") ?: "",
+                            pickup = doc.getString("pickup") ?: "",
+                            dropOff = doc.getString("dropOff") ?: "",
+                            seatType = doc.getString("seatType") ?: "",
+                            status = doc.getString("status") ?: "",
+                            offeredFare = doc.getString("offeredFare") ?: "",
+                            driverId = doc.getString("driverId") ?: ""
+                         )
+                     } else {
+                         activeBooking = null
+                     }
+                }
+            onDispose { listener.remove() }
+        } else {
+            onDispose { }
+        }
+    }
+
     Scaffold(bottomBar = { BottomBar(navController) }) { paddingValues ->
+
         Surface(
             modifier = Modifier
                 .fillMaxSize()
@@ -146,6 +193,67 @@ fun CustomerDashboard(
                                     .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
                                     .padding(4.dp)
                             )
+                        }
+                    }
+                }
+
+                // Active Booking Banner
+                if (activeBooking != null) {
+                    val status = activeBooking!!.status
+                    val isOffered = status == "OFFERED"
+                    val isAccepted = status == "ACCEPTED"
+                    
+                    val cardColor = when {
+                        isAccepted -> Color(0xFFC8E6C9) // Green for Accepted
+                        isOffered -> Color(0xFFE0F7FA) // Blueish for Offered
+                        else -> Color(0xFFFFF9C4) // Yellow used for Pending
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                         colors = CardDefaults.cardColors(containerColor = cardColor),
+                         onClick = {
+                             if (isOffered) {
+                                 navController.navigate("fare_offers_screen/${activeBooking!!.id}")
+                             }
+                         }
+                    ) {
+                        Row(
+                             modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                             verticalAlignment = Alignment.CenterVertically,
+                             horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    when {
+                                        isAccepted -> "You accepted the ride!"
+                                        isOffered -> "Driver Offer Received!"
+                                        else -> "Finding you a driver..."
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                                Text(
+                                    when {
+                                        isAccepted -> "Driver is on the way"
+                                        isOffered -> "Tap to view options"
+                                        else -> "Please wait"
+                                    },
+                                    fontSize = 12.sp,
+                                    color = Color.DarkGray
+                                )
+                            }
+                            if (isOffered) {
+                                Icon(Icons.Default.ArrowForward, contentDescription = "View", tint = Color.Black)
+                            } else if (isAccepted) {
+                                Icon(Icons.Default.Favorite, contentDescription = "Accepted", tint = Color(0xFF2E7D32))
+                            } else {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            }
                         }
                     }
                 }

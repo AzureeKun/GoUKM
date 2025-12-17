@@ -109,7 +109,7 @@ fun BookingRequestScreen(navController: NavHostController) {
         if (pickupLatLng != null && dropOffLatLng != null) {
             val result = placesRepository.getRoute(pickupLatLng!!, dropOffLatLng!!)
             result.onSuccess {
-                routePoints = it
+                routePoints = it.polyline
             }.onFailure {
                 // Fallback: Draw a straight line if API fails
                 routePoints = listOf(pickupLatLng!!, dropOffLatLng!!)
@@ -307,7 +307,20 @@ fun BookingRequestScreen(navController: NavHostController) {
                                 else -> {
                                     // All Valid
                                     scope.launch {
-                                        val result = bookingRepository.createBooking(pickupQuery, dropOffQuery, selectedSeat)
+                                        val pickupLat = pickupLatLng?.latitude ?: 0.0
+                                        val pickupLng = pickupLatLng?.longitude ?: 0.0
+                                        val dropOffLat = dropOffLatLng?.latitude ?: 0.0
+                                        val dropOffLng = dropOffLatLng?.longitude ?: 0.0
+
+                                        val result = bookingRepository.createBooking(
+                                            pickup = pickupQuery, 
+                                            dropOff = dropOffQuery, 
+                                            seatType = selectedSeat,
+                                            pickupLat = pickupLat,
+                                            pickupLng = pickupLng,
+                                            dropOffLat = dropOffLat,
+                                            dropOffLng = dropOffLng
+                                        )
                                         result.onSuccess { bookingId ->
                                              currentBookingId = bookingId
                                              isSearching = true

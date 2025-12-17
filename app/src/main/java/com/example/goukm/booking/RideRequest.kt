@@ -39,7 +39,12 @@ import androidx.compose.ui.unit.sp
 import com.example.goukm.R
 
 @Composable
-fun RideRequestCard(request: RideRequestModel, onSkip: () -> Unit, onOffer: () -> Unit) {
+fun RideRequestCard(
+    request: RideRequestModel, 
+    onSkip: () -> Unit, 
+    onOffer: (() -> Unit)? = null,
+    skipLabel: String = "Skip"
+) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(8.dp),
@@ -59,7 +64,7 @@ fun RideRequestCard(request: RideRequestModel, onSkip: () -> Unit, onOffer: () -
                 contentScale = ContentScale.Crop
             )
             Spacer(Modifier.width(8.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = request.customerName,
                     fontWeight = FontWeight.SemiBold,
@@ -78,6 +83,16 @@ fun RideRequestCard(request: RideRequestModel, onSkip: () -> Unit, onOffer: () -
                         color = Color.Gray
                     )
                 }
+            }
+            // Display Offered Fare if present
+            if (request.offeredFare.isNotEmpty()) {
+                 Text(
+                    text = "RM ${request.offeredFare}",
+                    color = Color(0xFFE91E63),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(end = 16.dp)
+                 )
             }
         }
 
@@ -162,17 +177,20 @@ fun RideRequestCard(request: RideRequestModel, onSkip: () -> Unit, onOffer: () -
                     contentColor = Color.DarkGray
                 )
             ) {
-                Text("Skip")
+                Text(skipLabel)
             }
-            Button(
-                onClick = onOffer,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFFEB3B),
-                    contentColor = Color.Black
-                )
-            ) {
-                Text("Offer")
+            
+            if (onOffer != null) {
+                Button(
+                    onClick = onOffer,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFFEB3B),
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("Offer")
+                }
             }
         }
     }

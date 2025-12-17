@@ -69,24 +69,33 @@ fun DriverDashboard(
     }
 
     // ✅ Real-time Data from Firestore
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     var rideRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
+    var offeredRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
+    var acceptedRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
 
     DisposableEffect(isOnline) {
         if (isOnline) {
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            val currentUserId = auth.currentUser?.uid
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val listener = db.collection("bookings")
-                .whereEqualTo("status", "PENDING")
+                .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED"))
                 .addSnapshotListener { snapshots, e ->
                     if (e != null || snapshots == null) return@addSnapshotListener
 
                     scope.launch {
-                        val newRequests = snapshots.documents.mapNotNull { doc ->
+                        suspend fun mapToModel(doc: com.google.firebase.firestore.DocumentSnapshot): RideRequestModel? {
                             val pickup = doc.getString("pickup") ?: ""
                             val dropOff = doc.getString("dropOff") ?: ""
                             val seatType = doc.getString("seatType") ?: "4"
                             val seats = seatType.filter { it.isDigit() }.toIntOrNull() ?: 4
                             val userId = doc.getString("userId") ?: ""
                             val timestamp = doc.getDate("timestamp")
+                            val offeredFare = doc.getString("offeredFare") ?: ""
+                            
+                            val pickupLat = doc.getDouble("pickupLat") ?: 0.0
+                            val pickupLng = doc.getDouble("pickupLng") ?: 0.0
                             
                             val timeAgo = if (timestamp != null) {
                                 val diff = java.util.Date().time - timestamp.time
@@ -94,26 +103,51 @@ fun DriverDashboard(
                                 if (min < 1) "Just now" else "$min min ago"
                             } else "Just now"
 
-                            // Fetch user profile for name
                             val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(userId)
                             val name = userProfile?.name ?: "Passenger"
                             
-                            // Note: RideRequestModel currently uses Int for image arg.
-                            RideRequestModel(
+                            return RideRequestModel(
+                                id = doc.id,
                                 customerName = name,
                                 pickupPoint = pickup,
                                 dropOffPoint = dropOff,
                                 seats = seats,
                                 requestedTimeAgo = timeAgo,
-                                customerImageRes = R.drawable.ic_account_circle_24
+                                customerImageRes = R.drawable.ic_account_circle_24,
+                                offeredFare = offeredFare,
+                                pickupLat = pickupLat,
+                                pickupLng = pickupLng
                             )
                         }
-                        rideRequests = newRequests
+
+                        val pendingList = mutableListOf<RideRequestModel>()
+                        val offeredList = mutableListOf<RideRequestModel>()
+                        val acceptedList = mutableListOf<RideRequestModel>()
+
+                        for (doc in snapshots.documents) {
+                            val status = doc.getString("status")
+                            val driverId = doc.getString("driverId")
+                            val model = mapToModel(doc) ?: continue
+                            
+                            if (status == "PENDING") {
+                                pendingList.add(model)
+                            } else if (status == "OFFERED") {
+                                offeredList.add(model)
+                            } else if (status == "ACCEPTED" && driverId == currentUserId) {
+                                acceptedList.add(model)
+                            }
+                        }
+                        
+                        rideRequests = pendingList
+                        offeredRequests = offeredList
+                        acceptedRequests = acceptedList
                     }
                 }
             onDispose { listener.remove() }
         } else {
             rideRequests = emptyList()
+            offeredRequests = emptyList()
+            acceptedRequests = emptyList()
             onDispose { }
         }
     }
@@ -201,17 +235,91 @@ fun DriverDashboard(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 90.dp)
                 ) {
-                    items(rideRequests) { request ->
-                        RideRequestCard(
-                            request = request,
-                            onSkip = { },
-                            onOffer = {
-                                navController.navigate(
-                                    "fare_offer/${request.customerName}/${request.pickupPoint}/${request.dropOffPoint}/${request.seats}"
-                                )
-                            }
-                        )
+                    // ACCEPTED SECTION
+                    if (acceptedRequests.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Accepted Jobs",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color(0xFF2E7D32),
+                                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp)
+                            )
+                        }
+                        items(acceptedRequests) { request ->
+                             RideRequestCard(
+                                request = request,
+                                onSkip = { 
+                                     val encodedAddress = android.net.Uri.encode(request.pickupPoint)
+                                     navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress")
+                                },
+                                onOffer = null,
+                                skipLabel = "Navigate"
+                             )
+                        }
                     }
+
+                    // OFFERED SECTION
+                    if (offeredRequests.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Waiting for Customer",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color(0xFFE91E63), // Pinkish distinct color
+                                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp, top = 8.dp)
+                            )
+                        }
+                         items(offeredRequests) { request ->
+                             RideRequestCard(
+                                request = request,
+                                onSkip = {
+                                    scope.launch {
+                                         bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED)
+                                            .onSuccess {
+                                                android.widget.Toast.makeText(navController.context, "Offer Cancelled", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                    }
+                                },
+                                onOffer = null,
+                                skipLabel = "Cancel Offer"
+                             )
+                        }
+                    }
+
+                    // PENDING SECTION
+                     if (rideRequests.isNotEmpty()) {
+                        item {
+                             // Only show header if there are requests
+                            Text(
+                                text = "New Requests",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp, top = 16.dp)
+                            )
+                        }
+                        items(rideRequests) { request ->
+                            RideRequestCard(
+                                request = request,
+                                onSkip = {
+                                    scope.launch {
+                                        bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED)
+                                            .onSuccess {
+                                                android.widget.Toast.makeText(navController.context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                    }
+                                },
+                                onOffer = {
+                                    scope.launch {
+                                        // Update to OFFERED
+                                        bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.OFFERED)
+                                            .onSuccess {
+                                                navController.navigate(
+                                                    "fare_offer/${request.customerName}/${request.pickupPoint}/${request.dropOffPoint}/${request.seats}/${request.id}"
+                                                )
+                                            }
+                                    }
+                                }
+                            )
+                        }
+                     }
                 }
 
             } else {

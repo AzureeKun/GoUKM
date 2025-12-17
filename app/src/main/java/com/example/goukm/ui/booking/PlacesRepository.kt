@@ -50,7 +50,13 @@ class PlacesRepository(private val context: Context) {
         }
     }
 
-    suspend fun getRoute(origin: com.google.android.gms.maps.model.LatLng, destination: com.google.android.gms.maps.model.LatLng): Result<List<com.google.android.gms.maps.model.LatLng>> {
+    data class RouteResult(
+        val polyline: List<com.google.android.gms.maps.model.LatLng>,
+        val distance: String,
+        val duration: String
+    )
+
+    suspend fun getRoute(origin: com.google.android.gms.maps.model.LatLng, destination: com.google.android.gms.maps.model.LatLng): Result<RouteResult> {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val apiKey = context.getString(R.string.google_maps_key)
@@ -75,9 +81,22 @@ class PlacesRepository(private val context: Context) {
                         val routes = jsonObject.getJSONArray("routes")
                         if (routes.length() > 0) {
                             val route = routes.getJSONObject(0)
+                            
+                            // Get Polyline
                             val overviewPolyline = route.getJSONObject("overview_polyline")
                             val points = overviewPolyline.getString("points")
-                            return@withContext Result.success(decodePolyline(points))
+                            
+                            // Get Distance & Duration
+                            var distanceText = ""
+                            var durationText = ""
+                            val legs = route.getJSONArray("legs")
+                            if (legs.length() > 0) {
+                                val leg = legs.getJSONObject(0)
+                                distanceText = leg.getJSONObject("distance").getString("text")
+                                durationText = leg.getJSONObject("duration").getString("text")
+                            }
+
+                            return@withContext Result.success(RouteResult(decodePolyline(points), distanceText, durationText))
                         } else {
                             return@withContext Result.failure(Exception("No routes found"))
                         }

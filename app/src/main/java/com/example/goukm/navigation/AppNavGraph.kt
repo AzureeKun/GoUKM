@@ -260,12 +260,13 @@ fun AppNavGraph(
         
         // FARE OFFER
         composable(
-            route = "fare_offer/{customerName}/{pickup}/{dropOff}/{seats}",
+            route = "fare_offer/{customerName}/{pickup}/{dropOff}/{seats}/{bookingId}",
             arguments = listOf(
                 navArgument("customerName") { type = NavType.StringType },
                 navArgument("pickup") { type = NavType.StringType },
                 navArgument("dropOff") { type = NavType.StringType },
-                navArgument("seats") { type = NavType.IntType }
+                navArgument("seats") { type = NavType.IntType },
+                navArgument("bookingId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             FareOfferScreen(
@@ -273,10 +274,24 @@ fun AppNavGraph(
                 customerName = backStackEntry.arguments?.getString("customerName") ?: "",
                 pickup = backStackEntry.arguments?.getString("pickup") ?: "",
                 dropOff = backStackEntry.arguments?.getString("dropOff") ?: "",
-                seats = backStackEntry.arguments?.getInt("seats") ?: 0
+                seats = backStackEntry.arguments?.getInt("seats") ?: 0,
+                bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
             )
         }
         
+        // CONSUMER FARE OFFERS
+        composable(
+            route = "fare_offers_screen/{bookingId}",
+            arguments = listOf(
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            com.example.goukm.ui.booking.FareOffersScreen(
+                navController = navController,
+                bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            )
+        }
+
         // CUSTOMER CHAT LIST
         composable(NavRoutes.CustomerChatList.route) {
             CustomerChatListScreen(navController = navController)
@@ -320,6 +335,27 @@ fun AppNavGraph(
         // DRIVER EARNING
         composable(NavRoutes.DriverEarning.route) {
             DriverEarningScreen(navController = navController)
+        }
+        
+        // DRIVER NAVIGATION
+        composable(
+            route = "driver_navigation_screen/{lat}/{lng}/{address}",
+            arguments = listOf(
+                navArgument("lat") { type = NavType.StringType },
+                navArgument("lng") { type = NavType.StringType },
+                navArgument("address") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lat = backStackEntry.arguments?.getString("lat")?.toDoubleOrNull() ?: 0.0
+            val lng = backStackEntry.arguments?.getString("lng")?.toDoubleOrNull() ?: 0.0
+            val address = backStackEntry.arguments?.getString("address") ?: ""
+            
+            com.example.goukm.ui.driver.DriverNavigationScreen(
+                navController = navController,
+                pickupLat = lat,
+                pickupLng = lng,
+                pickupAddress = address
+            )
         }
     }
 }

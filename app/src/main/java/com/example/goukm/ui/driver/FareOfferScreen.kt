@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
 
 val CBlue = Color(0xFF6B87C0)
 val AccentYellow = Color(0xFFFFD60A)
@@ -31,10 +32,14 @@ fun FareOfferScreen(
     customerName: String,
     pickup: String,
     dropOff: String,
-    seats: Int
+    seats: Int,
+    bookingId: String
 ) {
     var fareAmount by remember { mutableStateOf("") }
     var showSuccessDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+    val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
 
     Scaffold(
         topBar = {
@@ -253,7 +258,13 @@ fun FareOfferScreen(
             Button(
                 onClick = {
                     if (fareAmount.isNotBlank()) {
-                        showSuccessDialog = true
+                         val driverId = auth.currentUser?.uid
+                         if (driverId != null) {
+                             scope.launch {
+                                 bookingRepository.updateFare(bookingId, fareAmount, driverId)
+                                 showSuccessDialog = true
+                             }
+                         }
                     }
                 },
                 modifier = Modifier
