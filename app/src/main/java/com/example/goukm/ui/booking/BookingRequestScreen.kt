@@ -17,12 +17,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
@@ -459,7 +461,17 @@ fun BookingRequestScreen(navController: NavHostController) {
                     shape = RoundedCornerShape(16.dp)
                 )
             }
-        }    
+
+            IconButton(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier
+                    .padding(16.dp)
+                    .align(Alignment.TopStart)
+                    .background(Color.White, androidx.compose.foundation.shape.CircleShape)
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+        }
     }
 }
 
