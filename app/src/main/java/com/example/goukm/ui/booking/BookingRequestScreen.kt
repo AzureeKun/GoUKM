@@ -55,10 +55,16 @@ import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.userprofile.CBlue
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.JointType
+import com.google.android.gms.maps.model.RoundCap
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -88,16 +94,32 @@ fun BookingRequestScreen(navController: NavHostController) {
     var dropOffPlaceId by remember { mutableStateOf<String?>(null) }
     var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
     
-    var isSearching by remember { mutableStateOf(false) }
-    var showCancelDialog by remember { mutableStateOf(false) }
-    
     // Hoisted State and Dependencies
+    val context = LocalContext.current
+    val placesRepository = remember { PlacesRepository(context) }
     val scope = rememberCoroutineScope()
     val bookingRepository = remember { BookingRepository() }
     var currentBookingId by remember { mutableStateOf<String?>(null) }
 
-    val context = LocalContext.current
-    val placesRepository = remember { PlacesRepository(context) }
+    var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+
+    LaunchedEffect(pickupLatLng, dropOffLatLng) {
+        if (pickupLatLng != null && dropOffLatLng != null) {
+            val result = placesRepository.getRoute(pickupLatLng!!, dropOffLatLng!!)
+            result.onSuccess {
+                routePoints = it
+            }.onFailure {
+                // Fallback: Draw a straight line if API fails
+                routePoints = listOf(pickupLatLng!!, dropOffLatLng!!)
+                android.widget.Toast.makeText(context, "Route Error: ${it.message}. Showing straight line.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        } else {
+            routePoints = emptyList()
+        }
+    }
+    
+    var isSearching by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -334,6 +356,17 @@ fun BookingRequestScreen(navController: NavHostController) {
                 myLocationButtonEnabled = hasLocationPermission,
                 mapToolbarEnabled = false
             )
+            
+            LaunchedEffect(routePoints) {
+                if (routePoints.isNotEmpty()) {
+                    val boundsBuilder = com.google.android.gms.maps.model.LatLngBounds.builder()
+                    routePoints.forEach { boundsBuilder.include(it) }
+                    val bounds = boundsBuilder.build()
+                    cameraPositionState.animate(
+                        com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds(bounds, 100)
+                    )
+                }
+            }
              
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
@@ -341,7 +374,35 @@ fun BookingRequestScreen(navController: NavHostController) {
                 properties = mapProperties,
                 uiSettings = mapUiSettings,
                 onMapLoaded = { /* Map is ready */ }
-            )
+            ) {
+                if (pickupLatLng != null) {
+                    Marker(
+                        state = MarkerState(position = pickupLatLng!!),
+                        title = "Pickup",
+                        snippet = pickupQuery,
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                    )
+                }
+                if (dropOffLatLng != null) {
+                    Marker(
+                        state = MarkerState(position = dropOffLatLng!!),
+                        title = "Drop off",
+                        snippet = dropOffQuery,
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
+                    )
+                }
+                if (routePoints.isNotEmpty()) {
+                    Polyline(
+                        points = routePoints,
+                        color = CBlue,
+                        width = 16f,
+                        jointType = JointType.ROUND,
+                        startCap = RoundCap(),
+                        endCap = RoundCap(),
+                        geodesic = true
+                    )
+                }
+            }
             
             // Cancel Confirmation Dialog
             if (showCancelDialog) {

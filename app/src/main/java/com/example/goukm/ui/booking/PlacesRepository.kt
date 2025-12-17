@@ -10,7 +10,7 @@ import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRe
 import com.google.android.libraries.places.api.net.PlacesClient
 import kotlinx.coroutines.tasks.await
 
-class PlacesRepository(context: Context) {
+class PlacesRepository(private val context: Context) {
     private val placesClient: PlacesClient
 
     init {
@@ -48,5 +48,87 @@ class PlacesRepository(context: Context) {
             e.printStackTrace()
             null
         }
+    }
+
+    suspend fun getRoute(origin: com.google.android.gms.maps.model.LatLng, destination: com.google.android.gms.maps.model.LatLng): Result<List<com.google.android.gms.maps.model.LatLng>> {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val apiKey = context.getString(R.string.google_maps_key)
+                val url = "https://maps.googleapis.com/maps/api/directions/json?" +
+                        "origin=${origin.latitude},${origin.longitude}" +
+                        "&destination=${destination.latitude},${destination.longitude}" +
+                        "&key=$apiKey"
+
+                val client = okhttp3.OkHttpClient()
+                val request = okhttp3.Request.Builder()
+                    .url(url)
+                    .header("X-Android-Package", context.packageName)
+                    .build()
+                val response = client.newCall(request).execute()
+                val jsonData = response.body?.string()
+
+                if (jsonData != null) {
+                    val jsonObject = org.json.JSONObject(jsonData)
+                    val status = jsonObject.optString("status")
+                    
+                    if (status == "OK") {
+                        val routes = jsonObject.getJSONArray("routes")
+                        if (routes.length() > 0) {
+                            val route = routes.getJSONObject(0)
+                            val overviewPolyline = route.getJSONObject("overview_polyline")
+                            val points = overviewPolyline.getString("points")
+                            return@withContext Result.success(decodePolyline(points))
+                        } else {
+                            return@withContext Result.failure(Exception("No routes found"))
+                        }
+                    } else {
+                        val errorMessage = jsonObject.optString("error_message", "Unknown error")
+                        return@withContext Result.failure(Exception("$status: $errorMessage"))
+                    }
+                }
+                Result.failure(Exception("Empty response"))
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Result.failure(e)
+            }
+        }
+    }
+
+    private fun decodePolyline(encoded: String): List<com.google.android.gms.maps.model.LatLng> {
+        val poly = ArrayList<com.google.android.gms.maps.model.LatLng>()
+        var index = 0
+        val len = encoded.length
+        var lat = 0
+        var lng = 0
+
+        while (index < len) {
+            var b: Int
+            var shift = 0
+            var result = 0
+            do {
+                b = encoded[index++].code - 63
+                result = result or (b and 0x1f shl shift)
+                shift += 5
+            } while (b >= 0x20)
+            val dlat = if (result and 1 != 0) (result shr 1).inv() else result shr 1
+            lat += dlat
+
+            shift = 0
+            result = 0
+            do {
+                b = encoded[index++].code - 63
+                result = result or (b and 0x1f shl shift)
+                shift += 5
+            } while (b >= 0x20)
+            val dlng = if (result and 1 != 0) (result shr 1).inv() else result shr 1
+            lng += dlng
+
+            val p = com.google.android.gms.maps.model.LatLng(
+                lat.toDouble() / 1E5,
+                lng.toDouble() / 1E5
+            )
+            poly.add(p)
+        }
+        return poly
     }
 }
