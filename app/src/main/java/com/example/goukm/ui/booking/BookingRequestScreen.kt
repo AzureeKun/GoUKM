@@ -62,13 +62,32 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import com.google.android.libraries.places.api.model.AutocompletePrediction
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.background
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookingRequestScreen(navController: NavHostController) {
     var selectedSeat by remember { mutableStateOf("4-Seat") }
-    var pickup by remember { mutableStateOf("Kolej Aminuddin Baki") }
-    var dropOff by remember { mutableStateOf("Kolej Pendeta Za'ba") }
+    
+    // Autocomplete State
+    var pickupQuery by remember { mutableStateOf("") }
+    var pickupPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
+    var pickupPlaceId by remember { mutableStateOf<String?>(null) }
+    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
+
+    var dropOffQuery by remember { mutableStateOf("") }
+    var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
+    var dropOffPlaceId by remember { mutableStateOf<String?>(null) }
+    var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
+    
     var isSearching by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
     
@@ -78,6 +97,8 @@ fun BookingRequestScreen(navController: NavHostController) {
     var currentBookingId by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
+    val placesRepository = remember { PlacesRepository(context) }
+
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -186,45 +207,53 @@ fun BookingRequestScreen(navController: NavHostController) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text("Pickup Point", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(
-                            value = pickup,
-                            onValueChange = { pickup = it },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "Pickup",
-                                    tint = Color.Black
-                                )
+                        AutocompleteTextField(
+                            label = "Enter Pickup Location",
+                            value = pickupQuery,
+                            onValueChange = { query ->
+                                pickupQuery = query
+                                pickupPlaceId = null // Reset validity on type
+                                pickupLatLng = null
+                                scope.launch {
+                                    pickupPredictions = placesRepository.getPredictions(query)
+                                }
                             },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                containerColor = textFieldBg,
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedBorderColor = Color.Transparent
-                            ),
-                            textStyle = MaterialTheme.typography.bodyMedium
+                            predictions = pickupPredictions,
+                            onPredictionSelect = { placeId, address ->
+                                pickupQuery = address
+                                pickupPlaceId = placeId
+                                pickupPredictions = emptyList() // Hide list
+                                scope.launch {
+                                    val place = placesRepository.getPlaceDetails(placeId)
+                                    pickupLatLng = place?.latLng
+                                }
+                            },
+                            leadingIcon = Icons.Default.Send
                         )
 
                         Text("Drop-Off Point", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(
-                            value = dropOff,
-                            onValueChange = { dropOff = it },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Place,
-                                    contentDescription = "Drop-off",
-                                    tint = Color.Black
-                                )
+                        AutocompleteTextField(
+                            label = "Enter Drop-off Location",
+                            value = dropOffQuery,
+                            onValueChange = { query ->
+                                dropOffQuery = query
+                                dropOffPlaceId = null // Reset validity
+                                dropOffLatLng = null
+                                scope.launch {
+                                    dropOffPredictions = placesRepository.getPredictions(query)
+                                }
                             },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                containerColor = textFieldBg,
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedBorderColor = Color.Transparent
-                            ),
-                            textStyle = MaterialTheme.typography.bodyMedium
+                            predictions = dropOffPredictions,
+                            onPredictionSelect = { placeId, address ->
+                                dropOffQuery = address
+                                dropOffPlaceId = placeId
+                                dropOffPredictions = emptyList() // Hide list
+                                scope.launch {
+                                    val place = placesRepository.getPlaceDetails(placeId)
+                                    dropOffLatLng = place?.latLng
+                                }
+                            },
+                            leadingIcon = Icons.Default.Place
                         )
                     }
                 }
@@ -237,21 +266,31 @@ fun BookingRequestScreen(navController: NavHostController) {
                             // Show confirmation dialog
                             showCancelDialog = true
                         } else {
-                            // Validate input
-                            if (pickup.isBlank() || dropOff.isBlank()) {
-                                // For Simplicity using a simple state to show error, ideally Toast/Snackbar
-                                // Since context is available:
-                                android.widget.Toast.makeText(context, "Please enter pickup and drop-off locations", android.widget.Toast.LENGTH_SHORT).show()
-                            } else {
-                                // Create Booking
-                                scope.launch {
-                                    val result = bookingRepository.createBooking(pickup, dropOff, selectedSeat)
-                                    result.onSuccess { bookingId ->
-                                         currentBookingId = bookingId
-                                         isSearching = true
-                                         android.widget.Toast.makeText(context, "Booking Request Sent!", android.widget.Toast.LENGTH_SHORT).show()
-                                    }.onFailure { e ->
-                                         android.widget.Toast.makeText(context, "Failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                            // VALIDATION LOGIC
+                            when {
+                                pickupQuery.isBlank() || dropOffQuery.isBlank() -> {
+                                    android.widget.Toast.makeText(context, "Please enter pickup and drop-off locations", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                pickupPlaceId == null || dropOffPlaceId == null -> {
+                                    android.widget.Toast.makeText(context, "Please select locations from the suggestions", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                pickupLatLng == null || dropOffLatLng == null -> {
+                                    android.widget.Toast.makeText(context, "Unable to get coordinates for selected locations", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                pickupPlaceId == dropOffPlaceId -> {
+                                    android.widget.Toast.makeText(context, "Pickup and Drop-off cannot be the same", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                else -> {
+                                    // All Valid
+                                    scope.launch {
+                                        val result = bookingRepository.createBooking(pickupQuery, dropOffQuery, selectedSeat)
+                                        result.onSuccess { bookingId ->
+                                             currentBookingId = bookingId
+                                             isSearching = true
+                                             android.widget.Toast.makeText(context, "Booking Request Sent!", android.widget.Toast.LENGTH_SHORT).show()
+                                        }.onFailure { e ->
+                                             android.widget.Toast.makeText(context, "Failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                        }
                                     }
                                 }
                             }
@@ -378,6 +417,77 @@ private fun RowScope.SeatChip(label: String, isSelected: Boolean, onClick: () ->
         contentPadding = PaddingValues(horizontal = 0.dp)
     ) {
         Text(label, color = contentColor, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AutocompleteTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    predictions: List<AutocompletePrediction>,
+    onPredictionSelect: (String, String) -> Unit, // placeId, address
+    leadingIcon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            leadingIcon = { Icon(leadingIcon, contentDescription = null) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                containerColor = Color(0xFFF2F3F5),
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (predictions.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .padding(top = 60.dp) // Below text field
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp),
+                shape = RoundedCornerShape(8.dp),
+                shadowElevation = 4.dp
+            ) {
+                LazyColumn(
+                    modifier = Modifier.background(Color.White)
+                ) {
+                    items(predictions.size) { index ->
+                        val prediction = predictions[index]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onPredictionSelect(prediction.placeId, prediction.getPrimaryText(null).toString())
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Place, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = prediction.getPrimaryText(null).toString(),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = prediction.getSecondaryText(null).toString(),
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
