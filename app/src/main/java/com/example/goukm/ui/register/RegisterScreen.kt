@@ -260,6 +260,8 @@ fun RegisterScreen(
             }
         }
 
+
+
         Spacer(Modifier.height(80.dp))
     }
 }

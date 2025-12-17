@@ -34,12 +34,11 @@ data class SMPWebAuthResponse(
  */
 object MockSMPWebAPI {
     
-    // Dummy dataset of UKM students
-    private val studentDatabase = generateMockStudents()
-    
     /**
      * Authenticate a student using matric number and password
      */
+    private val studentDatabase = generateMockStudents()
+
     fun authenticate(matricNumber: String, password: String): SMPWebAuthResponse {
         val normalizedMatric = matricNumber.uppercase().trim()
         
@@ -215,11 +214,11 @@ object MockSMPWebAPI {
         // Generate diverse matric numbers across the full range (0000-9999)
         // Using a mix of sequential and scattered numbers for better coverage
         // Includes specific test cases: A198009, A203156, A214321, etc.
-        val matricNumbersA18 = (0..99).toList() + listOf(100, 200, 500, 1000, 2000, 5000, 8000, 8009, 9000, 9999)
-        val matricNumbersA19 = (0..99).toList() + listOf(100, 200, 500, 800, 8009, 1234, 5678, 9000, 9999)
-        val matricNumbersA20 = (0..99).toList() + listOf(100, 200, 500, 800, 1111, 1234, 2222, 3156, 3333, 3535, 3399, 4444, 5000, 5555, 5678, 6000, 7000, 8000, 9000, 9999)
-        val matricNumbersA21 = (0..99).toList() + listOf(100, 200, 500, 800, 1111, 1234, 2222, 3333, 3456, 4321, 4444, 5000, 5555, 5678, 6000, 7000, 8000, 9000, 9999)
-        val matricNumbersA22 = (0..99).toList() + listOf(100, 200, 500, 800, 1234, 4000, 5000, 6000, 9999)
+        val matricNumbersA18 = (0..999).toList()
+        val matricNumbersA19 = (0..999).toList()
+        val matricNumbersA20 = (0..999).toList()
+        val matricNumbersA21 = (0..999).toList()
+        val matricNumbersA22 = (0..999).toList()
         
         // Batch A18 (Alumni - Tamat Pengajian)
         for (i in matricNumbersA18) {

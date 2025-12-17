@@ -13,10 +13,10 @@ object UserProfileRepository {
     private val storage = FirebaseStorage.getInstance().reference
 
     // GET user profile
-    suspend fun getUserProfile(): UserProfile? {
-        val uid = auth.currentUser?.uid ?: return null
+    suspend fun getUserProfile(uid: String? = null): UserProfile? {
+        val targetUid = uid ?: auth.currentUser?.uid ?: return null
 
-        val doc = db.collection("users").document(uid).get().await()
+        val doc = db.collection("users").document(targetUid).get().await()
         if (!doc.exists()) return null
 
         return UserProfile(
@@ -137,6 +137,19 @@ object UserProfileRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    suspend fun saveFCMToken(token: String) {
+        val uid = auth.currentUser?.uid ?: return
+        try {
+            db.collection("users").document(uid)
+                .update("fcmToken", token)
+                .await()
+        } catch (e: Exception) {
+            // If document doesn't exist or other error, might need set w/ merge or handle otherwise
+            // But assuming user profile exists if they are logged in
+            e.printStackTrace()
         }
     }
 

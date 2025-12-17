@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,12 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.goukm.R
 import com.example.goukm.booking.RideRequestCard
 import com.example.goukm.booking.RideRequestModel
+import com.example.goukm.ui.history.DriverRideBookingHistoryScreen
 import com.example.goukm.ui.register.AuthViewModel
 import kotlinx.coroutines.launch
 
@@ -52,27 +55,68 @@ fun DriverDashboard(
          if (profile != null) {
              isOnline = profile.isAvailable
          }
+
+         // Get FCM Token
+         com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+             if (!task.isSuccessful) {
+                 return@addOnCompleteListener
+             }
+             val token = task.result
+             scope.launch {
+                 com.example.goukm.ui.userprofile.UserProfileRepository.saveFCMToken(token)
+             }
+         }
     }
 
-    // ✅ DUMMY DATA UNTUK TEST
-    val rideRequests = listOf(
-        RideRequestModel(
-            customerName = "Aisyah",
-            pickupPoint = "Block E",
-            dropOffPoint = "FST",
-            seats = 4,
-            requestedTimeAgo = "2 min ago",
-            customerImageRes = R.drawable.ic_account_circle_24
-        ),
-        RideRequestModel(
-            customerName = "Amir",
-            pickupPoint = "FTSM",
-            dropOffPoint = "Kolej Pendeta",
-            seats = 2,
-            requestedTimeAgo = "5 min ago",
-            customerImageRes = R.drawable.ic_account_circle_24
-        )
-    )
+    // ✅ Real-time Data from Firestore
+    var rideRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
+
+    DisposableEffect(isOnline) {
+        if (isOnline) {
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val listener = db.collection("bookings")
+                .whereEqualTo("status", "PENDING")
+                .addSnapshotListener { snapshots, e ->
+                    if (e != null || snapshots == null) return@addSnapshotListener
+
+                    scope.launch {
+                        val newRequests = snapshots.documents.mapNotNull { doc ->
+                            val pickup = doc.getString("pickup") ?: ""
+                            val dropOff = doc.getString("dropOff") ?: ""
+                            val seatType = doc.getString("seatType") ?: "4"
+                            val seats = seatType.filter { it.isDigit() }.toIntOrNull() ?: 4
+                            val userId = doc.getString("userId") ?: ""
+                            val timestamp = doc.getDate("timestamp")
+                            
+                            val timeAgo = if (timestamp != null) {
+                                val diff = java.util.Date().time - timestamp.time
+                                val min = diff / 60000
+                                if (min < 1) "Just now" else "$min min ago"
+                            } else "Just now"
+
+                            // Fetch user profile for name
+                            val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(userId)
+                            val name = userProfile?.name ?: "Passenger"
+                            
+                            // Note: RideRequestModel currently uses Int for image arg.
+                            RideRequestModel(
+                                customerName = name,
+                                pickupPoint = pickup,
+                                dropOffPoint = dropOff,
+                                seats = seats,
+                                requestedTimeAgo = timeAgo,
+                                customerImageRes = R.drawable.ic_account_circle_24
+                            )
+                        }
+                        rideRequests = newRequests
+                    }
+                }
+            onDispose { listener.remove() }
+        } else {
+            rideRequests = emptyList()
+            onDispose { }
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFB0BAC8),
@@ -234,3 +278,5 @@ fun DriverDashboard(
         }
     }
 }
+
+
