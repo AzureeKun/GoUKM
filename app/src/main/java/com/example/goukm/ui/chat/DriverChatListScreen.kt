@@ -23,12 +23,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.dashboard.BottomNavigationBarDriver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriverChatListScreen(navController: NavHostController) {
-    var selectedNavIndex by remember { mutableStateOf(1) } // Chat is index 1 (Score button acts as chat)
+    var selectedNavIndex by remember { mutableStateOf(-1) } // Chat List is not in bottom bar currently, but let's make it consistent if it was
     
     val dummyChats = remember {
         listOf(
@@ -58,11 +59,12 @@ fun DriverChatListScreen(navController: NavHostController) {
                 onSelected = { index ->
                     selectedNavIndex = index
                     when (index) {
-                        0 -> navController.navigate("driver_dashboard") { 
-                            popUpTo("driver_dashboard") { inclusive = true }
+                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
+                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        2 -> navController.navigate("driver_earning")
-                        3 -> navController.navigate("driver_profile")
+                        1 -> navController.navigate(NavRoutes.DriverScore.route)
+                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
+                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
                     }
                 }
             )

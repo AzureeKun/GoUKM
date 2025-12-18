@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.dashboard.BottomNavigationBarDriver
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -114,11 +115,12 @@ fun DriverEarningScreen(navController: NavHostController) {
                 onSelected = { index ->
                     selectedNavIndex = index
                     when (index) {
-                        0 -> navController.navigate("driver_dashboard") {
-                            popUpTo("driver_dashboard") { inclusive = true }
+                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
+                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        1 -> navController.navigate("driver_chat_list")
-                        3 -> navController.navigate("driver_profile")
+                        1 -> navController.navigate(NavRoutes.DriverScore.route)
+                        2 -> { /* Already here */ }
+                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
                     }
                 }
             )

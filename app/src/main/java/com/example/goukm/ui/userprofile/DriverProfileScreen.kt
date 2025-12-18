@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
+import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.register.AuthViewModel
 import com.example.goukm.ui.dashboard.BottomNavigationBarDriver
 import kotlinx.coroutines.launch
@@ -59,12 +60,12 @@ fun DriverProfileScreen(
                 selectedIndex = selectedNavIndex, // 3 is usually Profile if we added it, but let's assume valid index is passed
                 onSelected = { index ->
                     when (index) {
-                        0 -> navController.navigate("driver_dashboard") {
-                            popUpTo("driver_dashboard") { inclusive = true }
+                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
+                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        1 -> navController.navigate("driver_chat_list")
-                        2 -> navController.navigate("driver_earning")
-                        // 3 is current screen
+                        1 -> navController.navigate(NavRoutes.DriverScore.route)
+                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
+                        3 -> { /* Already here */ }
                     }
                 }
             )

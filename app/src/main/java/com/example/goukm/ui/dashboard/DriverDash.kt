@@ -131,7 +131,7 @@ fun DriverDashboard(
                             
                             if (status == "PENDING") {
                                 pendingList.add(model)
-                            } else if (status == "OFFERED") {
+                            } else if (status == "OFFERED" && driverId == currentUserId) {
                                 offeredList.add(model)
                             } else if (status == "ACCEPTED" && driverId == currentUserId) {
                                 acceptedList.add(model)
@@ -259,7 +259,8 @@ fun DriverDashboard(
                     }
 
                     // OFFERED SECTION
-                    if (offeredRequests.isNotEmpty()) {
+                    // Only show if no accepted requests (Driver focus on current job)
+                    if (offeredRequests.isNotEmpty() && acceptedRequests.isEmpty()) {
                         item {
                             Text(
                                 text = "Waiting for Customer",
@@ -286,7 +287,8 @@ fun DriverDashboard(
                     }
 
                     // PENDING SECTION
-                     if (rideRequests.isNotEmpty()) {
+                    // Only show if no accepted or offered requests (Hide new requests until current job/offer is handled)
+                     if (rideRequests.isNotEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
                         item {
                              // Only show header if there are requests
                             Text(

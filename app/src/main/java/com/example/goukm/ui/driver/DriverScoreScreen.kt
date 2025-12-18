@@ -38,10 +38,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import com.example.goukm.navigation.NavRoutes
+import com.example.goukm.ui.dashboard.BottomNavigationBarDriver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DriverScoreScreen() {
+fun DriverScoreScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -55,6 +58,21 @@ fun DriverScoreScreen() {
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.Transparent
                 )
+            )
+        },
+        bottomBar = {
+            BottomNavigationBarDriver(
+                selectedIndex = 1,
+                onSelected = { index ->
+                    when (index) {
+                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
+                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
+                        }
+                        1 -> { /* Already here */ }
+                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
+                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
+                    }
+                }
             )
         },
         containerColor = Color(0xFFF0F4F8) // Light greyish blue bg
@@ -352,11 +370,3 @@ val reviewList = listOf(
     ReviewModel("FARHAN ISKANDAR", "24.04.2024", "Friendly!"),
     ReviewModel("FATTEH MUSTAFA", "08.04.2024", "Quick!")
 )
-
-@Preview
-@Composable
-fun DriverScoreScreenPreview() {
-    MaterialTheme {
-        DriverScoreScreen()
-    }
-}

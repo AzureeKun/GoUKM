@@ -33,6 +33,7 @@ import com.example.goukm.ui.chat.CustomerChatScreen
 import com.example.goukm.ui.chat.DriverChatListScreen
 import com.example.goukm.ui.chat.DriverChatScreen
 import com.example.goukm.ui.driver.DriverEarningScreen
+import com.example.goukm.ui.driver.DriverScoreScreen
 
 
 @Composable
@@ -149,6 +150,10 @@ fun AppNavGraph(
                 onNavSelected = { index ->
                     localSelectedDriverNavIndex = index
                     when (index) {
+                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
+                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
+                        }
+                        1 -> navController.navigate(NavRoutes.DriverScore.route)
                         2 -> navController.navigate(NavRoutes.DriverEarning.route)
                         3 -> navController.navigate(NavRoutes.DriverProfile.route)
                     }
@@ -335,6 +340,11 @@ fun AppNavGraph(
         // DRIVER EARNING
         composable(NavRoutes.DriverEarning.route) {
             DriverEarningScreen(navController = navController)
+        }
+        
+        // DRIVER SCORE
+        composable(NavRoutes.DriverScore.route) {
+            DriverScoreScreen(navController = navController)
         }
         
         // DRIVER NAVIGATION
