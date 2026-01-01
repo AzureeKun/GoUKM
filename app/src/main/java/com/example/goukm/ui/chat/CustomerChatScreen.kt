@@ -132,6 +132,7 @@ fun CustomerChatScreen(
                 .fillMaxSize()
                 .background(Color(0xFFECEFF1))
                 .padding(paddingValues)
+                .imePadding()
         ) {
             if (isLoading) {
                 Box(
