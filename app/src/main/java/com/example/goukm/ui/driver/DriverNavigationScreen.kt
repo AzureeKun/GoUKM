@@ -136,7 +136,7 @@ fun DriverNavigationScreen(
                     val location = result.lastLocation ?: return
                     val latLng = LatLng(location.latitude, location.longitude)
                     driverLocation = latLng
-                    
+
                     // Animate camera to follow driver with 3D tilt
                     if (isMapReady) {
                         val cameraUpdate = CameraPosition.Builder()
