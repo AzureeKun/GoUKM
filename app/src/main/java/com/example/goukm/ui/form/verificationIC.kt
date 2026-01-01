@@ -1,4 +1,3 @@
-// File: VerificationICWithCameraX.kt
 package com.example.goukm.ui.form
 
 import android.Manifest

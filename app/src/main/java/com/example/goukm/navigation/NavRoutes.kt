@@ -9,6 +9,11 @@ sealed class NavRoutes(val route: String) {
     object CustomerDashboard : NavRoutes("customer_dashboard")
     object DriverDashboard : NavRoutes("driver_dashboard")
     object BookingRequest : NavRoutes("booking_request")
+    object confirmPay : NavRoutes("confirm_pay")
+    object PaymentMethod : NavRoutes("payment_method")
+    object RideDoneScreen : NavRoutes("ride_done")
+
+    object CustomerJourneyDetailsScreen : NavRoutes ("cust_journey_details")
 
     object CustomerProfile : NavRoutes("customer_profile")
     object EditProfile : NavRoutes("edit_profile")
@@ -17,6 +22,7 @@ sealed class NavRoutes(val route: String) {
     object verificationIC : NavRoutes("verification_ic")
     object verificationDocuments : NavRoutes("verification_doc")
     object DriverApplicationStatus : NavRoutes("driver_application_status")
+    object JourneySummaryScreen : NavRoutes("journey_summary")
 
 
     object DriverProfile : NavRoutes("driver_profile")

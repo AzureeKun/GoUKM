@@ -34,7 +34,12 @@ import com.example.goukm.ui.chat.DriverChatListScreen
 import com.example.goukm.ui.chat.DriverChatScreen
 import com.example.goukm.ui.driver.DriverEarningScreen
 import com.example.goukm.ui.driver.DriverScoreScreen
-
+import com.example.goukm.ui.booking.confirmPay
+import com.example.goukm.ui.booking.RideDoneScreen
+import com.example.goukm.ui.driver.JourneySummaryScreen
+import com.example.goukm.ui.booking.PaymentMethodScreen
+import com.example.goukm.ui.journey.CustomerJourneyDetailsScreen
+import com.example.goukm.navigation.NavRoutes.CustomerJourneyDetailsScreen
 
 @Composable
 fun AppNavGraph(
@@ -140,6 +145,23 @@ fun AppNavGraph(
             BookingRequestScreen(navController = navController)
         }
 
+// DRIVER JOURNEY SUMMARY - Navigate from DriverDashboard
+        composable(
+            route = "driver_journey_summary/{bookingId}",
+            arguments = listOf(
+                navArgument("bookingId") {
+                    type = NavType.StringType
+                    defaultValue = "default_booking"
+                }
+            )
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: "default_booking"
+            JourneySummaryScreen(
+                navController = navController,
+            )
+        }
+
+
         // DRIVER DASHBOARD
         composable(NavRoutes.DriverDashboard.route) {
             var localSelectedDriverNavIndex by remember { mutableStateOf(0) }
@@ -212,6 +234,7 @@ fun AppNavGraph(
             )
         }
 
+        //VERIFY IC
         composable(NavRoutes.verificationIC.route) {
             verificationIC(
                 onUploadComplete = {
@@ -223,6 +246,7 @@ fun AppNavGraph(
             )
         }
 
+        //VERIFY DOCUMENTS DETAILS
         composable(NavRoutes.verificationDocuments.route) {
             verificationDocuments(
                 onUploadComplete = {
@@ -234,6 +258,7 @@ fun AppNavGraph(
            )
         }
 
+        //DRIVER APPLICATION STATUS
         composable(NavRoutes.DriverApplicationStatus.route) {
             DriverApplicationStatusScreen(
                 status = driverApplicationStatus,
@@ -251,6 +276,7 @@ fun AppNavGraph(
                 }
             )
         }
+
         // DRIVER PROFILE
         composable(NavRoutes.DriverProfile.route) {
             DriverProfileScreen(
@@ -281,6 +307,66 @@ fun AppNavGraph(
                 dropOff = backStackEntry.arguments?.getString("dropOff") ?: "",
                 seats = backStackEntry.arguments?.getInt("seats") ?: 0,
                 bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            )
+        }
+
+        // CONFIRM PAYMENT SCREEN
+        composable(NavRoutes.confirmPay.route) {
+            confirmPay(
+                totalAmount = "RM 25",
+                onProceedPayment = {
+                    navController.navigate(NavRoutes.PaymentMethod.route) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                    }
+                },
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // PAYMENT METHOD SCREEN
+        composable(
+            route = "payment-method/{amount}",
+            arguments = listOf(
+                navArgument("amount") {
+                    type = NavType.StringType
+                    defaultValue = "RM 0"
+                }
+            )
+        ) { backStackEntry ->
+            val amount = backStackEntry.arguments?.getString("amount") ?: "RM 0"
+            com.example.goukm.ui.booking.PaymentMethodScreen(
+                totalAmount = amount,
+                onPaymentConfirmed = { method ->
+                    navController.navigate("payment-success/$method")
+                },
+            )
+        }
+
+        // RIDE DONE SCREEN
+        composable("ride_done") {
+            RideDoneScreen(
+                fareAmount = "RM 5",
+                carBrand = "Perodua",
+                licensePlate = "XMM404",
+                onFeedbackSubmitted = { rating ->
+                    // Navigate back to dashboard after feedback
+                    navController.navigate(NavRoutes.CustomerDashboard.route) {
+                        popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+
+
+        //CUSTOMER JOURNEY
+        composable(NavRoutes.CustomerJourneyDetailsScreen.route) {
+            CustomerJourneyDetailsScreen(
+                onChatClick = {
+                    navController.navigate(NavRoutes.DriverChatList.route)
+                }
             )
         }
         

@@ -46,16 +46,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import com.example.goukm.navigation.NavRoutes
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
+import androidx.navigation.NavHostController
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomerJourneyDetailsScreen() {
+fun CustomerJourneyDetailsScreen(
+    onChatClick: () -> Unit
+) {
     val sheetState = rememberStandardBottomSheetState(
         initialValue = SheetValue.Expanded,
         skipHiddenState = true
@@ -96,7 +101,9 @@ fun CustomerJourneyDetailsScreen() {
                     color = Color.Black
                 )
                 
-                DriverInfoCard()
+                DriverInfoCard(
+                    onChatClick = onChatClick
+                )
 
                 Divider(color = Color.LightGray.copy(alpha = 0.2f), thickness = 1.dp)
 
@@ -153,7 +160,9 @@ fun CustomerJourneyDetailsScreen() {
 }
 
 @Composable
-fun DriverInfoCard() {
+fun DriverInfoCard(
+    onChatClick: () -> Unit
+) {
     Card(
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -259,7 +268,7 @@ fun DriverInfoCard() {
 
                 // Chat Button
                 Button(
-                    onClick = { /* Chat Action */ },
+                    onClick = onChatClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),
@@ -365,6 +374,8 @@ fun LocationCard(
 @Composable
 fun CustomerJourneyDetailsScreenPreview() {
     MaterialTheme {
-        CustomerJourneyDetailsScreen()
+        CustomerJourneyDetailsScreen(
+         onChatClick = {}
+        )
     }
 }
