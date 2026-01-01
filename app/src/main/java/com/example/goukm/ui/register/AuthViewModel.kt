@@ -85,6 +85,13 @@ class AuthViewModel(
                 sessionManager.fetchActiveRole() ?: "customer"
             }
 
+            // Sync FCM Token
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnSuccessListener { token -> 
+                launch {
+                     UserProfileRepository.saveFCMToken(token)
+                }
+            }
+
             listenToDriverApplication(uid)
 
             _authState.value = AuthState.LoggedIn

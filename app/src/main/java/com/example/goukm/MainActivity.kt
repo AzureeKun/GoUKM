@@ -3,6 +3,8 @@ package com.example.goukm
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -16,19 +18,21 @@ import com.example.goukm.navigation.AppNavGraph
 import com.example.goukm.ui.theme.GoUKMTheme
 import com.example.goukm.ui.register.RegisterScreen
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Get FCM token for debugging
+        // Get and Save FCM Token
         com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-                android.util.Log.w("FCM_DEBUG", "Fetching FCM registration token failed", task.exception)
-                return@addOnCompleteListener
+            if (task.isSuccessful) {
+                val token = task.result
+                android.util.Log.d("FCM_DEBUG", "FCM Token: $token")
+                
+                // Save token to current user profile
+                if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
+                    androidx.lifecycle.lifecycleScope.launch {
+                        com.example.goukm.ui.userprofile.UserProfileRepository.saveFCMToken(token)
+                    }
+                }
             }
-            val token = task.result
-            android.util.Log.d("FCM_DEBUG", "FCM Token: $token")
         }
 
         setContent {

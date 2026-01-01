@@ -143,12 +143,11 @@ object UserProfileRepository {
     suspend fun saveFCMToken(token: String) {
         val uid = auth.currentUser?.uid ?: return
         try {
+            val data = mapOf("fcmToken" to token)
             db.collection("users").document(uid)
-                .update("fcmToken", token)
+                .set(data, com.google.firebase.firestore.SetOptions.merge())
                 .await()
         } catch (e: Exception) {
-            // If document doesn't exist or other error, might need set w/ merge or handle otherwise
-            // But assuming user profile exists if they are logged in
             e.printStackTrace()
         }
     }
