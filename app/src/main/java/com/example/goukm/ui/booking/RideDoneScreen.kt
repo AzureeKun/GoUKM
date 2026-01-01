@@ -22,7 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 fun RideDoneScreen(
     fareAmount: String = "RM 5",
     carBrand: String = "Perodua",
-    licensePlate: String = "XMM404",
+    licensePlate: String = "KFM3004",
     driverName: String = "Angie",
     onFeedbackSubmitted: (Float) -> Unit = {}
 ) {
@@ -199,7 +199,7 @@ fun RideDoneScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B87C0))
             ) {
                 Text(
                     text = "Submit Feedback",
