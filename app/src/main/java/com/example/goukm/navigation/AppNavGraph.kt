@@ -390,16 +390,18 @@ fun AppNavGraph(
         
         // CUSTOMER CHAT
         composable(
-            route = "customer_chat/{chatId}/{contactName}",
+            route = "customer_chat/{chatId}/{contactName}/{phoneNumber}",
             arguments = listOf(
                 navArgument("chatId") { type = NavType.StringType },
-                navArgument("contactName") { type = NavType.StringType }
+                navArgument("contactName") { type = NavType.StringType },
+                navArgument("phoneNumber") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
             CustomerChatScreen(
                 navController = navController,
                 chatId = backStackEntry.arguments?.getString("chatId") ?: "",
-                contactName = backStackEntry.arguments?.getString("contactName") ?: ""
+                contactName = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("contactName") ?: "", "UTF-8"),
+                phoneNumber = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("phoneNumber") ?: "", "UTF-8")
             )
         }
         
@@ -410,16 +412,18 @@ fun AppNavGraph(
         
         // DRIVER CHAT
         composable(
-            route = "driver_chat/{chatId}/{contactName}",
+            route = "driver_chat/{chatId}/{contactName}/{phoneNumber}",
             arguments = listOf(
                 navArgument("chatId") { type = NavType.StringType },
-                navArgument("contactName") { type = NavType.StringType }
+                navArgument("contactName") { type = NavType.StringType },
+                navArgument("phoneNumber") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
             DriverChatScreen(
                 navController = navController,
                 chatId = backStackEntry.arguments?.getString("chatId") ?: "",
-                contactName = backStackEntry.arguments?.getString("contactName") ?: ""
+                contactName = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("contactName") ?: "", "UTF-8"),
+                phoneNumber = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("phoneNumber") ?: "", "UTF-8")
             )
         }
         

@@ -32,7 +32,9 @@ import com.example.goukm.booking.RideRequestCard
 import com.example.goukm.booking.RideRequestModel
 import com.example.goukm.ui.history.DriverRideBookingHistoryScreen
 import com.example.goukm.ui.register.AuthViewModel
+import com.example.goukm.ui.chat.ChatRepository
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 @Composable
 fun DriverDashboard(
@@ -80,7 +82,7 @@ fun DriverDashboard(
             val currentUserId = auth.currentUser?.uid
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val listener = db.collection("bookings")
-                .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED"))
+                .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED", "ONGOING"))
                 .addSnapshotListener { snapshots, e ->
                     if (e != null || snapshots == null) return@addSnapshotListener
 
@@ -106,6 +108,15 @@ fun DriverDashboard(
                             val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(userId)
                             val name = userProfile?.name ?: "Passenger"
                             
+                            // Fetch chat room if accepted or ongoing
+                            val status = doc.getString("status")
+                            val driverArrived = doc.getBoolean("driverArrived") ?: false
+                            var chatRoom: com.example.goukm.ui.chat.ChatRoom? = null
+                            if (status == "ACCEPTED" || status == "ONGOING") {
+                                val result = ChatRepository.getChatRoomByBookingId(doc.id)
+                                chatRoom = result.getOrNull()
+                            }
+                            
                             return RideRequestModel(
                                 id = doc.id,
                                 customerName = name,
@@ -116,7 +127,9 @@ fun DriverDashboard(
                                 customerImageRes = R.drawable.ic_account_circle_24,
                                 offeredFare = offeredFare,
                                 pickupLat = pickupLat,
-                                pickupLng = pickupLng
+                                pickupLng = pickupLng,
+                                chatRoom = chatRoom,
+                                driverArrived = driverArrived
                             )
                         }
 
@@ -133,7 +146,7 @@ fun DriverDashboard(
                                 pendingList.add(model)
                             } else if (status == "OFFERED" && driverId == currentUserId) {
                                 offeredList.add(model)
-                            } else if (status == "ACCEPTED" && driverId == currentUserId) {
+                            } else if ((status == "ACCEPTED" || status == "ONGOING") && driverId == currentUserId) {
                                 acceptedList.add(model)
                             }
                         }
@@ -249,11 +262,26 @@ fun DriverDashboard(
                              RideRequestCard(
                                 request = request,
                                 onSkip = { 
-                                     val encodedAddress = android.net.Uri.encode(request.pickupPoint)
-                                     navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress")
+                                    scope.launch {
+                                         // If completed or cancelled, handle here... for now just navigate
+                                         val encodedAddress = android.net.Uri.encode(request.pickupPoint)
+                                         navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress")
+                                    }
                                 },
                                 onOffer = null,
-                                skipLabel = "Navigate"
+                                skipLabel = "Navigate",
+                                onChat = if (request.chatRoom != null) {
+                                    {
+                                        val encodedName = URLEncoder.encode(request.chatRoom.customerName, "UTF-8")
+                                        val encodedPhone = URLEncoder.encode(request.chatRoom.customerPhone, "UTF-8")
+                                        navController.navigate("driver_chat/${request.chatRoom.id}/$encodedName/$encodedPhone")
+                                    }
+                                } else null,
+                                onArrive = {
+                                    scope.launch {
+                                         bookingRepository.updateDriverArrived(request.id)
+                                    }
+                                }
                              )
                         }
                     }

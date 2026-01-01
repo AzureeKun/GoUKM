@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.goukm.ui.dashboard.BottomBar
+import com.example.goukm.ui.chat.ChatRepository
+import com.google.firebase.auth.FirebaseAuth
 
 data class DriverOffer(
     val name: String,
@@ -57,7 +59,9 @@ data class DriverOffer(
     val carBrand: String,
     val carName: String,
     val carColor: String,
-    val plate: String
+    val plate: String,
+    val driverId: String = "",
+    val driverPhone: String = ""
 )
 
 @Composable
@@ -96,7 +100,9 @@ fun FareOffersScreen(
                          carBrand = driver.vehicleType, 
                          carName = "", 
                          carColor = "", 
-                         plate = driver.vehiclePlateNumber
+                         plate = driver.vehiclePlateNumber,
+                         driverId = booking.driverId,
+                         driverPhone = driver.phoneNumber
                      )
                  }
              }
@@ -175,7 +181,24 @@ fun FareOffersScreen(
                                     grayBg = grayBg,
                                     onAccept = {
                                         scope.launch {
+                                            // Update booking status
                                             bookingRepository.updateStatus(bookingId, BookingStatus.ACCEPTED)
+                                            
+                                            // Create chat room for customer and driver
+                                            val currentUser = FirebaseAuth.getInstance().currentUser
+                                            if (currentUser != null && offer != null) {
+                                                val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
+                                                ChatRepository.createChatRoom(
+                                                    bookingId = bookingId,
+                                                    customerId = currentUser.uid,
+                                                    driverId = offer!!.driverId,
+                                                    customerName = customerProfile?.name ?: "Customer",
+                                                    driverName = offer!!.name,
+                                                    customerPhone = customerProfile?.phoneNumber ?: "",
+                                                    driverPhone = offer!!.driverPhone
+                                                )
+                                            }
+                                            
                                             navController.navigate(NavRoutes.CustomerDashboard.route) {
                                                 popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
                                             }

@@ -23,28 +23,28 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.google.firebase.auth.FirebaseAuth
+import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.*
 
 val CBlue = Color(0xFF6B87C0)
-
-data class ChatItem(
-    val chatId: String,
-    val contactName: String,
-    val lastMessage: String,
-    val timestamp: String,
-    val unreadCount: Int = 0,
-    val isOnline: Boolean = false
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerChatListScreen(navController: NavHostController) {
-    val dummyChats = remember {
-        listOf(
-            ChatItem("1", "Ahmad (Driver)", "See you in 5 minutes!", "2m ago", 2, true),
-            ChatItem("2", "Fatimah (Driver)", "Thank you for riding!", "1h ago", 0, false),
-            ChatItem("3", "Hassan (Driver)", "On my way to pickup", "3h ago", 1, true),
-            ChatItem("4", "Aminah (Driver)", "Have a safe trip!", "Yesterday", 0, false)
-        )
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val chatRooms = remember { mutableStateListOf<ChatRoom>() }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Listen to chat rooms in real-time
+    LaunchedEffect(Unit) {
+        ChatRepository.getChatRoomsForUser().collect { rooms ->
+            chatRooms.clear()
+            // Filter to only show rooms where current user is the customer
+            chatRooms.addAll(rooms.filter { it.customerId == currentUserId })
+            isLoading = false
+        }
     }
 
     Scaffold(
@@ -89,39 +89,60 @@ fun CustomerChatListScreen(navController: NavHostController) {
                 .background(Color(0xFFF5F5F5))
                 .padding(paddingValues)
         ) {
-            if (dummyChats.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Message,
-                            contentDescription = null,
-                            modifier = Modifier.size(80.dp),
-                            tint = Color.LightGray
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            "No messages yet",
-                            fontSize = 18.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = CBlue)
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(dummyChats) { chat ->
-                        ChatListItem(
-                            chat = chat,
-                            onClick = {
-                                navController.navigate("customer_chat/${chat.chatId}/${chat.contactName}")
-                            }
-                        )
+                chatRooms.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Message,
+                                contentDescription = null,
+                                modifier = Modifier.size(80.dp),
+                                tint = Color.LightGray
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                "No messages yet",
+                                fontSize = 18.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Chat will appear when you have an active ride",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(chatRooms) { chatRoom ->
+                            ChatRoomListItem(
+                                chatRoom = chatRoom,
+                                contactName = chatRoom.driverName,
+                                unreadCount = chatRoom.customerUnreadCount,
+                                onClick = {
+                                    val encodedName = URLEncoder.encode(chatRoom.driverName, "UTF-8")
+                                    val encodedPhone = URLEncoder.encode(chatRoom.driverPhone, "UTF-8")
+                                    navController.navigate("customer_chat/${chatRoom.id}/$encodedName/$encodedPhone")
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -130,7 +151,28 @@ fun CustomerChatListScreen(navController: NavHostController) {
 }
 
 @Composable
-fun ChatListItem(chat: ChatItem, onClick: () -> Unit) {
+fun ChatRoomListItem(
+    chatRoom: ChatRoom,
+    contactName: String,
+    unreadCount: Int,
+    onClick: () -> Unit
+) {
+    val dateFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val dayFormat = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
+    
+    val timeString = remember(chatRoom.lastMessageTime) {
+        val now = System.currentTimeMillis()
+        val diff = now - chatRoom.lastMessageTime
+        val oneDay = 24 * 60 * 60 * 1000
+        
+        when {
+            diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)}m ago"
+            diff < oneDay -> dateFormat.format(Date(chatRoom.lastMessageTime))
+            diff < 2 * oneDay -> "Yesterday"
+            else -> dayFormat.format(Date(chatRoom.lastMessageTime))
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -156,15 +198,13 @@ fun ChatListItem(chat: ChatItem, onClick: () -> Unit) {
                         .clip(CircleShape),
                     tint = CBlue
                 )
-                if (chat.isOnline) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF4CAF50))
-                            .align(Alignment.BottomEnd)
-                    )
-                }
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .background(if (chatRoom.isActive) Color(0xFF4CAF50) else Color.Gray)
+                        .align(Alignment.BottomEnd)
+                )
             }
 
             Spacer(Modifier.width(12.dp))
@@ -177,13 +217,13 @@ fun ChatListItem(chat: ChatItem, onClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        chat.contactName,
+                        contactName,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
                     Text(
-                        chat.timestamp,
+                        timeString,
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
@@ -195,14 +235,14 @@ fun ChatListItem(chat: ChatItem, onClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        chat.lastMessage,
+                        chatRoom.lastMessage.ifBlank { "No messages yet" },
                         fontSize = 14.sp,
                         color = Color.Gray,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    if (chat.unreadCount > 0) {
+                    if (unreadCount > 0) {
                         Spacer(Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
@@ -212,7 +252,7 @@ fun ChatListItem(chat: ChatItem, onClick: () -> Unit) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                chat.unreadCount.toString(),
+                                unreadCount.toString(),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black

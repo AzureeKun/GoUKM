@@ -49,13 +49,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.userprofile.CBlue
+import com.example.goukm.ui.chat.ChatRepository
+import com.example.goukm.ui.chat.ChatRoom
+import kotlinx.coroutines.launch
 
 @Composable
 fun BottomBar(navController: NavHostController) {
@@ -117,13 +119,31 @@ fun CustomerDashboard(
     val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance() }
     var activeBooking by remember { mutableStateOf<com.example.goukm.ui.booking.Booking?>(null) }
+    var chatRoom by remember { mutableStateOf<ChatRoom?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(activeBooking?.driverArrived) {
+        if (activeBooking?.driverArrived == true) {
+            android.widget.Toast.makeText(context, "Driver has arrived!", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    LaunchedEffect(activeBooking) {
+        if (activeBooking != null && (activeBooking!!.status == "ACCEPTED" || activeBooking!!.status == "ONGOING")) {
+            val result = ChatRepository.getChatRoomByBookingId(activeBooking!!.id)
+            chatRoom = result.getOrNull()
+        } else {
+            chatRoom = null
+        }
+    }
 
     DisposableEffect(Unit) {
         val currentUser = auth.currentUser
         if (currentUser != null) {
             val listener = db.collection("bookings")
                 .whereEqualTo("userId", currentUser.uid)
-                .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED"))
+                .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED", "ONGOING"))
                 .addSnapshotListener { snapshot, e ->
                      if (e != null || snapshot == null || snapshot.isEmpty) {
                          activeBooking = null
@@ -139,7 +159,8 @@ fun CustomerDashboard(
                             seatType = doc.getString("seatType") ?: "",
                             status = doc.getString("status") ?: "",
                             offeredFare = doc.getString("offeredFare") ?: "",
-                            driverId = doc.getString("driverId") ?: ""
+                            driverId = doc.getString("driverId") ?: "",
+                            driverArrived = doc.getBoolean("driverArrived") ?: false
                          )
                      } else {
                          activeBooking = null
@@ -203,8 +224,11 @@ fun CustomerDashboard(
                     val status = activeBooking!!.status
                     val isOffered = status == "OFFERED"
                     val isAccepted = status == "ACCEPTED"
+                    val isOngoing = status == "ONGOING"
+                    val canChat = isAccepted || isOngoing
                     
                     val cardColor = when {
+                        isOngoing -> Color(0xFFB3E5FC) // Light blue for Ongoing
                         isAccepted -> Color(0xFFC8E6C9) // Green for Accepted
                         isOffered -> Color(0xFFE0F7FA) // Blueish for Offered
                         else -> Color(0xFFFFF9C4) // Yellow used for Pending
@@ -228,9 +252,11 @@ fun CustomerDashboard(
                              verticalAlignment = Alignment.CenterVertically,
                              horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     when {
+                                        activeBooking!!.driverArrived -> "Driver has arrived!"
+                                        isOngoing -> "Ride in progress"
                                         isAccepted -> "You accepted the ride!"
                                         isOffered -> "Driver Offer Received!"
                                         else -> "Finding you a driver..."
@@ -240,6 +266,7 @@ fun CustomerDashboard(
                                 )
                                 Text(
                                     when {
+                                        isOngoing -> "Enjoy your ride"
                                         isAccepted -> "Driver is on the way"
                                         isOffered -> "Tap to view options"
                                         else -> "Please wait"
@@ -248,12 +275,30 @@ fun CustomerDashboard(
                                     color = Color.DarkGray
                                 )
                             }
-                            if (isOffered) {
-                                Icon(Icons.Default.ArrowForward, contentDescription = "View", tint = Color.Black)
-                            } else if (isAccepted) {
-                                Icon(Icons.Default.Favorite, contentDescription = "Accepted", tint = Color(0xFF2E7D32))
-                            } else {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Chat button when ride is accepted or ongoing
+                                if (canChat && chatRoom != null) {
+                                    androidx.compose.material3.IconButton(
+                                        onClick = {
+                                            val encodedName = java.net.URLEncoder.encode(chatRoom!!.driverName, "UTF-8")
+                                            val encodedPhone = java.net.URLEncoder.encode(chatRoom!!.driverPhone, "UTF-8")
+                                            navController.navigate("customer_chat/${chatRoom!!.id}/$encodedName/$encodedPhone")
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ChatBubble,
+                                            contentDescription = "Chat with driver",
+                                            tint = Color(0xFF1565C0)
+                                        )
+                                    }
+                                }
+                                if (isOffered) {
+                                    Icon(Icons.Default.ArrowForward, contentDescription = "View", tint = Color.Black)
+                                } else if (isAccepted || isOngoing) {
+                                    Icon(Icons.Default.Favorite, contentDescription = "Active", tint = Color(0xFF2E7D32))
+                                } else {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                }
                             }
                         }
                     }

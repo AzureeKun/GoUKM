@@ -10,6 +10,7 @@ data class RideRequestModel(
     val id: String = "",
     val offeredFare: String = "",
     val pickupLat: Double = 0.0,
-    val pickupLng: Double = 0.0
+    val pickupLng: Double = 0.0,
+    val chatRoom: com.example.goukm.ui.chat.ChatRoom? = null,
+    val driverArrived: Boolean = false
 )
-

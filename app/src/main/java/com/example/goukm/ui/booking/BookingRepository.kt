@@ -9,6 +9,7 @@ enum class BookingStatus {
     PENDING,
     OFFERED,
     ACCEPTED,
+    ONGOING,
     COMPLETED,
     CANCELLED
 }
@@ -26,7 +27,8 @@ data class Booking(
     val pickupLat: Double = 0.0,
     val pickupLng: Double = 0.0,
     val dropOffLat: Double = 0.0,
-    val dropOffLng: Double = 0.0
+    val dropOffLng: Double = 0.0,
+    val driverArrived: Boolean = false
 )
 
 class BookingRepository {
@@ -60,7 +62,8 @@ class BookingRepository {
                 pickupLat = pickupLat,
                 pickupLng = pickupLng,
                 dropOffLat = dropOffLat,
-                dropOffLng = dropOffLng
+                dropOffLng = dropOffLng,
+                driverArrived = false
             )
 
             bookingsCollection.document(bookingId).set(booking).await()
@@ -93,6 +96,17 @@ class BookingRepository {
         }
     }
 
+
+
+    suspend fun updateDriverArrived(bookingId: String): Result<Unit> {
+        return try {
+            bookingsCollection.document(bookingId).update("driverArrived", true).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getBooking(bookingId: String): Result<Booking> {
         return try {
             val doc = bookingsCollection.document(bookingId).get().await()
@@ -110,7 +124,8 @@ class BookingRepository {
                     pickupLat = doc.getDouble("pickupLat") ?: 0.0,
                     pickupLng = doc.getDouble("pickupLng") ?: 0.0,
                     dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
-                    dropOffLng = doc.getDouble("dropOffLng") ?: 0.0
+                    dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
+                    driverArrived = doc.getBoolean("driverArrived") ?: false
                 )
                 Result.success(booking)
             } else {
