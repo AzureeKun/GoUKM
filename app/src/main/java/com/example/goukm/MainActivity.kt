@@ -18,6 +18,9 @@ import com.example.goukm.navigation.AppNavGraph
 import com.example.goukm.ui.theme.GoUKMTheme
 import com.example.goukm.ui.register.RegisterScreen
 
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         // Get and Save FCM Token
@@ -28,7 +31,7 @@ import com.example.goukm.ui.register.RegisterScreen
                 
                 // Save token to current user profile
                 if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
-                    androidx.lifecycle.lifecycleScope.launch {
+                    lifecycleScope.launch {
                         com.example.goukm.ui.userprofile.UserProfileRepository.saveFCMToken(token)
                     }
                 }
