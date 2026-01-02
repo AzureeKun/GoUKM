@@ -1,15 +1,44 @@
 package com.example.goukm.ui.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Message
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -20,57 +49,48 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.goukm.R
 import com.example.goukm.booking.RideRequestCard
 import com.example.goukm.booking.RideRequestModel
-import com.example.goukm.ui.history.DriverRideBookingHistoryScreen
-import com.example.goukm.ui.register.AuthViewModel
 import com.example.goukm.ui.chat.ChatRepository
+import com.example.goukm.ui.register.AuthViewModel
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.collectAsState
 
+private val PrimaryBlue = Color(0xFF6B87C0)
+private val DarkBlue = Color(0xFF4A6199)
+private val LightBlue = Color(0xFF8BA3D4)
+private val SurfaceColor = Color(0xFFF5F7FB)
+private val OnlineGreen = Color(0xFF4CAF50)
+private val OfflineRed = Color(0xFFEF5350)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriverDashboard(
-            navController: NavHostController,
+    navController: NavHostController,
     authViewModel: AuthViewModel,
-
-    /*ADA FIREBASE BARU GUNA
-    isOnline: Boolean,
-    rideRequests: List<RideRequestModel>,
-    onToggleStatus: () -> Unit,*/
     selectedNavIndex: Int,
     onNavSelected: (Int) -> Unit
 ) {
-    // ✅ ADD STATE DALAM NI (SENANG TEST)
-    var isOnline by remember { mutableStateOf(false) }
+    val user by authViewModel.currentUser.collectAsState()
+    val isOnline = user?.isAvailable ?: false
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(Unit) {
-         val profile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile()
-         if (profile != null) {
-             isOnline = profile.isAvailable
-         }
+    // Removed local LaunchedEffect for profile/FCM as AuthViewModel handles it
 
-         // Get FCM Token
-         com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-             if (!task.isSuccessful) {
-                 return@addOnCompleteListener
-             }
-             val token = task.result
-             scope.launch {
-                 com.example.goukm.ui.userprofile.UserProfileRepository.saveFCMToken(token)
-             }
-         }
-    }
-
-    // ✅ Real-time Data from Firestore
+    // Real-time Data
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     var rideRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
     var offeredRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
@@ -95,7 +115,6 @@ fun DriverDashboard(
                             val userId = doc.getString("userId") ?: ""
                             val timestamp = doc.getDate("timestamp")
                             val offeredFare = doc.getString("offeredFare") ?: ""
-                            
                             val pickupLat = doc.getDouble("pickupLat") ?: 0.0
                             val pickupLng = doc.getDouble("pickupLng") ?: 0.0
                             
@@ -108,7 +127,6 @@ fun DriverDashboard(
                             val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(userId)
                             val name = userProfile?.name ?: "Passenger"
                             
-                            // Fetch chat room if accepted or ongoing
                             val status = doc.getString("status")
                             val driverArrived = doc.getBoolean("driverArrived") ?: false
                             var chatRoom: com.example.goukm.ui.chat.ChatRoom? = null
@@ -150,7 +168,6 @@ fun DriverDashboard(
                                 acceptedList.add(model)
                             }
                         }
-                        
                         rideRequests = pendingList
                         offeredRequests = offeredList
                         acceptedRequests = acceptedList
@@ -166,104 +183,70 @@ fun DriverDashboard(
     }
 
     Scaffold(
-        containerColor = Color(0xFFB0BAC8),
-
-        // ✅ Bottom bar fixed kat bawah
+        containerColor = SurfaceColor,
         bottomBar = {
             BottomNavigationBarDriver(
                 selectedIndex = selectedNavIndex,
                 onSelected = onNavSelected
             )
         }
-
     ) { paddingValues ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-
-            // ✅ Top bar: Online / Offline
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            // Modern Header
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .shadow(elevation = 8.dp, spotColor = Color.Black.copy(alpha = 0.1f))
+                    .background(Color.White)
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Switch(
-                    checked = isOnline,
-                    onCheckedChange = {
-                        isOnline = it
-                        scope.launch {
-                             com.example.goukm.ui.userprofile.UserProfileRepository.updateDriverAvailability(it)
-                        }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.Green,
-                        uncheckedThumbColor = Color.Red
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (isOnline) "You are Online" else "You are Offline",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isOnline) OnlineGreen else Color.Gray,
+                        modifier = Modifier.weight(1f)
                     )
-                )
-
-                Text(
-                    text = if (isOnline) "Online" else "Offline",
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .background(
-                            color = if (isOnline) Color.Green else Color.Red,
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Chat Button
-                IconButton(onClick = { navController.navigate("driver_chat_list") }) {
-                    Icon(
-                        imageVector = Icons.Default.Message,
-                        contentDescription = "Chat",
-                        tint = Color.White
-                    )
-                }
-
-                IconButton(onClick = { /* TODO: Settings */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings"
+                    
+                    Switch(
+                        checked = isOnline,
+                        onCheckedChange = {
+                            authViewModel.setDriverAvailability(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = OnlineGreen,
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = OfflineRed
+                        ),
+                        modifier = Modifier.scale(0.9f)
                     )
                 }
             }
 
             if (isOnline) {
-
-                Text(
-                    text = "Nearest Requests",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 20.dp, bottom = 8.dp)
-                )
-
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 90.dp)
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 90.dp)
                 ) {
-                    // ACCEPTED SECTION
+                    // ACCEPTED JOBS
                     if (acceptedRequests.isNotEmpty()) {
                         item {
-                            Text(
-                                text = "Accepted Jobs",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color(0xFF2E7D32),
-                                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp)
-                            )
+                            SectionHeader("Current Job", OnlineGreen)
                         }
                         items(acceptedRequests) { request ->
                              RideRequestCard(
                                 request = request,
                                 onSkip = { 
                                     scope.launch {
-                                         // If completed or cancelled, handle here... for now just navigate
                                          val encodedAddress = android.net.Uri.encode(request.pickupPoint)
                                          navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress")
                                     }
@@ -286,16 +269,10 @@ fun DriverDashboard(
                         }
                     }
 
-                    // OFFERED SECTION
-                    // Only show if no accepted requests (Driver focus on current job)
+                    // OFFERED JOBS
                     if (offeredRequests.isNotEmpty() && acceptedRequests.isEmpty()) {
                         item {
-                            Text(
-                                text = "Waiting for Customer",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color(0xFFE91E63), // Pinkish distinct color
-                                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp, top = 8.dp)
-                            )
+                            SectionHeader("Awaiting Customer Response", Color(0xFFFFA000))
                         }
                          items(offeredRequests) { request ->
                              RideRequestCard(
@@ -304,7 +281,7 @@ fun DriverDashboard(
                                     scope.launch {
                                          bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED)
                                             .onSuccess {
-                                                android.widget.Toast.makeText(navController.context, "Offer Cancelled", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, "Offer Cancelled", android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                     }
                                 },
@@ -314,16 +291,10 @@ fun DriverDashboard(
                         }
                     }
 
-                    // PENDING SECTION
-                    // Only show if no accepted or offered requests (Hide new requests until current job/offer is handled)
+                    // NEW REQUESTS
                      if (rideRequests.isNotEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
                         item {
-                             // Only show header if there are requests
-                            Text(
-                                text = "New Requests",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp, top = 16.dp)
-                            )
+                            SectionHeader("New Requests", PrimaryBlue)
                         }
                         items(rideRequests) { request ->
                             RideRequestCard(
@@ -332,13 +303,12 @@ fun DriverDashboard(
                                     scope.launch {
                                         bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED)
                                             .onSuccess {
-                                                android.widget.Toast.makeText(navController.context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                     }
                                 },
                                 onOffer = {
                                     scope.launch {
-                                        // Update to OFFERED
                                         bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.OFFERED)
                                             .onSuccess {
                                                 navController.navigate(
@@ -349,66 +319,76 @@ fun DriverDashboard(
                                 }
                             )
                         }
+                     } else if (rideRequests.isEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
+                         item {
+                             EmptyStateView(
+                                 message = "No new requests right now",
+                                 subMessage = "Stay online to receive ride request"
+                             )
+                         }
                      }
                 }
-
             } else {
-
+                // Offline State
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
                         Image(
                             painter = painterResource(id = R.drawable.carroad),
-                            contentDescription = "No Request",
-                            modifier = Modifier.size(180.dp)
+                            contentDescription = "Offline",
+                            modifier = Modifier
+                                .size(240.dp)
+                                .clip(RoundedCornerShape(20.dp))
                         )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
                         Text(
-                            "No pending request",
+                            "You are currently Offline",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                            fontSize = 22.sp,
+                            color = Color(0xFF2D3748)
                         )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            "Switch to online to get ride request",
-                            fontSize = 14.sp,
-                            color = Color.DarkGray
-                        )
-
                         Spacer(modifier = Modifier.height(8.dp))
-
+                        Text(
+                            "Go online to start receiving ride requests",
+                            fontSize = 16.sp,
+                            color = Color(0xFF718096),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(32.dp))
+                        
+                        Button(
+                            onClick = { authViewModel.setDriverAvailability(true) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = OnlineGreen),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Go Online", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
                         Button(
                             onClick = {
-                                // Switch driver → customer
                                 scope.launch {
-                                    authViewModel.switchActiveRole("customer") // persists role in SessionManager
+                                    authViewModel.switchActiveRole("customer")
                                     navController.navigate("customer_dashboard") {
                                         popUpTo("driver_dashboard") { inclusive = true }
                                     }
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
                         ) {
-                            Text("Switch to Customer Mode")
-                        }
-                        // Logout Button
-                        Button(
-                            onClick = {
-                                authViewModel.logout()
-                                navController.navigate("register") {
-                                    popUpTo(navController.graph.id) { inclusive = true }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                        ) {
-                            Text("Logout", color = Color.White)
+                            Text("Switch to Customer Mode", fontSize = 16.sp)
                         }
                     }
                 }
@@ -417,4 +397,69 @@ fun DriverDashboard(
     }
 }
 
+@Composable
+fun SectionHeader(title: String, color: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(4.dp, 24.dp)
+                .background(color, RoundedCornerShape(2.dp))
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF2D3748)
+        )
+    }
+}
+
+@Composable
+fun EmptyStateView(message: String, subMessage: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 60.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(Color(0xFFE3F2FD), CircleShape)
+                .padding(20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.List,
+                contentDescription = null,
+                tint = PrimaryBlue,
+                modifier = Modifier.size(60.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            message,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF2D3748)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            subMessage,
+            fontSize = 14.sp,
+            color = Color(0xFF718096)
+        )
+    }
+}
+
+// Extension to help with scaling effect for switch
+fun Modifier.scale(scale: Float): Modifier = this.then(
+    Modifier.graphicsLayer(scaleX = scale, scaleY = scale)
+)
 

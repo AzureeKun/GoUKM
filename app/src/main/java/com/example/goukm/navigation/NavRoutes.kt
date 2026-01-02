@@ -8,7 +8,7 @@ sealed class NavRoutes(val route: String) {
 
     object CustomerDashboard : NavRoutes("customer_dashboard")
     object DriverDashboard : NavRoutes("driver_dashboard")
-    object BookingRequest : NavRoutes("booking_request")
+    object BookingRequest : NavRoutes("booking_request?bookingId={bookingId}")
     object confirmPay : NavRoutes("confirm_pay")
     object PaymentMethod : NavRoutes("payment_method")
     object RideDoneScreen : NavRoutes("ride_done")

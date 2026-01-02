@@ -82,7 +82,7 @@ import androidx.compose.foundation.background
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookingRequestScreen(navController: NavHostController) {
+fun BookingRequestScreen(navController: NavHostController, activeBookingId: String? = null) {
     var selectedSeat by remember { mutableStateOf("4-Seat") }
     
     // Autocomplete State
@@ -140,6 +140,25 @@ fun BookingRequestScreen(navController: NavHostController) {
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasLocationPermission = isGranted
+    }
+
+    // Restore State if activeBookingId is present
+    LaunchedEffect(activeBookingId) {
+        if (!activeBookingId.isNullOrEmpty()) {
+            val result = bookingRepository.getBooking(activeBookingId)
+            result.onSuccess { booking ->
+                currentBookingId = booking.id
+                pickupQuery = booking.pickup
+                dropOffQuery = booking.dropOff
+                selectedSeat = if (booking.seatType.startsWith("4")) "4-Seat" else "6-Seat"
+                pickupLatLng = LatLng(booking.pickupLat, booking.pickupLng)
+                dropOffLatLng = LatLng(booking.dropOffLat, booking.dropOffLng)
+                isSearching = true
+            }.onFailure {
+                android.widget.Toast.makeText(context, "Failed to load booking", android.widget.Toast.LENGTH_SHORT).show()
+                isSearching = false
+            }
+        }
     }
 
     // Request permission when screen loads if not already granted
@@ -220,65 +239,101 @@ fun BookingRequestScreen(navController: NavHostController) {
                     }
                 }
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                if (!isSearching) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Pickup Point", fontWeight = FontWeight.Bold)
-                        AutocompleteTextField(
-                            label = "Enter Pickup Location",
-                            value = pickupQuery,
-                            onValueChange = { query ->
-                                pickupQuery = query
-                                pickupPlaceId = null // Reset validity on type
-                                pickupLatLng = null
-                                scope.launch {
-                                    pickupPredictions = placesRepository.getPredictions(query)
-                                }
-                            },
-                            predictions = pickupPredictions,
-                            onPredictionSelect = { placeId, address ->
-                                pickupQuery = address
-                                pickupPlaceId = placeId
-                                pickupPredictions = emptyList() // Hide list
-                                scope.launch {
-                                    val place = placesRepository.getPlaceDetails(placeId)
-                                    pickupLatLng = place?.latLng
-                                }
-                            },
-                            leadingIcon = Icons.Default.Send
-                        )
-
-                        Text("Drop-Off Point", fontWeight = FontWeight.Bold)
-                        AutocompleteTextField(
-                            label = "Enter Drop-off Location",
-                            value = dropOffQuery,
-                            onValueChange = { query ->
-                                dropOffQuery = query
-                                dropOffPlaceId = null // Reset validity
-                                dropOffLatLng = null
-                                scope.launch {
-                                    dropOffPredictions = placesRepository.getPredictions(query)
-                                }
-                            },
-                            predictions = dropOffPredictions,
-                            onPredictionSelect = { placeId, address ->
-                                dropOffQuery = address
-                                dropOffPlaceId = placeId
-                                dropOffPredictions = emptyList() // Hide list
-                                scope.launch {
-                                    val place = placesRepository.getPlaceDetails(placeId)
-                                    dropOffLatLng = place?.latLng
-                                }
-                            },
-                            leadingIcon = Icons.Default.Place
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text("Pickup Point", fontWeight = FontWeight.Bold)
+                            AutocompleteTextField(
+                                label = "Enter Pickup Location",
+                                value = pickupQuery,
+                                onValueChange = { query ->
+                                    pickupQuery = query
+                                    pickupPlaceId = null // Reset validity on type
+                                    pickupLatLng = null
+                                    scope.launch {
+                                        pickupPredictions = placesRepository.getPredictions(query)
+                                    }
+                                },
+                                predictions = pickupPredictions,
+                                onPredictionSelect = { placeId, address ->
+                                    pickupQuery = address
+                                    pickupPlaceId = placeId
+                                    pickupPredictions = emptyList() // Hide list
+                                    scope.launch {
+                                        val place = placesRepository.getPlaceDetails(placeId)
+                                        pickupLatLng = place?.latLng
+                                    }
+                                },
+                                leadingIcon = Icons.Default.Send
+                            )
+    
+                            Text("Drop-Off Point", fontWeight = FontWeight.Bold)
+                            AutocompleteTextField(
+                                label = "Enter Drop-off Location",
+                                value = dropOffQuery,
+                                onValueChange = { query ->
+                                    dropOffQuery = query
+                                    dropOffPlaceId = null // Reset validity
+                                    dropOffLatLng = null
+                                    scope.launch {
+                                        dropOffPredictions = placesRepository.getPredictions(query)
+                                    }
+                                },
+                                predictions = dropOffPredictions,
+                                onPredictionSelect = { placeId, address ->
+                                    dropOffQuery = address
+                                    dropOffPlaceId = placeId
+                                    dropOffPredictions = emptyList() // Hide list
+                                    scope.launch {
+                                        val place = placesRepository.getPlaceDetails(placeId)
+                                        dropOffLatLng = place?.latLng
+                                    }
+                                },
+                                leadingIcon = Icons.Default.Place
+                            )
+                        }
+                    }
+                } else {
+                    // Static Trip Details when searching
+                     Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                             Text("Trip Details", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                             
+                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                 Icon(Icons.Default.Send, contentDescription = null, tint = CBlue, modifier = Modifier.size(20.dp))
+                                 Spacer(Modifier.width(8.dp))
+                                 Column {
+                                     Text("Pickup", fontSize = 12.sp, color = Color.Gray)
+                                     Text(pickupQuery, fontWeight = FontWeight.SemiBold)
+                                 }
+                             }
+                             
+                             androidx.compose.material3.Divider()
+                             
+                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                 Icon(Icons.Default.Place, contentDescription = null, tint = Color.Red, modifier = Modifier.size(20.dp))
+                                 Spacer(Modifier.width(8.dp))
+                                 Column {
+                                     Text("Drop-off", fontSize = 12.sp, color = Color.Gray)
+                                     Text(dropOffQuery, fontWeight = FontWeight.SemiBold)
+                                 }
+                             }
+                        }
                     }
                 }
 
@@ -450,6 +505,15 @@ fun BookingRequestScreen(navController: NavHostController) {
                                     showCancelDialog = false
                                     isSearching = false
                                     currentBookingId = null
+                                    
+                                    // Reset Inputs and Map
+                                    pickupQuery = ""
+                                    dropOffQuery = ""
+                                    pickupLatLng = null
+                                    dropOffLatLng = null
+                                    pickupPlaceId = null
+                                    dropOffPlaceId = null
+                                    routePoints = emptyList()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(

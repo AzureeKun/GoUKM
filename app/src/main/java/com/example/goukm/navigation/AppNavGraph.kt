@@ -141,8 +141,20 @@ fun AppNavGraph(
         }
 
         // BOOKING REQUEST
-        composable(NavRoutes.BookingRequest.route) {
-            BookingRequestScreen(navController = navController)
+        composable(
+            route = NavRoutes.BookingRequest.route,
+            arguments = listOf(
+                navArgument("bookingId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            BookingRequestScreen(
+                navController = navController,
+                activeBookingId = backStackEntry.arguments?.getString("bookingId")
+            )
         }
 
 // DRIVER JOURNEY SUMMARY - Navigate from DriverDashboard

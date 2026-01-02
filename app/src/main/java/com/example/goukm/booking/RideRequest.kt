@@ -1,7 +1,9 @@
 package com.example.goukm.booking
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -23,6 +27,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.goukm.R
+
+private val PrimaryBlue = Color(0xFF6B87C0)
 
 @Composable
 fun RideRequestCard(
@@ -34,192 +40,245 @@ fun RideRequestCard(
     skipLabel: String = "Skip"
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(8.dp),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = PrimaryBlue.copy(alpha = 0.15f)
+            )
+            .animateContentSize()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // TOP ROW: avatar + "Ride Request - time"
+        Column(modifier = Modifier.padding(20.dp)) {
+            // TOP ROW: avatar + Name + Time
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(id = request.customerImageRes),
-                    contentDescription = "Customer",
+                Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(52.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(Modifier.width(8.dp))
+                        .background(Color(0xFFF0F4F8))
+                        .border(2.dp, Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = request.customerImageRes),
+                        contentDescription = "Customer",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                
+                Spacer(Modifier.width(12.dp))
+                
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = request.customerName,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = Color.Black
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color(0xFF2D3748)
                     )
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Ride Request",
-                            color = Color(0xFFd9a500),
+                            text = request.requestedTimeAgo,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "  -  ${request.requestedTimeAgo}",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            color = Color(0xFF718096),
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
+                
                 // Display Offered Fare if present
                 if (request.offeredFare.isNotEmpty()) {
-                     Text(
-                        text = "RM ${request.offeredFare}",
-                        color = Color(0xFFE91E63),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(end = 8.dp)
-                     )
+                     Box(
+                         modifier = Modifier
+                             .background(
+                                 color = Color(0xFFE3F2FD),
+                                 shape = RoundedCornerShape(8.dp)
+                             )
+                             .padding(horizontal = 10.dp, vertical = 6.dp)
+                     ) {
+                         Text(
+                            text = "RM ${request.offeredFare}",
+                            color = PrimaryBlue,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                         )
+                     }
                 }
-                // Chat icon button
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Pickup / Dropoff Timeline
+            Row(modifier = Modifier.fillMaxWidth()) {
+                // Timeline Line
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 4.dp, end = 12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(PrimaryBlue, CircleShape)
+                            .border(2.dp, Color.White, CircleShape)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(30.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(PrimaryBlue, Color(0xFFFF6B6B))
+                                )
+                            )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(Color(0xFFFF6B6B), CircleShape)
+                            .border(2.dp, Color.White, CircleShape)
+                    )
+                }
+                
+                // Addresses
+                Column(modifier = Modifier.weight(1f)) {
+                    Column {
+                        Text(
+                            text = "Pickup",
+                            fontSize = 12.sp,
+                            color = Color(0xFF718096),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = request.pickupPoint,
+                            fontSize = 14.sp,
+                            color = Color(0xFF2D3748),
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                    }
+                    
+                    Column {
+                        Text(
+                            text = "Drop-off",
+                            fontSize = 12.sp,
+                            color = Color(0xFF718096),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = request.dropOffPoint,
+                            fontSize = 14.sp,
+                            color = Color(0xFF2D3748),
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
+                
+                // Seats indicator
+                Column(
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .align(Alignment.CenterVertically),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "${request.seats}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF4A5568)
+                    )
+                    Text(
+                        text = "seats",
+                        fontSize = 10.sp,
+                        color = Color(0xFF718096)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // BOTTOM BUTTON ROW
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Chat button for Accepted bookings
                 if (onChat != null) {
                     IconButton(
                         onClick = onChat,
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF2196F3))
+                            .size(48.dp)
+                            .background(Color(0xFFE3F2FD), RoundedCornerShape(12.dp))
                     ) {
                         Icon(
                             imageVector = Icons.Default.Chat,
                             contentDescription = "Chat",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            // MIDDLE: pickup -> drop-off row
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Pickup Point",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                         color = Color.Black
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = "Pickup",
-                            modifier = Modifier.size(14.dp),
-                            tint = Color.Gray
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = request.pickupPoint,
-                            fontSize = 11.sp,
-                            color = Color.Black
-                        )
-                    }
-                }
-
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = "to",
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp)
-                        .size(18.dp),
-                    tint = Color.Black
-                )
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Drop-Off Point",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Black
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.PersonPinCircle,
-                            contentDescription = "Dropoff",
-                            modifier = Modifier.size(14.dp),
-                            tint = Color.Gray
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = request.dropOffPoint,
-                            fontSize = 11.sp,
-                            color = Color.Black
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            // CENTER TEXT: seat type
-            Text(
-                text = "${request.seats} seater ride",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.Black
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // BOTTOM BUTTON ROW: Skip | Offer | Arrive
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onSkip,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.DarkGray
-                    )
-                ) {
-                    Text(skipLabel)
                 }
                 
+                // Skip / Cancel
+                OutlinedButton(
+                    onClick = onSkip,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF718096),
+                        containerColor = Color.Transparent
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                ) {
+                    Text(skipLabel, fontWeight = FontWeight.SemiBold)
+                }
+                
+                // Main Action (Offer or Arrive)
                 if (onOffer != null) {
                     Button(
                         onClick = onOffer,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFEB3B),
+                            containerColor = Color(0xFFFFD93D),
                             contentColor = Color.Black
-                        )
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                     ) {
-                        Text("Offer")
+                        Text("Offer", fontWeight = FontWeight.Bold)
                     }
                 }
                 
                 if (onArrive != null) {
                     Button(
                         onClick = onArrive,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         enabled = !request.driverArrived,
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (request.driverArrived) Color.Gray else Color(0xFF4CAF50), // Main Green
+                            containerColor = if (request.driverArrived) Color.Gray else Color(0xFF4CAF50),
                             contentColor = Color.White
-                        )
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                     ) {
-                        Text(if (request.driverArrived) "Arrived" else "Arrive")
+                        Text(
+                            if (request.driverArrived) "Arrived" else "Arrive", 
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

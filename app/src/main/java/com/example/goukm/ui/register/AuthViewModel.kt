@@ -42,6 +42,9 @@ class AuthViewModel(
     val driverApplicationStatus: StateFlow<String?> = _driverApplicationStatus
 
     private var applicationListener: ListenerRegistration? = null
+    
+    // Flag to handle app startup state reset
+    private var isFirstLoad = true
 
 
     // 2. Initializer to check session status on startup
@@ -76,7 +79,20 @@ class AuthViewModel(
 
             // Use UserProfileRepository for proper field mapping
             val user = UserProfileRepository.getUserProfile()
-            _currentUser.value = user
+
+            
+            // Force Driver Offline on App Start (First Load)
+            var finalUser = user
+            if (isFirstLoad && user != null && user.role_driver == true && user.isAvailable) {
+                finalUser = user.copy(isAvailable = false)
+                launch { UserProfileRepository.updateDriverAvailability(false) }
+                isFirstLoad = false
+            } else {
+                 // For subsequent fetches, respect the fetched state (or if not driver/available)
+                 if (isFirstLoad) isFirstLoad = false
+            }
+
+            _currentUser.value = finalUser
 
             // Restore from Firestore or default to customer
             _activeRole.value = if (defaultToCustomer) {
@@ -245,6 +261,17 @@ class AuthViewModel(
                     }
                 }
             }
+    }
+
+    // Set driver availability locally and in Firestore
+    fun setDriverAvailability(isAvailable: Boolean) {
+        viewModelScope.launch {
+            // Optimistic update locally
+            _currentUser.value = _currentUser.value?.copy(isAvailable = isAvailable)
+            
+            // Update Firestore
+            UserProfileRepository.updateDriverAvailability(isAvailable)
+        }
     }
 
     override fun onCleared() {
