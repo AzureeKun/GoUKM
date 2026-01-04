@@ -102,10 +102,13 @@ class AuthViewModel(
             }
 
             // Sync FCM Token
-            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnSuccessListener { token -> 
-                launch {
-                     UserProfileRepository.saveFCMToken(token)
-                }
+            // Sync FCM Token
+            try {
+                val token = com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await()
+                android.util.Log.d("FCM_DEBUG", "Saving Token in ViewModel: $token")
+                UserProfileRepository.saveFCMToken(token)
+            } catch (e: Exception) {
+                android.util.Log.e("FCM_DEBUG", "Failed to get token in ViewModel", e)
             }
 
             listenToDriverApplication(uid)
@@ -199,6 +202,13 @@ class AuthViewModel(
     // 3. Function to clear session (used by CustomerProfileScreen)
     fun logout() {
         viewModelScope.launch {
+            // Remove FCM Token from current user to prevent notifications on this device
+            try {
+                UserProfileRepository.saveFCMToken("") // Saving empty string deletes/clears it effectively
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             auth.signOut()                         // ✅ sign out firebase
             sessionManager.clearSession()         // ✅ clear token
             sessionManager.saveActiveRole("customer") // ✅ RESET TO CUSTOMER

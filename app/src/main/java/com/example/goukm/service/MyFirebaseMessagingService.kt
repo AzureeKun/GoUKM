@@ -49,30 +49,30 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         
         when (type) {
             "new_ride_request" -> {
-                val pickup = data["pickup"] ?: "Unknown"
-                val dropOff = data["dropOff"] ?: "Unknown"
-                // Ideally, we might want to deep link to the specific request
+                val pickup = data["pickup"] ?: ""
+                val dropOff = data["dropOff"] ?: ""
+                
                 NotificationHelper.showNotification(
                     applicationContext,
-                    "New Ride Request",
-                    "Pickup: $pickup\nDrop-off: $dropOff"
+                    "New ride request",
+                    "Yay, you have a new ride request !!"
                 )
             }
             "offer_accepted" -> {
-                val customerName = data["customerName"] ?: "A customer"
+                val customerName = data["customerName"] ?: ""
                 NotificationHelper.showNotification(
                     applicationContext,
-                    "Offer Accepted!",
-                    "$customerName accepted your fare offer."
+                    "Your fare accepted!",
+                    "Please complete the journey on time. Safe drive."
                 )
             }
             "new_offer" -> {
-                val driverName = data["driverName"] ?: "A driver"
+                val driverName = data["driverName"] ?: ""
                 val fare = data["fare"] ?: "0.00"
                 NotificationHelper.showNotification(
                     applicationContext,
-                    "New Ride Offer",
-                    "$driverName offered RM $fare"
+                    "Special fare offer for you!",
+                    "Please check a new offer from our driver."
                 )
             }
             else -> {

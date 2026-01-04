@@ -1,159 +1,149 @@
-const functions = require("firebase-functions");
+const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
+const { getMessaging } = require("firebase-admin/messaging");
+
 admin.initializeApp();
+setGlobalOptions({ region: "asia-southeast1" });
 
 // 1. Notify Drivers when a new Ride Request is created
-exports.sendNewRideRequestNotification = functions.firestore
-    .document("bookings/{bookingId}")
-    .onCreate(async (snapshot, context) => {
-        const booking = snapshot.data();
-        const pickup = booking.pickup;
-        const dropOff = booking.dropOff;
+exports.sendNewRideRequestNotification = onDocumentCreated("bookings/{bookingId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
 
-        console.log(`New Ride Request: ${context.params.bookingId} from ${pickup} to ${dropOff}`);
+    const booking = snapshot.data();
+    const pickup = booking.pickup;
+    const dropOff = booking.dropOff;
 
-        // Query all drivers who are available
-        // Note: In large scale, use Geohashing or Topic Messaging
-        const driversSnapshot = await admin.firestore()
-            .collection("users")
-            .where("role_driver", "==", true)
-            .where("isAvailable", "==", true)
-            .get();
+    console.log(`New Ride Request: ${event.params.bookingId} from ${pickup} to ${dropOff}`);
 
-        if (driversSnapshot.empty) {
-            console.log("No available drivers found");
-            return null;
+    // Query all drivers who are available
+    const driversSnapshot = await admin.firestore()
+        .collection("users")
+        .where("role_driver", "==", true)
+        .where("isAvailable", "==", true)
+        .get();
+
+    if (driversSnapshot.empty) {
+        console.log("No available drivers found");
+        return null;
+    }
+
+    const tokens = [];
+    driversSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.fcmToken) {
+            tokens.push(data.fcmToken);
+        }
+    });
+
+    if (tokens.length === 0) {
+        console.log("No driver tokens found");
+        return null;
+    }
+
+    const payload = {
+        data: {
+            type: "new_ride_request",
+            bookingId: event.params.bookingId,
+            pickup: pickup,
+            dropOff: dropOff
+        }
+    };
+
+    // Send to all tokens
+    const response = await getMessaging().sendEachForMulticast({
+        tokens: tokens,
+        data: payload.data
+    });
+    console.log("Notifications sent:", response.successCount);
+    return null;
+});
+
+// 2. Notify Customer when Driver offers a fare
+exports.sendNewOfferNotification = onDocumentUpdated("bookings/{bookingId}", async (event) => {
+    const newData = event.data.after.data();
+    const oldData = event.data.before.data();
+
+    // Check if offeredFare has changed
+    if (newData.offeredFare && newData.offeredFare !== oldData.offeredFare) {
+        const userId = newData.userId;
+        const driverId = newData.driverId;
+        const fare = newData.offeredFare;
+
+        console.log(`New Offer: Booking ${event.params.bookingId}, Fare ${fare}`);
+
+        // Get Customer Token
+        const userDoc = await admin.firestore().collection("users").document(userId).get();
+        if (!userDoc.exists) return null;
+
+        const token = userDoc.data().fcmToken;
+
+        // Get Driver Name
+        let driverName = "A Driver";
+        if (driverId) {
+            const driverDoc = await admin.firestore().collection("users").document(driverId).get();
+            if (driverDoc.exists) {
+                driverName = driverDoc.data().name || "A Driver";
+            }
         }
 
-        const tokens = [];
-        driversSnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.fcmToken) {
-                tokens.push(data.fcmToken);
-            }
-        });
-
-        if (tokens.length === 0) {
-            console.log("No driver tokens found");
+        if (!token) {
+            console.log("No customer token found");
             return null;
         }
 
         const payload = {
             data: {
-                type: "new_ride_request",
-                bookingId: context.params.bookingId,
-                pickup: pickup,
-                dropOff: dropOff
+                type: "new_offer",
+                bookingId: event.params.bookingId,
+                driverName: driverName,
+                fare: fare
             },
-            notification: {
-                title: "New Ride Request",
-                body: `Trip from ${pickup}`
-            }
+            token: token
         };
 
-        // Send to all tokens
-        // sendToDevice is deprecated but still works broadly; sendEachForMulticast is newer
-        // For simplicity with legacy payloads: use sendToDevice or messaging().send()
-        const response = await admin.messaging().sendToDevice(tokens, payload);
-        console.log("Notifications sent:", response.successCount);
-        return null;
-    });
-
-// 2. Notify Customer when Driver offers a fare
-exports.sendNewOfferNotification = functions.firestore
-    .document("bookings/{bookingId}")
-    .onUpdate(async (change, context) => {
-        const newData = change.after.data();
-        const oldData = change.before.data();
-
-        // Check if offeredFare has changed
-        // We only notify if farewell is SET (not cleared) and different from before
-        if (newData.offeredFare && newData.offeredFare !== oldData.offeredFare) {
-            const userId = newData.userId;
-            const driverId = newData.driverId;
-            const fare = newData.offeredFare;
-
-            console.log(`New Offer: Booking ${context.params.bookingId}, Fare ${fare}`);
-
-            // Get Customer Token
-            const userDoc = await admin.firestore().collection("users").document(userId).get();
-            if (!userDoc.exists) return null;
-            
-            const token = userDoc.data().fcmToken;
-
-            // Get Driver Name
-            let driverName = "A Driver";
-            if (driverId) {
-                const driverDoc = await admin.firestore().collection("users").document(driverId).get();
-                if (driverDoc.exists) {
-                     driverName = driverDoc.data().name || "A Driver";
-                }
-            }
-
-            if (!token) {
-                 console.log("No customer token found");
-                 return null;
-            }
-
-            const payload = {
-                data: {
-                    type: "new_offer",
-                    bookingId: context.params.bookingId,
-                    driverName: driverName,
-                    fare: fare
-                },
-                notification: {
-                    title: "New Fare Offer",
-                    body: `${driverName} offered RM ${fare}`
-                }
-            };
-
-            return admin.messaging().sendToDevice(token, payload);
-        }
-        return null;
-    });
+        return getMessaging().send(payload);
+    }
+    return null;
+});
 
 // 3. Notify Driver when Customer accepts the offer
-exports.sendOfferAcceptedNotification = functions.firestore
-    .document("bookings/{bookingId}")
-    .onUpdate(async (change, context) => {
-        const newData = change.after.data();
-        const oldData = change.before.data();
+exports.sendOfferAcceptedNotification = onDocumentUpdated("bookings/{bookingId}", async (event) => {
+    const newData = event.data.after.data();
+    const oldData = event.data.before.data();
 
-        // Check if status changed to ACCEPTED
-        if (newData.status === "ACCEPTED" && oldData.status !== "ACCEPTED") {
-            const driverId = newData.driverId;
-            const userId = newData.userId; 
+    // Check if status changed to ACCEPTED
+    if (newData.status === "ACCEPTED" && oldData.status !== "ACCEPTED") {
+        const driverId = newData.driverId;
+        const userId = newData.userId;
 
-            console.log(`Offer Accepted: Booking ${context.params.bookingId}`);
+        console.log(`Offer Accepted: Booking ${event.params.bookingId}`);
 
-            if (!driverId) return null;
+        if (!driverId) return null;
 
-            // Get Driver Token
-            const driverDoc = await admin.firestore().collection("users").document(driverId).get();
-            if (!driverDoc.exists) return null;
-            
-            const token = driverDoc.data().fcmToken;
-            
-            // Get Customer Name
-             const userDoc = await admin.firestore().collection("users").document(userId).get();
-             const customerName = userDoc.data().name || "Customer";
+        // Get Driver Token
+        const driverDoc = await admin.firestore().collection("users").document(driverId).get();
+        if (!driverDoc.exists) return null;
 
-            if (!token) return null;
+        const token = driverDoc.data().fcmToken;
 
-            const payload = {
-                data: {
-                    type: "offer_accepted",
-                    bookingId: context.params.bookingId,
-                    customerName: customerName
-                },
-                notification: {
-                    title: "Offer Accepted!",
-                    body: `${customerName} accepted your ride.`
-                }
-            };
+        // Get Customer Name
+        const userDoc = await admin.firestore().collection("users").document(userId).get();
+        const customerName = userDoc.data().name || "Customer";
 
-            return admin.messaging().sendToDevice(token, payload);
-        }
-        return null;
-    });
+        if (!token) return null;
+
+        const payload = {
+            data: {
+                type: "offer_accepted",
+                bookingId: event.params.bookingId,
+                customerName: customerName
+            },
+            token: token
+        };
+
+        return getMessaging().send(payload);
+    }
+    return null;
+});
