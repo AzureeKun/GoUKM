@@ -58,19 +58,23 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 
 @Composable
 fun DriverNavigationScreen(
     navController: NavHostController,
     pickupLat: Double,
     pickupLng: Double,
-    pickupAddress: String
+    pickupAddress: String,
+    bookingId: String // Added bookingId
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val placesRepository = remember { PlacesRepository(context) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
+    // ... (Keep existing setup code) ... 
     // State for Pickup Location (Mutable to allow fallback)
     var finalPickupLocation by remember { mutableStateOf(LatLng(pickupLat, pickupLng)) }
 
@@ -178,12 +182,7 @@ fun DriverNavigationScreen(
                 routePoints = it.polyline
                 distanceToPickup = it.distance
             }.onFailure {
-                 var msg = "Err: ${it.message}"
-                 if (it.message?.contains("ZERO_RESULTS") == true) {
-                     msg += "\n(Too far? Check Emulator Location)"
-                 }
-                 msg += "\nDr: ${driverLocation?.latitude}..."
-                 android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                 // Silent fail or toast
             }
         }
     }
@@ -262,7 +261,7 @@ fun DriverNavigationScreen(
             }
         }
 
-        // Bottom Action (Arrived Button)
+        // Bottom Action (Buttons)
         Card(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -275,28 +274,58 @@ fun DriverNavigationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Navigate External Button
+                Button(
+                    onClick = {
+                        val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${finalPickupLocation.latitude},${finalPickupLocation.longitude}")
+                        val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
+                        mapIntent.setPackage("com.google.android.apps.maps")
+                        // Start activity in try-catch to avoid crash if no maps app
+                        try {
+                             context.startActivity(mapIntent)
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Google Maps not found", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                     Icon(Icons.Default.Navigation, contentDescription = null, tint = Color.White)
+                     Spacer(modifier = Modifier.padding(4.dp))
+                     Text("Navigate (Maps)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // Arrived Button
                 if (driverLocation == null) {
-                    Text("Acquiring GPS...", color = Color.Gray)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    CircularProgressIndicator(modifier = Modifier.height(24.dp))
-                } else {
-                    Button(
-                        onClick = {
-                            // TODO: Update status to "DRIVER_ARRIVED" if needed
-                            navController.popBackStack() 
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Navigation, contentDescription = null)
-                        Spacer(modifier = Modifier.padding(4.dp))
-                        Text("I Have Arrived", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Acquiring GPS...", color = Color.Gray)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     }
+                }
+                // Allow clicking Arrived even if GPS not yet fixed for testing
+                Button(
+                    onClick = {
+                        // Navigate to Journey Summary
+                         navController.navigate("driver_journey_summary/$bookingId") {
+                             popUpTo(navController.graph.id) { inclusive = true } // Clear stack to prevent back nav to here? Optional.
+                             // Actually better to just pop this screen
+                             popUpTo("driver_navigation_screen") { inclusive = true }
+                         }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("I Have Arrived", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

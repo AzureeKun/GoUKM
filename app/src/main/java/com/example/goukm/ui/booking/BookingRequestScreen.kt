@@ -1,6 +1,7 @@
 package com.example.goukm.ui.booking
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +39,8 @@ import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,13 +85,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.tooling.preview.Preview
+import com.google.android.libraries.places.api.model.Place
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookingRequestScreen(navController: NavHostController, activeBookingId: String? = null) {
     var selectedSeat by remember { mutableStateOf("4-Seat") }
-    
+    // Payment Method State
+    var selectedPaymentMethod by remember { mutableStateOf<PaymentMethod?>(null) }
+
     // Autocomplete State
     var pickupQuery by remember { mutableStateOf("") }
     var pickupPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
@@ -95,7 +111,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
     var dropOffPlaceId by remember { mutableStateOf<String?>(null) }
     var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
-    
+
     // Hoisted State and Dependencies
     val context = LocalContext.current
     val placesRepository = remember { PlacesRepository(context) }
@@ -104,6 +120,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     var currentBookingId by remember { mutableStateOf<String?>(null) }
 
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+    var currentOffer by remember { mutableStateOf<DriverOffer?>(null) }
 
     LaunchedEffect(pickupLatLng, dropOffLatLng) {
         if (pickupLatLng != null && dropOffLatLng != null) {
@@ -119,7 +136,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
             routePoints = emptyList()
         }
     }
-    
+
     var isSearching by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
 
@@ -142,9 +159,10 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
         hasLocationPermission = isGranted
     }
 
-    // Restore State if activeBookingId is present
+    // Restore State + Watch for Updates
     LaunchedEffect(activeBookingId) {
         if (!activeBookingId.isNullOrEmpty()) {
+            // Initial fetch
             val result = bookingRepository.getBooking(activeBookingId)
             result.onSuccess { booking ->
                 currentBookingId = booking.id
@@ -154,9 +172,41 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                 pickupLatLng = LatLng(booking.pickupLat, booking.pickupLng)
                 dropOffLatLng = LatLng(booking.dropOffLat, booking.dropOffLng)
                 isSearching = true
-            }.onFailure {
-                android.widget.Toast.makeText(context, "Failed to load booking", android.widget.Toast.LENGTH_SHORT).show()
-                isSearching = false
+            }
+
+            // Real-time listener
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val docRef = db.collection("bookings").document(activeBookingId)
+            val registration = docRef.addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                
+                val status = snapshot.getString("status")
+                val driverId = snapshot.getString("driverId") ?: ""
+                val offeredFare = snapshot.getString("offeredFare") ?: ""
+
+                if (status == "OFFERED" && driverId.isNotEmpty()) {
+                    scope.launch {
+                        val driver = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(driverId)
+                        if (driver != null) {
+                            currentOffer = DriverOffer(
+                                name = driver.name,
+                                fareLabel = "RM $offeredFare",
+                                carBrand = driver.vehicleType,
+                                carName = "",
+                                carColor = "",
+                                plate = driver.vehiclePlateNumber,
+                                driverId = driverId,
+                                driverPhone = driver.phoneNumber
+                            )
+                        }
+                    }
+                } else if (status == "ACCEPTED" || status == "ONGOING") {
+                    navController.navigate("cust_journey_details/${activeBookingId}/${selectedPaymentMethod?.name ?: "CASH"}") {
+                        popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+                    }
+                } else {
+                    currentOffer = null
+                }
             }
         }
     }
@@ -178,7 +228,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                     if (location != null) {
                         val latLng = LatLng(location.latitude, location.longitude)
                         pickupLatLng = latLng
-                        
+
                         // Reverse Geocoding
                         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                             try {
@@ -189,8 +239,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                             val address = addresses[0]
                                             // Construct a readable address string
                                             val addressText = address.getAddressLine(0) ?: address.featureName
-                                            scope.launch { 
-                                                pickupQuery = addressText 
+                                            scope.launch {
+                                                pickupQuery = addressText
                                             }
                                         }
                                     }
@@ -200,8 +250,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                     if (!addresses.isNullOrEmpty()) {
                                         val address = addresses[0]
                                         val addressText = address.getAddressLine(0) ?: address.featureName
-                                        scope.launch { 
-                                            pickupQuery = addressText 
+                                        scope.launch {
+                                            pickupQuery = addressText
                                         }
                                     }
                                 }
@@ -323,7 +373,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                 },
                                 leadingIcon = Icons.Default.Send
                             )
-    
+
                             Text("Drop-Off Point", fontWeight = FontWeight.Bold)
                             AutocompleteTextField(
                                 label = "Enter Drop-off Location",
@@ -350,6 +400,36 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             )
                         }
                     }
+
+
+
+                    // Payment Method Section
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Payment Method",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            PaymentMethodCard(
+                                title = "DuitNow",
+                                icon = Icons.Default.QrCode,
+                                isSelected = selectedPaymentMethod == PaymentMethod.QR_DUITNOW,
+                                onClick = { selectedPaymentMethod = PaymentMethod.QR_DUITNOW },
+                                modifier = Modifier.weight(1f)
+                            )
+                            PaymentMethodCard(
+                                title = "Cash",
+                                icon = Icons.Default.AttachMoney,
+                                isSelected = selectedPaymentMethod == PaymentMethod.CASH,
+                                onClick = { selectedPaymentMethod = PaymentMethod.CASH },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 } else {
                     // Static Trip Details when searching
                      Card(
@@ -362,7 +442,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                              Text("Trip Details", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                             
+
                              Row(verticalAlignment = Alignment.CenterVertically) {
                                  Icon(Icons.Default.Send, contentDescription = null, tint = CBlue, modifier = Modifier.size(20.dp))
                                  Spacer(Modifier.width(8.dp))
@@ -371,9 +451,9 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                      Text(pickupQuery, fontWeight = FontWeight.SemiBold)
                                  }
                              }
-                             
+
                              androidx.compose.material3.Divider()
-                             
+
                              Row(verticalAlignment = Alignment.CenterVertically) {
                                  Icon(Icons.Default.Place, contentDescription = null, tint = Color.Red, modifier = Modifier.size(20.dp))
                                  Spacer(Modifier.width(8.dp))
@@ -383,6 +463,39 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                  }
                              }
                         }
+                    }
+
+                    if (currentOffer != null) {
+                         Text(
+                             text = "Ride Offers",
+                             style = MaterialTheme.typography.titleMedium,
+                             fontWeight = FontWeight.Bold,
+                             modifier = Modifier.padding(top = 8.dp)
+                         )
+                         
+                         OfferCard(
+                             offer = currentOffer!!,
+                             onAccept = {
+                                 scope.launch {
+                                     val bookingId = currentBookingId ?: activeBookingId ?: return@launch
+                                     bookingRepository.updateStatus(bookingId, BookingStatus.ACCEPTED)
+                                     
+                                     val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                                     if (currentUser != null) {
+                                         val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
+                                         com.example.goukm.ui.chat.ChatRepository.createChatRoom(
+                                             bookingId = bookingId,
+                                             customerId = currentUser.uid,
+                                             driverId = currentOffer!!.driverId,
+                                             customerName = customerProfile?.name ?: "Customer",
+                                             driverName = currentOffer!!.name,
+                                             customerPhone = customerProfile?.phoneNumber ?: "",
+                                             driverPhone = currentOffer!!.driverPhone
+                                         )
+                                     }
+                                 }
+                             }
+                         )
                     }
                 }
 
@@ -417,14 +530,16 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                         val dropOffLng = dropOffLatLng?.longitude ?: 0.0
 
                                         val result = bookingRepository.createBooking(
-                                            pickup = pickupQuery, 
-                                            dropOff = dropOffQuery, 
+                                            pickup = pickupQuery,
+                                            dropOff = dropOffQuery,
                                             seatType = selectedSeat,
                                             pickupLat = pickupLat,
                                             pickupLng = pickupLng,
                                             dropOffLat = dropOffLat,
-                                            dropOffLng = dropOffLng
+                                            dropOffLng = dropOffLng,
+                                            paymentMethod = selectedPaymentMethod?.name ?: "CASH"
                                         )
+
                                         result.onSuccess { bookingId ->
                                              currentBookingId = bookingId
                                              isSearching = true
@@ -441,7 +556,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         .fillMaxWidth()
                         .height(54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = accentYellow),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = isSearching || selectedPaymentMethod != null // Disable if no payment method selected when not searching
                 ) {
                     Text(
                         if (isSearching) "Cancel Booking" else "Booking Ride",
@@ -464,7 +580,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
             val cameraPositionState = rememberCameraPositionState {
                 position = CameraPosition.fromLatLngZoom(ukmLocation, 15f)
             }
-            
+
             // Animate camera to pickup location when auto-detected
             LaunchedEffect(pickupLatLng) {
                 if (pickupLatLng != null && routePoints.isEmpty()) {
@@ -474,18 +590,18 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                     )
                 }
             }
-             
+
             val mapProperties = MapProperties(
                 mapType = MapType.NORMAL,
                 isMyLocationEnabled = hasLocationPermission
             )
-             
+
             val mapUiSettings = MapUiSettings(
                 zoomControlsEnabled = true,
                 myLocationButtonEnabled = hasLocationPermission,
                 mapToolbarEnabled = false
             )
-            
+
             LaunchedEffect(routePoints) {
                 if (routePoints.isNotEmpty()) {
                     val boundsBuilder = com.google.android.gms.maps.model.LatLngBounds.builder()
@@ -496,7 +612,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                     )
                 }
             }
-             
+
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
@@ -532,7 +648,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                     )
                 }
             }
-            
+
             // Cancel Confirmation Dialog
             if (showCancelDialog) {
                 AlertDialog(
@@ -564,7 +680,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                     showCancelDialog = false
                                     isSearching = false
                                     currentBookingId = null
-                                    
+
                                     // Reset Inputs and Map
                                     pickupQuery = ""
                                     dropOffQuery = ""
@@ -694,6 +810,149 @@ fun AutocompleteTextField(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun PaymentMethodCard(
+    title: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val borderColor = if (isSelected) CBlue else Color.Transparent
+    val backgroundColor = if (isSelected) CBlue.copy(alpha = 0.1f) else Color(0xFFF2F3F5)
+
+    Card(
+        modifier = modifier
+            .height(80.dp)
+            .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isSelected) CBlue else Color.Gray,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isSelected) CBlue else Color.Gray
+                )
+            }
+            
+            RadioButton(
+                selected = isSelected,
+                onClick = null, // Handled by Card click
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = CBlue,
+                    unselectedColor = Color.Gray
+                )
+            )
+        }
+    }
+}
+
+enum class PaymentMethod {
+    QR_DUITNOW,
+    CASH
+}
+
+@Composable
+fun OfferCard(
+    offer: DriverOffer,
+    onAccept: () -> Unit
+) {
+    val yellow = Color(0xFFFFD60A)
+    val cardBg = Color.White
+    val grayBg = Color(0xFFF6F6F6)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar placeholder
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.width(72.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(grayBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color.Black
+                    )
+                }
+                Text(offer.name.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text("Car Brand: ${offer.carBrand}", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
+                if (offer.carName.isNotEmpty()) Text("Car Name: ${offer.carName}", fontSize = 12.sp, color = Color.Black)
+                if (offer.carColor.isNotEmpty()) Text("Car Color: ${offer.carColor}", fontSize = 12.sp, color = Color.Black)
+                Text("Number Plate: ${offer.plate}", fontSize = 12.sp, color = Color.Black)
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(grayBg)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(offer.fareLabel, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                }
+                Button(
+                    onClick = onAccept,
+                    colors = ButtonDefaults.buttonColors(containerColor = yellow),
+                    modifier = Modifier.wrapContentWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text("Accept", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }

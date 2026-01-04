@@ -9,7 +9,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,9 +24,13 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun confirmPay(
     totalAmount: String,
+    paymentMethod: String, // "CASH" or "QR_DUITNOW"
     onBack: () -> Unit = {},
-    onProceedPayment: () -> Unit = {}
+    onProceedPayment: () -> Unit = {}, // Callback for generic proceed (maybe unused if we handle nav internally or pass specific callbacks)
+    oncashConfirmation: () -> Unit = {},
+    onNavigateToQR: () -> Unit = {}
 ) {
+    var showCashDialog by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -45,7 +49,13 @@ fun confirmPay(
         containerColor = Color(0xFFE1F5FE),
         bottomBar = {
             Button(
-                onClick = onProceedPayment,
+                onClick = {
+                    if (paymentMethod == "CASH") {
+                        showCashDialog = true
+                    } else {
+                        onNavigateToQR()
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -182,6 +192,30 @@ fun confirmPay(
             }
         }
     }
+
+
+    if (showCashDialog) {
+        AlertDialog(
+            onDismissRequest = { showCashDialog = false },
+            title = { Text("Cash Payment Reminder") },
+            text = { Text("Please pay RM $totalAmount directly to the driver upon completion of the ride.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCashDialog = false
+                        oncashConfirmation()
+                    }
+                ) {
+                    Text("I Understand")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showCashDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -231,6 +265,7 @@ fun confirmPayPreview() {
     MaterialTheme {
         confirmPay(
             totalAmount = "RM 5",
+            paymentMethod = "CASH",
             onBack = {},
             onProceedPayment = {}
         )

@@ -3,7 +3,6 @@ package com.example.goukm.ui.booking
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Payment
@@ -16,10 +15,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
+
+/* ------------------------------------------------ */
+/* MAIN SCREEN (LOGIC + DIALOGS – NOT PREVIEWED)     */
+/* ------------------------------------------------ */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +39,7 @@ fun PaymentMethodScreen(
                 title = {
                     Text(
                         text = "Select Payment Method",
-                        fontSize = 28.sp,
+                        fontSize = 22.sp, // reduced for layout safety
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -45,97 +48,40 @@ fun PaymentMethodScreen(
                     containerColor = Color(0xFF6B87C0)
                 )
             )
-        },
-        containerColor = Color.Transparent
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF6B87C0)
-                        )
-                    )
-                )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // DuitNow QR Card
-                PaymentOptionCard(
-                    iconBgColor = Color(0xFFE91E63),
-                    iconText = "D",
-                    title = "DuitNow QR",
-                    subtitle = "Scan QR code",
-                    onClick = { showQRDialog = true }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Cash Card
-                PaymentOptionCard(
-                    icon = Icons.Default.Payment,
-                    title = "Cash",
-                    subtitle = "Pay with cash",
-                    onClick = { showCashConfirm = true }
-                )
-
-                Spacer(modifier = Modifier.height(60.dp))
-
-                // Centered TOTAL Card
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
-                    modifier = Modifier.fillMaxWidth(0.6f)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "CONTINUE",
-                            color = Color.White,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
         }
+    ) { padding ->
+        PaymentMethodContent(
+            modifier = Modifier.padding(padding),
+            onCashClick = { showCashConfirm = true },
+            onQrClick = { showQRDialog = true }
+        )
     }
 
-    // Cash Confirmation
+    /* -------------------- CASH CONFIRM -------------------- */
+
     if (showCashConfirm) {
         AlertDialog(
             onDismissRequest = { showCashConfirm = false },
-            title = { Text(text = "Confirm Cash Payment") },
-            text = { Text(text = "Pay $totalAmount with cash?") },
+            title = { Text("Confirm Cash Payment") },
+            text = { Text("Pay $totalAmount with cash?") },
             confirmButton = {
                 TextButton(onClick = {
                     showCashConfirm = false
                     onPaymentConfirmed("cash")
                 }) {
-                    Text(text = "CONFIRM")
+                    Text("CONFIRM")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCashConfirm = false }) {
-                    Text(text = "CANCEL")
+                    Text("CANCEL")
                 }
             }
         )
     }
 
-    // QR Dialog
+    /* -------------------- QR DIALOG -------------------- */
+
     if (showQRDialog) {
         Dialog(onDismissRequest = { showQRDialog = false }) {
             Card(
@@ -153,36 +99,118 @@ fun PaymentMethodScreen(
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF6B87C0)
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Spacer(Modifier.height(24.dp))
+
                     Box(
                         modifier = Modifier
                             .size(240.dp)
-                            .background(Color(0xFFF5F5F5), RoundedCornerShape(16.dp)),
+                            .background(
+                                Color(0xFFF5F5F5),
+                                RoundedCornerShape(16.dp)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "QR Code\nDatabase",
+                            text = "QR Code\n(Database)",
                             color = Color.Gray,
-                            fontSize = 16.sp,
                             textAlign = TextAlign.Center
                         )
                     }
-                    Spacer(modifier = Modifier.height(28.dp))
+
+                    Spacer(Modifier.height(28.dp))
+
                     Button(
                         onClick = {
                             showQRDialog = false
                             onPaymentConfirmed("qr")
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B87C0)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF6B87C0)
+                        ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(text = "PAY WITH QR", fontWeight = FontWeight.Bold)
+                        Text("PAY WITH QR", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     }
 }
+
+/* ------------------------------------------------ */
+/* UI CONTENT (PREVIEW SAFE – NO DIALOGS)            */
+/* ------------------------------------------------ */
+
+@Composable
+fun PaymentMethodContent(
+    modifier: Modifier = Modifier,
+    onCashClick: () -> Unit = {},
+    onQrClick: () -> Unit = {}
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF6B87C0),
+                        Color(0xFF5A76B0)
+                    )
+                )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            PaymentOptionCard(
+                iconBgColor = Color(0xFFE91E63),
+                iconText = "D",
+                title = "DuitNow QR",
+                subtitle = "Scan QR code",
+                onClick = onQrClick
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            PaymentOptionCard(
+                icon = Icons.Default.Payment,
+                title = "Cash",
+                subtitle = "Pay with cash",
+                onClick = onCashClick
+            )
+
+            Spacer(Modifier.height(60.dp))
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
+                modifier = Modifier.fillMaxWidth(0.6f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "CONTINUE",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+/* ------------------------------------------------ */
+/* COMPONENT                                         */
+/* ------------------------------------------------ */
 
 @Composable
 fun PaymentOptionCard(
@@ -202,9 +230,7 @@ fun PaymentOptionCard(
             .padding(vertical = 8.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
+            modifier = Modifier.padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (icon != null) {
@@ -219,40 +245,38 @@ fun PaymentOptionCard(
                     modifier = Modifier
                         .size(56.dp)
                         .background(
-                            color = iconBgColor!!,
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                            iconBgColor ?: Color.Gray,
+                            RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = iconText,
                         color = Color.White,
                         fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.align(Alignment.Center)
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(20.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
+
+            Spacer(Modifier.width(20.dp))
+
+            Column {
+                Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(subtitle, fontSize = 14.sp, color = Color.Gray)
             }
         }
     }
 }
 
+/* ------------------------------------------------ */
+/* PREVIEW                                           */
+/* ------------------------------------------------ */
+
 @Preview(showBackground = true)
 @Composable
 fun PaymentMethodPreview() {
     MaterialTheme {
-        PaymentMethodScreen()
+        PaymentMethodContent()
     }
 }

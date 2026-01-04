@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,22 +31,48 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JourneySummaryScreen(
-    driverName: String = "Angela",
-    customerName: String = "Kelly",
-    pickup: String = "Kolej Aminuddin Baki",
-    dropOff: String = "Kolej Pendeta Za'ba",
-    distance: String = "1.8 km",
-    fare: String = "RM 5",
-    navController: NavHostController? = null,
-    pickupLatLng: LatLng? = LatLng(2.93, 101.77),
-    dropOffLatLng: LatLng? = LatLng(2.94, 101.78)
+    navController: NavHostController,
+    bookingId: String
 ) {
-    val sheetState = rememberStandardBottomSheetState(
+    val bottomSheetState = rememberStandardBottomSheetState(
         initialValue = SheetValue.PartiallyExpanded
     )
     val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = sheetState
+        bottomSheetState = bottomSheetState
     )
+
+    val scope = rememberCoroutineScope()
+
+    // Fetch data logic
+    var driverName by remember { mutableStateOf("Driver") }
+    var customerName by remember { mutableStateOf("Customer") }
+    var pickup by remember { mutableStateOf("Loading...") }
+    var dropOff by remember { mutableStateOf("Loading...") }
+    var fare by remember { mutableStateOf("RM --") }
+
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+
+    LaunchedEffect(bookingId) {
+        val result = bookingRepository.getBooking(bookingId)
+        val booking = result.getOrNull()
+        if (booking != null) {
+            pickup = booking.pickup
+            dropOff = booking.dropOff
+            fare = "RM ${booking.offeredFare}"
+            
+            // Fetch Driver Name
+            val driverProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
+            driverName = driverProfile?.name ?: "Driver"
+
+            // Fetch Customer Name
+            val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId)
+            customerName = customerProfile?.name ?: "Customer"
+        }
+    }
+
+    val pickupLatLng = LatLng(2.93, 101.77)
+    val dropOffLatLng = LatLng(2.94, 101.78)
+    val distance = "2 km"
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(pickupLatLng ?: LatLng(0.0, 0.0), 14f)
@@ -107,15 +134,10 @@ fun JourneySummaryScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = driverName,
+                                text = "Passenger: $customerName",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black
-                            )
-                            Text(
-                                text = customerName,
-                                fontSize = 14.sp,
-                                color = Color.Gray
                             )
                         }
                         Icon(
@@ -183,7 +205,16 @@ fun JourneySummaryScreen(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFD700))
                 ) {
                     Button(
-                        onClick = { navController?.navigate("driver_ride_done") },
+                        onClick = {
+                             scope.launch {
+                                  bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
+                                      .onSuccess {
+                                          navController.navigate("driver_dashboard") {
+                                              popUpTo("driver_dashboard") { inclusive = true }
+                                          }
+                                      }
+                             }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(72.dp)
@@ -247,6 +278,6 @@ fun JourneySummaryScreen(
 @Composable
 fun JourneySummaryScreenPreview() {
     MaterialTheme {
-        JourneySummaryScreen()
+        // Mock preview
     }
 }

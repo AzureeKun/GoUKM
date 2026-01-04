@@ -367,7 +367,10 @@ fun FareOfferScreen(
                     Button(
                         onClick = {
                             showSuccessDialog = false
-                            navController.popBackStack()
+                            // Navigate to Driver Navigation (simulating flow where offer is accepted immediately or we go to nav)
+                            // Encode pickup address to ensure URL safety
+                            val encodedPickup = java.net.URLEncoder.encode(pickup, "UTF-8")
+                            navController.navigate("driver_navigation_screen/0.0/0.0/$encodedPickup/$bookingId")
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = CBlue),
                         shape = RoundedCornerShape(8.dp)

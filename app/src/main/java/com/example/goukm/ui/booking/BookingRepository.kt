@@ -28,7 +28,9 @@ data class Booking(
     val pickupLng: Double = 0.0,
     val dropOffLat: Double = 0.0,
     val dropOffLng: Double = 0.0,
-    val driverArrived: Boolean = false
+    val driverArrived: Boolean = false,
+    val paymentMethod: String = "CASH", // Default to CASH
+    val paymentStatus: String = "PENDING"
 )
 
 class BookingRepository {
@@ -43,7 +45,8 @@ class BookingRepository {
         pickupLat: Double,
         pickupLng: Double,
         dropOffLat: Double,
-        dropOffLng: Double
+        dropOffLng: Double,
+        paymentMethod: String
     ): Result<String> {
         val currentUser = auth.currentUser ?: return Result.failure(Exception("User not logged in"))
 
@@ -63,7 +66,8 @@ class BookingRepository {
                 pickupLng = pickupLng,
                 dropOffLat = dropOffLat,
                 dropOffLng = dropOffLng,
-                driverArrived = false
+                driverArrived = false,
+                paymentMethod = paymentMethod
             )
 
             bookingsCollection.document(bookingId).set(booking).await()
@@ -125,12 +129,23 @@ class BookingRepository {
                     pickupLng = doc.getDouble("pickupLng") ?: 0.0,
                     dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
                     dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
-                    driverArrived = doc.getBoolean("driverArrived") ?: false
+                    driverArrived = doc.getBoolean("driverArrived") ?: false,
+                    paymentMethod = doc.getString("paymentMethod") ?: "CASH",
+                    paymentStatus = doc.getString("paymentStatus") ?: "PENDING"
                 )
                 Result.success(booking)
             } else {
                 Result.failure(Exception("Not found"))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePaymentStatus(bookingId: String, status: String): Result<Unit> {
+        return try {
+            bookingsCollection.document(bookingId).update("paymentStatus", status).await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

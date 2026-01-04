@@ -71,7 +71,7 @@ data class DriverOffer(
 fun FareOffersScreen(
     navController: NavHostController,
     bookingId: String
-) {
+) { // Payment method retrieved from booking
     val headerBlue = Color(0xFF6B87C0)
     val cardBg = Color.White
     val yellow = Color(0xFFFFD60A)
@@ -82,6 +82,7 @@ fun FareOffersScreen(
     var pickup by remember { mutableStateOf("") }
     var dropOff by remember { mutableStateOf("") }
     var seatLabel by remember { mutableStateOf("") }
+    var paymentMethod by remember { mutableStateOf("CASH") }
 
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     val scope = rememberCoroutineScope()
@@ -90,25 +91,27 @@ fun FareOffersScreen(
         val result = bookingRepository.getBooking(bookingId)
         val booking = result.getOrNull()
         if (booking != null) {
-             pickup = booking.pickup
-             dropOff = booking.dropOff
-             seatLabel = "${booking.seatType.filter { it.isDigit() }} seater ride"
-             
-             if (booking.driverId.isNotEmpty()) {
-                 val driver = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
-                 if (driver != null) {
-                     offer = DriverOffer(
-                         name = driver.name,
-                         fareLabel = "RM ${booking.offeredFare}",
-                         carBrand = driver.vehicleType, 
-                         carName = "", 
-                         carColor = "", 
-                         plate = driver.vehiclePlateNumber,
-                         driverId = booking.driverId,
-                         driverPhone = driver.phoneNumber
-                     )
-                 }
-             }
+            pickup = booking.pickup
+            dropOff = booking.dropOff
+            seatLabel = "${booking.seatType.filter { it.isDigit() }} seater ride"
+            paymentMethod = booking.paymentMethod
+
+            if (booking.driverId.isNotEmpty()) {
+                val driver =
+                    com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
+                if (driver != null) {
+                    offer = DriverOffer(
+                        name = driver.name,
+                        fareLabel = "RM ${booking.offeredFare}",
+                        carBrand = driver.vehicleType,
+                        carName = "",
+                        carColor = "",
+                        plate = driver.vehiclePlateNumber,
+                        driverId = booking.driverId,
+                        driverPhone = driver.phoneNumber
+                    )
+                }
+            }
         }
         isLoading = false
     }
@@ -123,9 +126,9 @@ fun FareOffersScreen(
             color = headerBlue
         ) {
             if (isLoading) {
-                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                     androidx.compose.material3.CircularProgressIndicator(color = Color.White)
-                 }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.CircularProgressIndicator(color = Color.White)
+                }
             } else {
                 Column(
                     modifier = Modifier
@@ -178,32 +181,40 @@ fun FareOffersScreen(
                         if (offer != null) {
                             item {
                                 OfferCard(
-                                    offer = offer!!, 
-                                    badgeColor = yellow, 
-                                    cardBg = cardBg, 
+                                    offer = offer!!,
+                                    badgeColor = yellow,
+                                    cardBg = cardBg,
                                     grayBg = grayBg,
                                     onAccept = {
                                         scope.launch {
-                                            // Update booking status
-                                            bookingRepository.updateStatus(bookingId, BookingStatus.ACCEPTED)
-                                            
-                                            // Create chat room for customer and driver
+                                            bookingRepository.updateStatus(
+                                                bookingId,
+                                                BookingStatus.ACCEPTED
+                                            )
+
                                             val currentUser = FirebaseAuth.getInstance().currentUser
                                             if (currentUser != null && offer != null) {
-                                                val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
+                                                val customerProfile =
+                                                    com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(
+                                                        currentUser.uid
+                                                    )
                                                 ChatRepository.createChatRoom(
                                                     bookingId = bookingId,
                                                     customerId = currentUser.uid,
                                                     driverId = offer!!.driverId,
-                                                    customerName = customerProfile?.name ?: "Customer",
+                                                    customerName = customerProfile?.name
+                                                        ?: "Customer",
                                                     driverName = offer!!.name,
-                                                    customerPhone = customerProfile?.phoneNumber ?: "",
+                                                    customerPhone = customerProfile?.phoneNumber
+                                                        ?: "",
                                                     driverPhone = offer!!.driverPhone
                                                 )
                                             }
-                                            
-                                            navController.navigate(NavRoutes.CustomerDashboard.route) {
-                                                popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+
+                                            navController.navigate("cust_journey_details/$bookingId/$paymentMethod") {
+                                                popUpTo(NavRoutes.CustomerDashboard.route) {
+                                                    inclusive = true
+                                                }
                                             }
                                         }
                                     }
@@ -211,7 +222,19 @@ fun FareOffersScreen(
                             }
                         } else {
                             item {
-                                Text("Waiting for offers...", color = Color.White)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Waiting for offers...",
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     }
@@ -220,6 +243,7 @@ fun FareOffersScreen(
         }
     }
 }
+
 
 @Composable
 private fun ChipField(leadingIcon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {

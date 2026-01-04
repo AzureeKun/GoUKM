@@ -36,6 +36,7 @@ import com.example.goukm.ui.driver.DriverEarningScreen
 import com.example.goukm.ui.driver.DriverScoreScreen
 import com.example.goukm.ui.booking.confirmPay
 import com.example.goukm.ui.booking.RideDoneScreen
+import com.example.goukm.ui.booking.PaymentQRScreen
 import com.example.goukm.ui.driver.JourneySummaryScreen
 import com.example.goukm.ui.booking.PaymentMethodScreen
 import com.example.goukm.ui.journey.CustomerJourneyDetailsScreen
@@ -166,10 +167,12 @@ fun AppNavGraph(
                     defaultValue = "default_booking"
                 }
             )
-        ) { backStackEntry ->
+        )
+        { backStackEntry ->
             val bookingId = backStackEntry.arguments?.getString("bookingId") ?: "default_booking"
             JourneySummaryScreen(
                 navController = navController,
+                bookingId = bookingId
             )
         }
 
@@ -323,16 +326,56 @@ fun AppNavGraph(
         }
 
         // CONFIRM PAYMENT SCREEN
-        composable(NavRoutes.confirmPay.route) {
+        composable(
+            route = "confirm_pay/{paymentMethod}/{bookingId}",
+            arguments = listOf(
+                navArgument("paymentMethod") { type = NavType.StringType },
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val paymentMethod = backStackEntry.arguments?.getString("paymentMethod") ?: "CASH"
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+            
             confirmPay(
                 totalAmount = "RM 25",
-                onProceedPayment = {
-                    navController.navigate(NavRoutes.PaymentMethod.route) {
-                        popUpTo(navController.graph.id) { inclusive = false }
-                    }
+                paymentMethod = paymentMethod,
+                onProceedPayment = { },
+                oncashConfirmation = {
+                     scope.launch {
+                         bookingRepository.updatePaymentStatus(bookingId, "PAID")
+                         navController.popBackStack()
+                     }
+                },
+                onNavigateToQR = {
+                    navController.navigate("payment_qr/RM 25/$bookingId")
                 },
                 onBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // PAYMENT QR SCREEN
+        composable(
+            route = "payment_qr/{amount}/{bookingId}",
+            arguments = listOf(
+                navArgument("amount") { type = NavType.StringType },
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val amount = backStackEntry.arguments?.getString("amount") ?: "RM 0"
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+            val scope = rememberCoroutineScope()
+            
+            PaymentQRScreen(
+                totalAmount = amount,
+                onPaymentCompleted = {
+                    scope.launch {
+                        bookingRepository.updatePaymentStatus(bookingId, "PAID")
+                        navController.popBackStack("confirm_pay/{paymentMethod}/{bookingId}", inclusive = true)
+                    }
                 }
             )
         }
@@ -357,12 +400,13 @@ fun AppNavGraph(
         }
 
         // RIDE DONE SCREEN
-        composable("ride_done") {
+        composable(NavRoutes.RideDoneScreen.route) {
             RideDoneScreen(
+                navController = navController,
                 fareAmount = "RM 5",
                 carBrand = "Perodua",
                 licensePlate = "XMM404",
-                onFeedbackSubmitted = { rating ->
+                onFeedbackSubmitted = { rating, comment ->
                     // Navigate back to dashboard after feedback
                     navController.navigate(NavRoutes.CustomerDashboard.route) {
                         popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
@@ -374,11 +418,25 @@ fun AppNavGraph(
 
 
         //CUSTOMER JOURNEY
-        composable(NavRoutes.CustomerJourneyDetailsScreen.route) {
+        composable(
+            route = "cust_journey_details/{bookingId}/{paymentMethod}?paymentStatus={paymentStatus}",
+            arguments = listOf(
+                navArgument("bookingId") { type = NavType.StringType },
+                navArgument("paymentMethod") { type = NavType.StringType },
+                navArgument("paymentStatus") { type = NavType.StringType; defaultValue = "PENDING" }
+            )
+        ) { backStackEntry ->
+            val paymentMethod = backStackEntry.arguments?.getString("paymentMethod") ?: "CASH"
+            val paymentStatus = backStackEntry.arguments?.getString("paymentStatus") ?: "PENDING"
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            
             CustomerJourneyDetailsScreen(
                 onChatClick = {
                     navController.navigate(NavRoutes.DriverChatList.route)
-                }
+                },
+                navController = navController,
+                paymentMethod = paymentMethod,
+                initialPaymentStatus = paymentStatus
             )
         }
         
@@ -450,23 +508,27 @@ fun AppNavGraph(
         }
         
         // DRIVER NAVIGATION
+        // DRIVER NAVIGATION
         composable(
-            route = "driver_navigation_screen/{lat}/{lng}/{address}",
+            route = "driver_navigation_screen/{lat}/{lng}/{address}/{bookingId}",
             arguments = listOf(
                 navArgument("lat") { type = NavType.StringType },
                 navArgument("lng") { type = NavType.StringType },
-                navArgument("address") { type = NavType.StringType }
+                navArgument("address") { type = NavType.StringType },
+                navArgument("bookingId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val lat = backStackEntry.arguments?.getString("lat")?.toDoubleOrNull() ?: 0.0
             val lng = backStackEntry.arguments?.getString("lng")?.toDoubleOrNull() ?: 0.0
             val address = backStackEntry.arguments?.getString("address") ?: ""
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
             
             com.example.goukm.ui.driver.DriverNavigationScreen(
                 navController = navController,
                 pickupLat = lat,
                 pickupLng = lng,
-                pickupAddress = address
+                pickupAddress = address,
+                bookingId = bookingId
             )
         }
     }

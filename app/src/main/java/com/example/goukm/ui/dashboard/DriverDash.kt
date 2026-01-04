@@ -117,6 +117,7 @@ fun DriverDashboard(
                             val offeredFare = doc.getString("offeredFare") ?: ""
                             val pickupLat = doc.getDouble("pickupLat") ?: 0.0
                             val pickupLng = doc.getDouble("pickupLng") ?: 0.0
+                            val paymentMethod = doc.getString("paymentMethod") ?: "CASH"
                             
                             val timeAgo = if (timestamp != null) {
                                 val diff = java.util.Date().time - timestamp.time
@@ -147,7 +148,8 @@ fun DriverDashboard(
                                 pickupLat = pickupLat,
                                 pickupLng = pickupLng,
                                 chatRoom = chatRoom,
-                                driverArrived = driverArrived
+                                driverArrived = driverArrived,
+                                paymentMethod = paymentMethod
                             )
                         }
 
@@ -260,11 +262,7 @@ fun DriverDashboard(
                                         navController.navigate("driver_chat/${request.chatRoom.id}/$encodedName/$encodedPhone")
                                     }
                                 } else null,
-                                onArrive = {
-                                    scope.launch {
-                                         bookingRepository.updateDriverArrived(request.id)
-                                    }
-                                }
+                                onArrive = null // Removed "Arrived" button, handled by Navigation screen now
                              )
                         }
                     }

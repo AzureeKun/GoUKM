@@ -46,6 +46,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.example.goukm.navigation.NavRoutes
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -59,8 +66,86 @@ import androidx.navigation.NavHostController
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerJourneyDetailsScreen(
-    onChatClick: () -> Unit
+    onChatClick: () -> Unit,
+    navController: NavHostController,
+    paymentMethod: String,
+    initialPaymentStatus: String = "PENDING" // Passed from nav or backend
 ) {
+    val bookingId = navController.currentBackStackEntry?.arguments?.getString("bookingId") ?: ""
+    var paymentStatus by remember { mutableStateOf(initialPaymentStatus) }
+    val currentPaymentStatus = navController.currentBackStackEntry?.savedStateHandle
+        ?.getStateFlow("paymentStatus", initialPaymentStatus)
+        ?.collectAsState()?.value ?: initialPaymentStatus
+
+    // MONITOR BOOKING STATUS FOR COMPLETION
+    LaunchedEffect(bookingId) {
+        if (bookingId.isNotEmpty()) {
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val docRef = db.collection("bookings").document(bookingId)
+            val registration = docRef.addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                
+                val status = snapshot.getString("status")
+                val pStatus = snapshot.getString("paymentStatus") ?: "PENDING"
+                
+                if (pStatus == "PAID") {
+                    paymentStatus = "PAID"
+                }
+
+                if (status == "COMPLETED") {
+                    navController.navigate("ride_done") {
+                        popUpTo("cust_journey_details/$bookingId") { inclusive = true }
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(currentPaymentStatus) {
+        if (currentPaymentStatus == "PAID") {
+             paymentStatus = "PAID"
+        }
+    }
+
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+    var driverName by remember { mutableStateOf("Driver") }
+    var carModel by remember { mutableStateOf("Car Model") }
+    var carPlate by remember { mutableStateOf("Plate") }
+    var pickupAddress by remember { mutableStateOf("Loading...") }
+    var dropOffAddress by remember { mutableStateOf("Loading...") }
+    var fareAmount by remember { mutableStateOf("...") }
+    var passengerName by remember { mutableStateOf("Passenger") }
+    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
+    var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
+
+    LaunchedEffect(bookingId) {
+        if (bookingId.isNotEmpty()) {
+            val result = bookingRepository.getBooking(bookingId)
+            val booking = result.getOrNull()
+            if (booking != null) {
+                pickupAddress = booking.pickup
+                dropOffAddress = booking.dropOff
+                fareAmount = "RM ${booking.offeredFare}"
+                pickupLatLng = LatLng(booking.pickupLat, booking.pickupLng)
+                dropOffLatLng = LatLng(booking.dropOffLat, booking.dropOffLng)
+
+                val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId)
+                if (customerProfile != null) {
+                    passengerName = customerProfile.name
+                }
+
+                if (!booking.driverId.isNullOrEmpty()) {
+                    val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
+                    if (userProfile != null) {
+                        driverName = userProfile.name
+                        carModel = userProfile.vehicleType
+                        carPlate = userProfile.vehiclePlateNumber
+                    }
+                }
+            }
+        }
+    }
+
     val sheetState = rememberStandardBottomSheetState(
         initialValue = SheetValue.Expanded,
         skipHiddenState = true
@@ -100,10 +185,59 @@ fun CustomerJourneyDetailsScreen(
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
-                
+
                 DriverInfoCard(
-                    onChatClick = onChatClick
+                    onChatClick = onChatClick,
+                    driverName = driverName,
+                    carModel = carModel,
+                    carPlate = carPlate,
+                    fare = fareAmount
                 )
+
+                Divider(color = Color.LightGray.copy(alpha = 0.2f), thickness = 1.dp)
+
+                if (paymentStatus == "PAID") {
+                    Button(
+                        onClick = { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Gray,
+                            disabledContainerColor = Color.Gray
+                        ),
+                        enabled = false
+                    ) {
+                        Text(
+                            text = "Paid",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                } else { 
+                    // --- NEW: Proceed to Payment Button ---
+                    Button(
+                        onClick = {
+                            navController.navigate("confirm_pay/$paymentMethod/$bookingId")
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50)
+                        )
+                    ) {
+                        Text(
+                            text = "Proceed to Payment",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
 
                 Divider(color = Color.LightGray.copy(alpha = 0.2f), thickness = 1.dp)
 
@@ -115,7 +249,11 @@ fun CustomerJourneyDetailsScreen(
                     color = Color.Black
                 )
 
-                JourneySummarySection()
+                JourneySummarySection(
+                    pickup = pickupAddress,
+                    dropOff = dropOffAddress,
+                    passengerName = passengerName
+                )
                 
                 Spacer(modifier = Modifier.height(40.dp))
             }
@@ -129,8 +267,15 @@ fun CustomerJourneyDetailsScreen(
         ) {
             val ukmLocation = LatLng(2.9300, 101.7774)
             val cameraPositionState = rememberCameraPositionState {
-                position = CameraPosition.fromLatLngZoom(ukmLocation, 16f)
+                position = CameraPosition.fromLatLngZoom(ukmLocation, 14f)
             }
+            
+            LaunchedEffect(pickupLatLng, dropOffLatLng) {
+                if (pickupLatLng != null) {
+                    cameraPositionState.position = CameraPosition.fromLatLngZoom(pickupLatLng!!, 14f)
+                }
+            }
+
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
@@ -139,7 +284,22 @@ fun CustomerJourneyDetailsScreen(
                     myLocationButtonEnabled = false,
                     compassEnabled = false
                 )
-            )
+            ) {
+                pickupLatLng?.let {
+                    com.google.maps.android.compose.Marker(
+                        state = com.google.maps.android.compose.rememberMarkerState(position = it),
+                        title = "Pickup",
+                        snippet = pickupAddress
+                    )
+                }
+                dropOffLatLng?.let {
+                    com.google.maps.android.compose.Marker(
+                        state = com.google.maps.android.compose.rememberMarkerState(position = it),
+                        title = "Drop-off",
+                        snippet = dropOffAddress
+                    )
+                }
+            }
             
             // Optional: Floating Pill "Your driver is on the way"
             Box(
@@ -161,7 +321,11 @@ fun CustomerJourneyDetailsScreen(
 
 @Composable
 fun DriverInfoCard(
-    onChatClick: () -> Unit
+    onChatClick: () -> Unit,
+    driverName: String,
+    carModel: String,
+    carPlate: String,
+    fare: String
 ) {
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -198,7 +362,7 @@ fun DriverInfoCard(
                 // Name & Car
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "ANGELA KELLY",
+                        text = driverName,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -218,12 +382,12 @@ fun DriverInfoCard(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Perodua Axia • Silver",
+                        text = carModel,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )
                     Text(
-                        text = "KFM1044",
+                        text = carPlate,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.DarkGray
@@ -236,7 +400,7 @@ fun DriverInfoCard(
                     color = Color(0xFF6B87C0)
                 ) {
                     Text(
-                        text = "RM 5",
+                        text = fare,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -287,7 +451,7 @@ fun DriverInfoCard(
 }
 
 @Composable
-fun JourneySummarySection() {
+fun JourneySummarySection(pickup: String, dropOff: String, passengerName: String) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         
         // Passenger Info Row (Optional based on image, but adds "Professional" touch)
@@ -307,7 +471,7 @@ fun JourneySummarySection() {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "RITHYA A/P ELMARAN",
+                    text = passengerName,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodyLarge
                 )
@@ -322,14 +486,14 @@ fun JourneySummarySection() {
         // Pickup
         LocationCard(
             label = "Pickup Point",
-            location = "Kolej Aminuddin Baki",
+            location = pickup,
             backgroundColor = Color(0xFF6B87C0) // Matches Blue in image
         )
 
         // Dropoff
         LocationCard(
             label = "Drop-Off",
-            location = "Kolej Pendeta Za'ba",
+            location = dropOff,
             backgroundColor = Color(0xFF6B87C0) // Matches Blue in image
         )
     }
@@ -374,8 +538,9 @@ fun LocationCard(
 @Composable
 fun CustomerJourneyDetailsScreenPreview() {
     MaterialTheme {
-        CustomerJourneyDetailsScreen(
-         onChatClick = {}
-        )
+        // Mock navController not really possible in preview without wrappers or mock obj, usually we just pass nulls or unsafe dummies for preview if not using it
+        // Or better, just don't invoke it.
+        // For compilation fix:
+        // CustomerJourneyDetailsScreen(onChatClick = {}, navController = rememberNavController(), paymentMethod = "CASH")
     }
 }

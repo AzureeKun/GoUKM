@@ -16,51 +16,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavHostController
+import com.example.goukm.ui.dashboard.BottomBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RideDoneScreen(
+    navController: NavHostController,
     fareAmount: String = "RM 5",
     carBrand: String = "Perodua Myvi",
     licensePlate: String = "KFM3004",
     driverName: String = "Angie",
-    onFeedbackSubmitted: (Float) -> Unit = {}
+    onFeedbackSubmitted: (Float, String) -> Unit = { _, _ -> }
 ) {
     var rating by remember { mutableStateOf(0f) }
+    var feedbackComment by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = Color(0xFFE8F4FD),
         bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .padding(horizontal = 36.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = {}) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                IconButton(onClick = {}) {
-                    Icon(
-                        imageVector = Icons.Default.ChatBubbleOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                IconButton(onClick = {}) {
-                    Icon(
-                        imageVector = Icons.Default.PersonOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
+            BottomBar(navController)
         }
     ) { padding ->
         Column(
@@ -189,12 +164,29 @@ fun RideDoneScreen(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = feedbackComment,
+                    onValueChange = { feedbackComment = it },
+                    label = { Text("Write your feedback (optional)") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        containerColor = Color.White,
+                        focusedBorderColor = Color(0xFF6B87C0),
+                        unfocusedBorderColor = Color.LightGray
+                    )
+                )
             }
 
             Spacer(modifier = Modifier.height(48.dp))
 
             Button(
-                onClick = { onFeedbackSubmitted(rating) },
+                onClick = { onFeedbackSubmitted(rating, feedbackComment) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -215,5 +207,5 @@ fun RideDoneScreen(
 @Preview(showBackground = true)
 @Composable
 fun PreviewRideDone() {
-    RideDoneScreen()
+   // RideDoneScreen(rememberNavController())
 }

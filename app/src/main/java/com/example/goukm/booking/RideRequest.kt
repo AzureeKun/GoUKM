@@ -90,6 +90,22 @@ fun RideRequestCard(
                             color = Color(0xFF718096),
                             fontWeight = FontWeight.Medium
                         )
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = if (request.paymentMethod == "CASH") Color(0xFFFFF9C4) else Color(0xFFE8F5E9),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = request.paymentMethod,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (request.paymentMethod == "CASH") Color(0xFFF57F17) else Color(0xFF2E7D32)
+                            )
+                        }
                     }
                 }
                 
