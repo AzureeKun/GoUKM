@@ -177,16 +177,14 @@ object ChatRepository {
     /**
      * Marks all unread messages as read for the current user
      */
-    suspend fun markMessagesAsRead(chatRoomId: String): Result<Unit> {
-        val currentUserId = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
-
+    suspend fun markMessagesAsRead(chatRoomId: String, isCustomer: Boolean): Result<Unit> {
         return try {
             val chatRoomDoc = chatRoomsCollection.document(chatRoomId).get().await()
             val chatRoom = chatRoomDoc.toObject(ChatRoom::class.java)
                 ?: return Result.failure(Exception("Chat room not found"))
 
-            // Reset unread count for current user
-            val update = if (currentUserId == chatRoom.customerId) {
+            // Reset unread count for current user role
+            val update = if (isCustomer) {
                 mapOf("customerUnreadCount" to 0)
             } else {
                 mapOf("driverUnreadCount" to 0)
@@ -194,21 +192,23 @@ object ChatRepository {
 
             chatRoomsCollection.document(chatRoomId).update(update).await()
 
-            // Mark all messages from the other user as read
+            // Mark all messages from the OTHER role as read
+            val otherRole = if (isCustomer) "driver" else "customer"
+            
             val messages = chatRoomsCollection.document(chatRoomId)
                 .collection("messages")
+                .whereEqualTo("senderRole", otherRole)
                 .whereEqualTo("isRead", false)
                 .get()
                 .await()
 
-            val batch = firestore.batch()
-            for (doc in messages.documents) {
-                val senderId = doc.getString("senderId")
-                if (senderId != currentUserId) {
+            if (!messages.isEmpty) {
+                val batch = firestore.batch()
+                for (doc in messages.documents) {
                     batch.update(doc.reference, "isRead", true)
                 }
+                batch.commit().await()
             }
-            batch.commit().await()
 
             Result.success(Unit)
         } catch (e: Exception) {

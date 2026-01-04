@@ -67,9 +67,11 @@ fun DriverChatScreen(
         }
     }
 
-    // Mark messages as read when screen opens
-    LaunchedEffect(chatId) {
-        ChatRepository.markMessagesAsRead(chatId)
+    // Mark messages as read when screen opens or new messages arrive
+    LaunchedEffect(chatId, messages.size) {
+        if (messages.isNotEmpty()) {
+             ChatRepository.markMessagesAsRead(chatId, isCustomer = false)
+        }
     }
 
     // Scroll to bottom when new messages arrive
