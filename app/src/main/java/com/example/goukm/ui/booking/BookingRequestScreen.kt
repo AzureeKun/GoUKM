@@ -168,6 +168,55 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
         }
     }
 
+    // Automatically fetch location and geocode when permission is granted
+    LaunchedEffect(hasLocationPermission, currentBookingId) {
+        if (hasLocationPermission && currentBookingId == null && pickupLatLng == null) {
+            val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
+            try {
+                // Suppress missing permission warning because we checked hasLocationPermission
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        val latLng = LatLng(location.latitude, location.longitude)
+                        pickupLatLng = latLng
+                        
+                        // Reverse Geocoding
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    geocoder.getFromLocation(location.latitude, location.longitude, 1) { addresses ->
+                                        if (addresses.isNotEmpty()) {
+                                            val address = addresses[0]
+                                            // Construct a readable address string
+                                            val addressText = address.getAddressLine(0) ?: address.featureName
+                                            scope.launch { 
+                                                pickupQuery = addressText 
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                    if (!addresses.isNullOrEmpty()) {
+                                        val address = addresses[0]
+                                        val addressText = address.getAddressLine(0) ?: address.featureName
+                                        scope.launch { 
+                                            pickupQuery = addressText 
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+                }
+            } catch (e: SecurityException) {
+                // Should not happen as we checked permission
+            }
+        }
+    }
+
     val textFieldBg = Color(0xFFF2F3F5)
     val accentYellow = Color(0xFFFFD60A)
     val bannerBlue = Color(0xFF6B87C0)
@@ -414,6 +463,16 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
             val ukmLocation = LatLng(2.9300, 101.7774)
             val cameraPositionState = rememberCameraPositionState {
                 position = CameraPosition.fromLatLngZoom(ukmLocation, 15f)
+            }
+            
+            // Animate camera to pickup location when auto-detected
+            LaunchedEffect(pickupLatLng) {
+                if (pickupLatLng != null && routePoints.isEmpty()) {
+                    cameraPositionState.animate(
+                        com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(pickupLatLng!!, 17f),
+                        1000
+                    )
+                }
             }
              
             val mapProperties = MapProperties(

@@ -21,7 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 @Composable
 fun RideDoneScreen(
     fareAmount: String = "RM 5",
-    carBrand: String = "Perodua",
+    carBrand: String = "Perodua Myvi",
     licensePlate: String = "KFM3004",
     driverName: String = "Angie",
     onFeedbackSubmitted: (Float) -> Unit = {}

@@ -55,9 +55,7 @@ fun PaymentMethodScreen(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF6B87C0),
-                            Color(0xFFE3F2FD),
-                            Color(0xFFE1F5FE)
+                            Color(0xFF6B87C0)
                         )
                     )
                 )

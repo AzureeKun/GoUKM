@@ -40,6 +40,11 @@ fun FareOfferScreen(
     val scope = rememberCoroutineScope()
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Constants for Logic
+    val MIN_FARE = 3.0
+    val MAX_FARE = 12.0
 
     Scaffold(
         topBar = {
@@ -199,6 +204,22 @@ fun FareOfferScreen(
                         color = CBlue
                     )
 
+                    // Suggested Range Info
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFFFF9C4), RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            "💡 Suggested UKM Range: RM ${String.format("%.2f", MIN_FARE)} - RM ${String.format("%.2f", MAX_FARE)}\n" +
+                                    "Fare should be reasonable based on campus distance.",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFF57C00)
+                        )
+                    }
+
                     Divider(color = Color.LightGray)
 
                     // Suggested Range
@@ -227,9 +248,16 @@ fun FareOfferScreen(
                     // Fare Input
                     OutlinedTextField(
                         value = fareAmount,
-                        onValueChange = { fareAmount = it },
+                        onValueChange = {
+                            fareAmount = it
+                            errorMessage = null },
                         label = { Text("Enter Fare Amount") },
-                        placeholder = { Text("e.g., 10.00") },
+                        isError = errorMessage != null,
+                        supportingText = {
+                            if (errorMessage != null) {
+                                Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
+                            }
+                        },
                         leadingIcon = {
                             Text(
                                 "RM",
@@ -254,17 +282,37 @@ fun FareOfferScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // Submit Button
+            // Submit Button with Validation Logic
             Button(
                 onClick = {
-                    if (fareAmount.isNotBlank()) {
-                         val driverId = auth.currentUser?.uid
-                         if (driverId != null) {
-                             scope.launch {
-                                 bookingRepository.updateFare(bookingId, fareAmount, driverId)
-                                 showSuccessDialog = true
-                             }
-                         }
+                    val fareValue = fareAmount.toDoubleOrNull()
+
+                    // VALIDATION LOGIC (Syarat)
+                    when {
+                        fareValue == null -> {
+                            errorMessage = "Please enter a valid amount"
+                        }
+                        fareValue < MIN_FARE -> {
+                            errorMessage = "Minimum fare for UKM is RM ${String.format("%.2f", MIN_FARE)}"
+                        }
+                        fareValue > MAX_FARE -> {
+                            errorMessage = "Maximum fare for UKM is RM ${String.format("%.2f", MAX_FARE)}"
+                        }
+                        else -> {
+                            if (fareAmount.isNotBlank()) {
+                                val driverId = auth.currentUser?.uid
+                                if (driverId != null) {
+                                    scope.launch {
+                                        bookingRepository.updateFare(
+                                            bookingId,
+                                            fareAmount,
+                                            driverId
+                                        )
+                                        showSuccessDialog = true
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 modifier = Modifier

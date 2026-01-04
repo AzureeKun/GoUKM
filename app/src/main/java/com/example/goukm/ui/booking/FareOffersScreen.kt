@@ -46,11 +46,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.goukm.ui.dashboard.BottomBar
 import com.example.goukm.ui.chat.ChatRepository
+import com.example.goukm.ui.driver.FareOfferScreen
+import com.example.goukm.ui.journey.CustomerJourneyDetailsScreen
 import com.google.firebase.auth.FirebaseAuth
 
 data class DriverOffer(
@@ -342,4 +345,14 @@ private val sampleOffers = listOf(
         plate = "VFG 1322"
     )
 )
+
+//@Preview(showBackground = true)
+//@Composable
+//fun FareOfferScreenPreview() {
+//    MaterialTheme {
+//        FareOfferScreen(
+//
+//        )
+//    }
+//}
 
