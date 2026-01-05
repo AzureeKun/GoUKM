@@ -27,7 +27,7 @@ class DriverApplicationViewModel : ViewModel() {
     var icFrontUri by mutableStateOf<Uri?>(null)
     var icBackUri by mutableStateOf<Uri?>(null)
     var drivingLicenseUri by mutableStateOf<Uri?>(null)
-    var vehicleInsuranceUri by mutableStateOf<Uri?>(null)
+    var vehicleGrantUri by mutableStateOf<Uri?>(null)
     var bankQrUri by mutableStateOf<Uri?>(null)
 
     var isSubmitting by mutableStateOf(false)
@@ -44,9 +44,9 @@ class DriverApplicationViewModel : ViewModel() {
         icBackUri = back
     }
 
-    fun setDocuments(driving: Uri?, insurance: Uri?, bank: Uri?) {
+    fun setDocuments(driving: Uri?, grant: Uri?, bank: Uri?) {
         drivingLicenseUri = driving
-        vehicleInsuranceUri = insurance
+        vehicleGrantUri = grant
         bankQrUri = bank
     }
 
@@ -64,7 +64,7 @@ class DriverApplicationViewModel : ViewModel() {
             icFrontUri,
             icBackUri,
             drivingLicenseUri,
-            vehicleInsuranceUri,
+            vehicleGrantUri,
             bankQrUri
         )
 
@@ -82,14 +82,16 @@ class DriverApplicationViewModel : ViewModel() {
                     "ic_front" to icFrontUri,
                     "ic_back" to icBackUri,
                     "driving_license" to drivingLicenseUri,
-                    "vehicle_insurance" to vehicleInsuranceUri,
+                    "vehicle_grant" to vehicleGrantUri,
                     "bank_qr" to bankQrUri
-                ).mapValues { (name, uri) ->
+                ).map { (name, uri) ->
                     val path = "driverApplications/$uid/$name.jpg"
                     val bytes = compressImage(context, uri!!)
-                    storage.child(path).putBytes(bytes).await()
-                    path
-                }
+                    val ref = storage.child(path)
+                    ref.putBytes(bytes).await()
+                    val downloadUrl = ref.downloadUrl.await().toString()
+                    name to downloadUrl
+                }.toMap()
             }
 
             val data = hashMapOf(
@@ -102,6 +104,7 @@ class DriverApplicationViewModel : ViewModel() {
                 "documents" to uploads
             )
 
+            // Single source of truth at driverApplications/{uid}
             firestore.collection("driverApplications").document(uid).set(data).await()
             true
         } catch (e: Exception) {

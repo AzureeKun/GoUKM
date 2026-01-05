@@ -66,15 +66,7 @@ fun AppNavGraph(
                     popUpTo(navController.graph.id) { inclusive = true }
                     launchSingleTop = true
                 }
-                driverApplicationStatus == "rejected" -> {
-                    // Only redirect rejected applications to status screen
-                    navController.navigate(NavRoutes.DriverApplicationStatus.route) {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
-                activeRole == "customer" || driverApplicationStatus == "under_review" -> {
-                    // If application is under review, user stays as customer and goes to customer dashboard
+                activeRole == "customer" -> {
                     navController.navigate(NavRoutes.CustomerDashboard.route) {
                         popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
@@ -261,28 +253,29 @@ fun AppNavGraph(
             )
         }
 
-        //VERIFY IC
+        //VERIFY IC DETAILS
         composable(NavRoutes.verificationIC.route) {
             verificationIC(
+                navController = navController,
                 onUploadComplete = {
-                    navController.navigate(NavRoutes.verificationDocuments.route) {
-                        popUpTo(NavRoutes.verificationIC.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    navController.navigate(NavRoutes.verificationDocuments.route)
                 },
+                viewModel = applicationViewModel
             )
         }
 
         //VERIFY DOCUMENTS DETAILS
         composable(NavRoutes.verificationDocuments.route) {
             verificationDocuments(
+                navController = navController,
                 onUploadComplete = {
                     navController.navigate(NavRoutes.DriverApplicationStatus.route) {
-                        popUpTo(NavRoutes.verificationDocuments.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
-           )
+                viewModel = applicationViewModel
+            )
         }
 
         //DRIVER APPLICATION STATUS
@@ -296,7 +289,7 @@ fun AppNavGraph(
                     }
                 },
                 onBackToDashboard = {
-                    navController.navigate(NavRoutes.CustomerDashboard.route) {
+                    navController.navigate(NavRoutes.CustomerProfile.route) {
                         popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
                     }

@@ -25,6 +25,7 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import com.example.goukm.ui.theme.CBlue
 import com.example.goukm.ui.register.AuthViewModel
 import com.example.goukm.util.DriverEligibilityChecker
@@ -120,6 +121,8 @@ fun CustomerProfileScreen(
         }
         return
     }
+
+    val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
 
     Scaffold(
         topBar = {
@@ -244,7 +247,7 @@ fun CustomerProfileScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                "Start Working",
+                                if (applicationStatus == "under_review") "Application Pending" else "Start Working",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.Black
@@ -253,39 +256,52 @@ fun CustomerProfileScreen(
                             Spacer(Modifier.height(8.dp))
 
                             Text(
-                                "Make side income by becoming our driver!",
+                                if (applicationStatus == "under_review") "Your application is currently being reviewed. Please wait for approval."
+                                else "Make side income by becoming our driver!",
                                 fontSize = 12.sp,
-                                color = Color.Black
+                                color = Color.Black,
+                                textAlign = TextAlign.Center
                             )
 
-                            // Show eligibility status
-                            if (!eligibilityResult.isEligible) {
-                                Spacer(Modifier.height(12.dp))
-                                Text(
-                                    eligibilityResult.reason,
-                                    fontSize = 12.sp,
-                                    color = Color.Red,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                )
-                            }
+                            if (applicationStatus == "under_review") {
+                                Spacer(Modifier.height(16.dp))
+                                Button(
+                                    onClick = { navController.navigate("driver_application_status") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                                ) {
+                                    Text("Check Status", color = Color.Black)
+                                }
+                            } else {
+                                // Show eligibility status
+                                if (!eligibilityResult.isEligible) {
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(
+                                        eligibilityResult.reason,
+                                        fontSize = 12.sp,
+                                        color = Color.Red,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                }
 
-                            Spacer(Modifier.height(16.dp))
+                                Spacer(Modifier.height(16.dp))
 
-                            Button(
-                                onClick = {
-                                    if (eligibilityResult.isEligible) {
-                                        navController.navigate("driver_application")
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "You must be in Year 2 and above to become a driver.",
-                                            Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                                modifier = Modifier.fillMaxWidth().height(48.dp)
-                            ) {
-                                Text("Apply Here", color = Color.Black)
+                                Button(
+                                    onClick = {
+                                        if (eligibilityResult.isEligible) {
+                                            navController.navigate("driver_application")
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "You must be in Year 2 and above to become a driver.",
+                                                Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                                ) {
+                                    Text(if (applicationStatus == "rejected") "Re-apply Now" else "Apply Here", color = Color.Black)
+                                }
                             }
                         }
                     }

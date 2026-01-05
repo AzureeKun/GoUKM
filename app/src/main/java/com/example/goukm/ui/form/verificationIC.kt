@@ -34,6 +34,8 @@ import coil.compose.rememberAsyncImagePainter
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.Executor
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 enum class VerificationSide { FRONT, BACK }
 
@@ -157,13 +159,15 @@ fun CameraOverlay(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun verificationIC(
-    onUploadComplete: (() -> Unit)? = null
+    navController: androidx.navigation.NavHostController,
+    onUploadComplete: (() -> Unit)? = null,
+    viewModel: DriverApplicationViewModel
 ) {
     val context = LocalContext.current
     val executor = ContextCompat.getMainExecutor(context)
 
-    var frontUri by remember { mutableStateOf<Uri?>(null) }
-    var backUri by remember { mutableStateOf<Uri?>(null) }
+    var frontUri by remember { mutableStateOf<Uri?>(viewModel.icFrontUri) }
+    var backUri by remember { mutableStateOf<Uri?>(viewModel.icBackUri) }
 
     var showCameraOverlay by remember { mutableStateOf(false) }
     var cameraForSide by remember { mutableStateOf<VerificationSide?>(null) }
@@ -230,7 +234,16 @@ fun verificationIC(
         topBar = {
             TopAppBar(
                 title = { Text("Step 2 of 4: Upload Identity Card For Verification", color = Color.White) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue),
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         }
     ) { padding ->
@@ -335,7 +348,12 @@ fun verificationIC(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
-                    onClick = { if (frontUri != null && backUri != null) onUploadComplete?.invoke() },
+                    onClick = { 
+                        if (frontUri != null && backUri != null) {
+                            viewModel.setIc(frontUri, backUri)
+                            onUploadComplete?.invoke()
+                        }
+                    },
                     enabled = frontUri != null && backUri != null && applicationStatus != "under_review",
                     modifier = Modifier.fillMaxWidth()
                 ) {

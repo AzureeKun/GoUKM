@@ -111,10 +111,37 @@ class AuthViewModel(
                 android.util.Log.e("FCM_DEBUG", "Failed to get token in ViewModel", e)
             }
 
+            listenToUserDocument(uid)
             listenToDriverApplication(uid)
 
             _authState.value = AuthState.LoggedIn
         }
+    }
+
+    private var userListener: ListenerRegistration? = null
+
+    private fun listenToUserDocument(uid: String) {
+        userListener?.remove()
+        userListener = FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                val user = snapshot?.toObject(UserProfile::class.java)
+                if (user != null) {
+                    val oldRoleDriver = _currentUser.value?.role_driver
+                    _currentUser.value = user
+                    
+                    // If role_driver changed from false to true, we might want to react
+                    if (oldRoleDriver == false && user.role_driver == true) {
+                        // User was just approved as driver
+                        _activeRole.value = "driver"
+                        viewModelScope.launch {
+                            sessionManager.saveActiveRole("driver")
+                        }
+                    }
+                }
+            }
     }
 
     fun updateUserProfile(updatedUser: UserProfile) {
@@ -215,6 +242,7 @@ class AuthViewModel(
             clearUser()
             _driverApplicationStatus.value = null
             applicationListener?.remove()
+            userListener?.remove()
             _authState.value = AuthState.LoggedOut
         }
     }
@@ -227,28 +255,9 @@ class AuthViewModel(
         vehicleType: String,
         onResult: (Boolean) -> Unit
     ) {
-        viewModelScope.launch {
-            val user = _currentUser.value
-            if (user == null) {
-                onResult(false)
-                return@launch
-            }
-
-            val updatedUser = user.copy(
-                role_driver = true, // Grant driver role
-                licenseNumber = licenseNumber,
-                vehiclePlateNumber = vehiclePlateNumber,
-                vehicleType = vehicleType
-            )
-
-            val success = UserProfileRepository.updateUserProfile(updatedUser)
-            if (success) {
-                _currentUser.value = updatedUser
-                _activeRole.value = "driver" // Switch to driver mode immediately
-                sessionManager.saveActiveRole("driver")
-            }
-            onResult(success)
-        }
+        // This is now handled by DriverApplicationViewModel and manual review.
+        // We no longer update the user role directly here.
+        onResult(true) 
     }
 
     private fun listenToDriverApplication(uid: String) {
@@ -261,15 +270,7 @@ class AuthViewModel(
                 val status = snapshot?.getString("status")
                 _driverApplicationStatus.value = status
 
-                // When approved, refresh profile and persist driver flag.
-                // Do NOT auto-switch active role; let user choose mode.
-                if (status == "approved") {
-                    viewModelScope.launch {
-                        // Persist driver role in Firestore so profile shows driver access
-                        UserProfileRepository.updateDriverRoleTrue()
-                        fetchUserProfile(defaultToCustomer = false)
-                    }
-                }
+                // Approval is handled via listenToUserDocument reacting to role_driver = true
             }
     }
 
@@ -287,5 +288,6 @@ class AuthViewModel(
     override fun onCleared() {
         super.onCleared()
         applicationListener?.remove()
+        userListener?.remove()
     }
 }

@@ -28,21 +28,27 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Image
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import kotlinx.coroutines.launch
 
-enum class DocumentType { DRIVING_LICENSE, VEHICLE_INSURANCE, BANK_QR }
+enum class DocumentType { DRIVING_LICENSE, VEHICLE_GRANT, BANK_QR }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun verificationDocuments(
-    onUploadComplete: (() -> Unit)? = null
+    navController: androidx.navigation.NavHostController,
+    onUploadComplete: (() -> Unit)? = null,
+    viewModel: DriverApplicationViewModel
 ) {
     val context = LocalContext.current
     val executor = ContextCompat.getMainExecutor(context)
+    val scope = rememberCoroutineScope()
 
     // Document URIs
-    var drivingLicenseUri by remember { mutableStateOf<Uri?>(null) }
-    var vehicleInsuranceUri by remember { mutableStateOf<Uri?>(null) }
-    var bankQrUri by remember { mutableStateOf<Uri?>(null) }
+    var drivingLicenseUri by remember { mutableStateOf<Uri?>(viewModel.drivingLicenseUri) }
+    var vehicleGrantUri by remember { mutableStateOf<Uri?>(viewModel.vehicleGrantUri) }
+    var bankQrUri by remember { mutableStateOf<Uri?>(viewModel.bankQrUri) }
 
     var showCameraOverlay by remember { mutableStateOf(false) }
     var capturingType by remember { mutableStateOf<DocumentType?>(null) }
@@ -63,7 +69,7 @@ fun verificationDocuments(
             if (isFileTooLarge(context, it)) { showFileTooLargeDialog = true; return@let }
             when (capturingType) {
                 DocumentType.DRIVING_LICENSE -> drivingLicenseUri = it
-                DocumentType.VEHICLE_INSURANCE -> vehicleInsuranceUri = it
+                DocumentType.VEHICLE_GRANT -> vehicleGrantUri = it
                 DocumentType.BANK_QR -> bankQrUri = it
                 else -> {}
             }
@@ -81,7 +87,7 @@ fun verificationDocuments(
         }
         when (capturingType) {
             DocumentType.DRIVING_LICENSE -> drivingLicenseUri = uri
-            DocumentType.VEHICLE_INSURANCE -> vehicleInsuranceUri = uri
+            DocumentType.VEHICLE_GRANT -> vehicleGrantUri = uri
             DocumentType.BANK_QR -> bankQrUri = uri
             else -> {}
         }
@@ -93,7 +99,16 @@ fun verificationDocuments(
         topBar = {
             TopAppBar(
                 title = { Text("Step 3 of 4: Upload Documents", color = Color.White) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue),
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         }
     ) { padding ->
@@ -123,20 +138,20 @@ fun verificationDocuments(
                 onRemove = { drivingLicenseUri = null }
             )
 
-            // ---------- Vehicle Insurance (Landscape) ----------
+            // ---------- Vehicle Grant (Landscape) ----------
             DocumentCard(
-                label = "Vehicle Insurance",
-                imageUri = vehicleInsuranceUri,
+                label = "Vehicle Grant",
+                imageUri = vehicleGrantUri,
                 boxHeight = 140.dp,
                 onCapture = {
-                    capturingType = DocumentType.VEHICLE_INSURANCE
+                    capturingType = DocumentType.VEHICLE_GRANT
                     permissionLauncher.launch(Manifest.permission.CAMERA)
                 },
                 onPick = {
-                    capturingType = DocumentType.VEHICLE_INSURANCE
+                    capturingType = DocumentType.VEHICLE_GRANT
                     galleryLauncher.launch("image/*")
                 },
-                onRemove = { vehicleInsuranceUri = null }
+                onRemove = { vehicleGrantUri = null }
             )
 
             // ---------- Bank QR (Portrait) ----------
@@ -157,15 +172,30 @@ fun verificationDocuments(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            if (viewModel.lastError != null) {
+                Text(viewModel.lastError!!, color = Color.Red, modifier = Modifier.padding(bottom = 8.dp))
+            }
+
             Button(
                 onClick = {
-                    if (drivingLicenseUri != null && vehicleInsuranceUri != null && bankQrUri != null)
-                        onUploadComplete?.invoke()
+                    if (drivingLicenseUri != null && vehicleGrantUri != null && bankQrUri != null) {
+                        viewModel.setDocuments(drivingLicenseUri, vehicleGrantUri, bankQrUri)
+                        scope.launch {
+                            val success = viewModel.submitApplication(context)
+                            if (success) {
+                                onUploadComplete?.invoke()
+                            }
+                        }
+                    }
                 },
-                enabled = drivingLicenseUri != null && vehicleInsuranceUri != null && bankQrUri != null,
+                enabled = drivingLicenseUri != null && vehicleGrantUri != null && bankQrUri != null && !viewModel.isSubmitting,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Submit")
+                if (viewModel.isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                } else {
+                    Text("Submit Application")
+                }
             }
         }
 

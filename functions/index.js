@@ -147,3 +147,70 @@ exports.sendOfferAcceptedNotification = onDocumentUpdated("bookings/{bookingId}"
     }
     return null;
 });
+
+// 4. Handle Driver Application Approval
+exports.onDriverApplicationApproved = onDocumentUpdated("driverApplications/{userId}", async (event) => {
+    const newData = event.data.after.data();
+    const oldData = event.data.before.data();
+
+    // 4.1 Handle Approval
+    if (newData.status === "approved" && oldData.status !== "approved") {
+        const userId = event.params.userId;
+        console.log(`Driver Application Approved for user: ${userId}`);
+
+        try {
+            // Upgrade user role in Firestore
+            await admin.firestore().collection("users").document(userId).update({
+                role_driver: true,
+                licenseNumber: newData.licenseNumber || "",
+                vehiclePlateNumber: newData.vehiclePlateNumber || "",
+                vehicleType: newData.vehicleType || ""
+            });
+
+            // Send Approval Notification
+            const userDoc = await admin.firestore().collection("users").document(userId).get();
+            if (userDoc.exists && userDoc.data().fcmToken) {
+                const token = userDoc.data().fcmToken;
+                await getMessaging().send({
+                    token: token,
+                    notification: {
+                        title: "Welcome to the Team, Driver! 🚀",
+                        body: "Congratulations! Your driver application has been approved. You can now switch to Driver Mode in your profile and start earning."
+                    },
+                    data: {
+                        type: "application_approved"
+                    }
+                });
+            }
+            console.log(`User ${userId} successfully upgraded and notified.`);
+        } catch (error) {
+            console.error(`Error processing approval for ${userId}:`, error);
+        }
+    }
+
+    // 4.2 Handle Rejection
+    if (newData.status === "rejected" && oldData.status !== "rejected") {
+        const userId = event.params.userId;
+        const reason = newData.rejectionReason || "Please ensure your documents are clear and valid.";
+
+        try {
+            const userDoc = await admin.firestore().collection("users").document(userId).get();
+            if (userDoc.exists && userDoc.data().fcmToken) {
+                const token = userDoc.data().fcmToken;
+                await getMessaging().send({
+                    token: token,
+                    notification: {
+                        title: "Driver Application Update 📋",
+                        body: `We've reviewed your application and unfortunately, we couldn't approve it at this time. Reason: ${reason}`
+                    },
+                    data: {
+                        type: "application_rejected",
+                        reason: reason
+                    }
+                });
+            }
+        } catch (error) {
+            console.error(`Error sending rejection notification for ${userId}:`, error);
+        }
+    }
+});
