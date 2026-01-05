@@ -60,6 +60,9 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import com.example.goukm.ui.theme.CBlue
+
+enum class NavMode { TO_PICKUP, TO_DROPOFF }
 
 @Composable
 fun DriverNavigationScreen(
@@ -67,27 +70,57 @@ fun DriverNavigationScreen(
     pickupLat: Double,
     pickupLng: Double,
     pickupAddress: String,
-    bookingId: String // Added bookingId
+    bookingId: String
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val placesRepository = remember { PlacesRepository(context) }
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    // ... (Keep existing setup code) ... 
-    // State for Pickup Location (Mutable to allow fallback)
-    var finalPickupLocation by remember { mutableStateOf(LatLng(pickupLat, pickupLng)) }
+    // State
+    var booking by remember { mutableStateOf<com.example.goukm.ui.booking.Booking?>(null) }
+    var navMode by remember { mutableStateOf(NavMode.TO_PICKUP) }
+    var destinationLocation by remember { mutableStateOf(LatLng(pickupLat, pickupLng)) }
+    var destinationAddress by remember { mutableStateOf(pickupAddress) }
 
-    // Fallback: Geocode address if Lat/Lng is 0.0
-    LaunchedEffect(pickupLat, pickupLng, pickupAddress) {
-        if (pickupLat == 0.0 && pickupLng == 0.0 && pickupAddress.isNotEmpty()) {
+    // Fetch Booking Details
+    LaunchedEffect(bookingId) {
+        val result = bookingRepository.getBooking(bookingId)
+        result.onSuccess { 
+            booking = it
+            // Adjust navMode if booking is already ONGOING
+            if (it.status == com.example.goukm.ui.booking.BookingStatus.ONGOING.name || it.driverArrived) {
+                navMode = NavMode.TO_DROPOFF
+                destinationLocation = LatLng(it.dropOffLat, it.dropOffLng)
+                destinationAddress = it.dropOff
+            }
+        }
+    }
+
+    // Update destination when NavMode changes
+    LaunchedEffect(navMode, booking) {
+        booking?.let {
+            if (navMode == NavMode.TO_DROPOFF) {
+                destinationLocation = LatLng(it.dropOffLat, it.dropOffLng)
+                destinationAddress = it.dropOff
+            } else {
+                destinationLocation = LatLng(it.pickupLat, it.pickupLng)
+                destinationAddress = it.pickup
+            }
+        }
+    }
+
+    // Fallback: Geocode if Lat/Lng is still 0.0 (e.g. initial params or freshly fetched booking)
+    LaunchedEffect(destinationLocation, destinationAddress) {
+        if (destinationLocation.latitude == 0.0 && destinationLocation.longitude == 0.0 && destinationAddress.isNotEmpty()) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 try {
                     val geocoder = android.location.Geocoder(context)
                     @Suppress("DEPRECATION")
-                    val addresses = geocoder.getFromLocationName(pickupAddress, 1)
+                    val addresses = geocoder.getFromLocationName(destinationAddress, 1)
                     if (!addresses.isNullOrEmpty()) {
-                        finalPickupLocation = LatLng(addresses[0].latitude, addresses[0].longitude)
+                        destinationLocation = LatLng(addresses[0].latitude, addresses[0].longitude)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -98,12 +131,12 @@ fun DriverNavigationScreen(
 
     var driverLocation by remember { mutableStateOf<LatLng?>(null) }
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
-    var distanceToPickup by remember { mutableStateOf("") }
+    var distanceToDestination by remember { mutableStateOf("") }
     var isMapReady by remember { mutableStateOf(false) }
 
     // Camera state
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(finalPickupLocation, 15f)
+        position = CameraPosition.fromLatLngZoom(destinationLocation, 15f)
     }
 
     // Permission handling
@@ -174,13 +207,13 @@ fun DriverNavigationScreen(
         }
     }
 
-    // Calculate Route when Driver Location is first found
-    LaunchedEffect(driverLocation, finalPickupLocation) {
-        if (driverLocation != null && routePoints.isEmpty()) {
-            val result = placesRepository.getRoute(driverLocation!!, finalPickupLocation)
+    // Calculate Route when Driver Location is first found or mode changes
+    LaunchedEffect(driverLocation, destinationLocation) {
+        if (driverLocation != null) {
+            val result = placesRepository.getRoute(driverLocation!!, destinationLocation)
             result.onSuccess {
                 routePoints = it.polyline
-                distanceToPickup = it.distance
+                distanceToDestination = it.distance
             }.onFailure {
                  // Silent fail or toast
             }
@@ -201,18 +234,18 @@ fun DriverNavigationScreen(
             ),
             onMapLoaded = { isMapReady = true }
         ) {
-            // Pickup Marker
+            // Destination Marker
             Marker(
-                state = MarkerState(position = finalPickupLocation),
-                title = "Pickup Point",
-                snippet = pickupAddress
+                state = MarkerState(position = destinationLocation),
+                title = if (navMode == NavMode.TO_PICKUP) "Pickup Point" else "Drop-off Point",
+                snippet = destinationAddress
             )
 
             // Route Polyline
             if (routePoints.isNotEmpty()) {
                 Polyline(
                     points = routePoints,
-                    color = Color(0xFF4285F4), // Google Blue
+                    color = if (navMode == NavMode.TO_PICKUP) Color(0xFF4285F4) else Color(0xFF1976D2), 
                     width = 20f,
                     geodesic = true
                 )
@@ -238,13 +271,13 @@ fun DriverNavigationScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Navigating to Pickup",
+                        text = if (navMode == NavMode.TO_PICKUP) "Navigating to Pickup" else "Navigating to Drop-off",
                         style = MaterialTheme.typography.labelMedium,
                         color = Color.Gray
                     )
-                    if (distanceToPickup.isNotEmpty()) {
+                    if (distanceToDestination.isNotEmpty()) {
                         Text(
-                            text = distanceToPickup,
+                            text = distanceToDestination,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF4285F4)
@@ -253,7 +286,7 @@ fun DriverNavigationScreen(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = pickupAddress,
+                    text = destinationAddress,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2
@@ -280,10 +313,9 @@ fun DriverNavigationScreen(
                 // Navigate External Button
                 Button(
                     onClick = {
-                        val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${finalPickupLocation.latitude},${finalPickupLocation.longitude}")
+                        val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${destinationLocation.latitude},${destinationLocation.longitude}")
                         val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
                         mapIntent.setPackage("com.google.android.apps.maps")
-                        // Start activity in try-catch to avoid crash if no maps app
                         try {
                              context.startActivity(mapIntent)
                         } catch (e: Exception) {
@@ -301,7 +333,7 @@ fun DriverNavigationScreen(
                      Text("Navigate (Maps)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
-                // Arrived Button
+                // Help/GPS Status
                 if (driverLocation == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Acquiring GPS...", color = Color.Gray)
@@ -309,25 +341,44 @@ fun DriverNavigationScreen(
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     }
                 }
-                // Allow clicking Arrived even if GPS not yet fixed for testing
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val bookingRepo = com.example.goukm.ui.booking.BookingRepository()
-                            bookingRepo.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.ONGOING)
-                            // Navigate to Journey Summary
-                            navController.navigate("driver_journey_summary/$bookingId") {
-                                popUpTo("driver_navigation_screen") { inclusive = true }
+
+                // Primary Action Button
+                if (navMode == NavMode.TO_PICKUP) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                bookingRepository.updateDriverArrived(bookingId)
+                                bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.ONGOING)
+                                navMode = NavMode.TO_DROPOFF
+                                routePoints = emptyList() // Trigger recalculation
                             }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("I Have Arrived", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("I Have Arrived", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
+                                navController.navigate("driver_journey_summary/$bookingId") {
+                                    popUpTo("driver_navigation_screen") { inclusive = true }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CBlue),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Complete Trip", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
