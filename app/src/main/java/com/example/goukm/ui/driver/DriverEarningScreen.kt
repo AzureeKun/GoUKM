@@ -224,7 +224,7 @@ fun DriverEarningScreen(navController: NavHostController) {
             
             item {
                 Button(
-                    onClick = { /* View history */ },
+                    onClick = { navController.navigate(NavRoutes.DriverRideHistory.route) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                     elevation = ButtonDefaults.buttonElevation(2.dp),
