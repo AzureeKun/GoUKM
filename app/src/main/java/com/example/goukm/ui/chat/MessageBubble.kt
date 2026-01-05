@@ -2,27 +2,49 @@ package com.example.goukm.ui.chat
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
+fun DateHeader(dateString: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = Color(0xFFD1E4FF),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                text = dateString,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF1A1C1E)
+            )
+        }
+    }
+}
+
+@Composable
 fun MessageBubble(message: Message, isMe: Boolean) {
     val dateFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val timeString = dateFormat.format(Date(message.timestamp))
 
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
+        horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
     ) {
         Card(
             modifier = Modifier.widthIn(max = 280.dp),
@@ -44,6 +66,7 @@ fun MessageBubble(message: Message, isMe: Boolean) {
                         text = message.senderName,
                         style = MaterialTheme.typography.labelSmall,
                         color = CBlue,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
                 }
@@ -53,27 +76,53 @@ fun MessageBubble(message: Message, isMe: Boolean) {
                     fontSize = 15.sp,
                     color = if (isMe) Color.White else Color.Black
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.align(Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        timeString,
-                        fontSize = 11.sp,
-                        color = if (isMe) Color(0xFFE0F7FA) else Color.Gray
-                    )
-                    if (isMe) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.DoneAll,
-                            contentDescription = if (message.isRead) "Read" else "Sent",
-                            modifier = Modifier.size(16.dp),
-                            tint = if (message.isRead) Color(0xFF4CAF50) else Color(0xFFB0BEC5)
-                        )
-                    }
-                }
+                
+                // Show time inside for everyone
+                Text(
+                    timeString,
+                    fontSize = 10.sp,
+                    color = if (isMe) Color.White.copy(alpha = 0.7f) else Color.Gray,
+                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp)
+                )
             }
         }
+        
+        // Status text below the bubble for my messages
+        if (isMe) {
+            Text(
+                text = if (message.isRead) "seen" else "sent",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (message.isRead) Color(0xFF00C853) else Color.Gray,
+                modifier = Modifier.padding(top = 2.dp, end = 4.dp)
+            )
+        }
     }
+}
+
+fun formatHeaderDate(timestamp: Long): String {
+    val calendar = Calendar.getInstance()
+    val now = Calendar.getInstance()
+    calendar.timeInMillis = timestamp
+
+    return when {
+        isSameDay(calendar, now) -> "Today"
+        isYesterday(calendar, now) -> "Yesterday"
+        else -> {
+            val sdf = SimpleDateFormat("d MMMM yyyy", Locale.getDefault())
+            sdf.format(Date(timestamp))
+        }
+    }
+}
+
+private fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+}
+
+private fun isYesterday(cal: Calendar, now: Calendar): Boolean {
+    val yesterday = Calendar.getInstance()
+    yesterday.add(Calendar.DAY_OF_YEAR, -1)
+    return cal.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) &&
+            cal.get(Calendar.DAY_OF_YEAR) == yesterday.get(Calendar.DAY_OF_YEAR)
 }

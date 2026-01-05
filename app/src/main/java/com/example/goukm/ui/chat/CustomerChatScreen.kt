@@ -69,7 +69,7 @@ fun CustomerChatScreen(
     }
 
     // Mark messages as read when screen opens or new messages arrive
-    LaunchedEffect(chatId, messages.size) {
+    LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
              ChatRepository.markMessagesAsRead(chatId, isCustomer = true)
         }
@@ -146,19 +146,30 @@ fun CustomerChatScreen(
                 }
             } else {
                 // Messages List
+                val groupedMessages = remember(messages.toList()) {
+                    messages.groupBy { formatHeaderDate(it.timestamp) }
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
                     state = listState,
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    // verticalArrangement = Arrangement.spacedBy(12.dp) // Removed to control spacing manually with headers
                 ) {
-                    items(messages) { message ->
-                        MessageBubble(
-                            message = message,
-                            isMe = message.senderRole == "customer"
-                        )
+                    groupedMessages.forEach { (date, messagesInDate) ->
+                        item(key = date) {
+                            DateHeader(dateString = date)
+                        }
+                        items(messagesInDate, key = { it.id }) { message ->
+                            Box(modifier = Modifier.padding(vertical = 6.dp)) {
+                                MessageBubble(
+                                    message = message,
+                                    isMe = message.senderId == currentUserId
+                                )
+                            }
+                        }
                     }
                 }
             }

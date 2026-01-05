@@ -1,8 +1,10 @@
 package com.example.goukm.ui.chat
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.PropertyName
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +27,9 @@ data class ChatRoom(
     val lastMessageTime: Long = 0,
     val customerUnreadCount: Int = 0,
     val driverUnreadCount: Int = 0,
-    val isActive: Boolean = true
+    @get:PropertyName("active")
+    @set:PropertyName("active")
+    var isActive: Boolean = true
 )
 
 /**
@@ -38,7 +42,9 @@ data class Message(
     val senderRole: String = "", // "customer" or "driver"
     val text: String = "",
     val timestamp: Long = 0,
-    val isRead: Boolean = false
+    @get:PropertyName("read")
+    @set:PropertyName("read")
+    var isRead: Boolean = false
 )
 
 /**
@@ -50,7 +56,7 @@ object ChatRepository {
     private val chatRoomsCollection = firestore.collection("chatRooms")
 
     /**
-     * Creates a new chat room when a ride is accepted
+     * Creates a new chat room when a ride is accepted or reuses an existing one
      */
     suspend fun createChatRoom(
         bookingId: String,
@@ -62,16 +68,26 @@ object ChatRepository {
         driverPhone: String
     ): Result<String> {
         return try {
-            // Check if chat room already exists for this booking
+            // Check if chat room already exists for this customer and driver pair
             val existing = chatRoomsCollection
-                .whereEqualTo("bookingId", bookingId)
+                .whereEqualTo("customerId", customerId)
+                .whereEqualTo("driverId", driverId)
                 .get()
                 .await()
 
             if (!existing.isEmpty) {
-                return Result.success(existing.documents.first().id)
+                val roomId = existing.documents.first().id
+                // Update the bookingId and ensure it's active
+                chatRoomsCollection.document(roomId).update(
+                    mapOf(
+                        "bookingId" to bookingId,
+                        "isActive" to true
+                    )
+                ).await()
+                return Result.success(roomId)
             }
 
+            // Create new if none exists
             val chatRoomId = chatRoomsCollection.document().id
             val chatRoom = ChatRoom(
                 id = chatRoomId,
@@ -124,25 +140,23 @@ object ChatRepository {
                 .await()
 
             // Get chat room to determine who to increment unread count for
-            val chatRoomDoc = chatRoomsCollection.document(chatRoomId).get().await()
+            val roomRef = chatRoomsCollection.document(chatRoomId)
+            val chatRoomDoc = roomRef.get().await()
             val chatRoom = chatRoomDoc.toObject(ChatRoom::class.java)
 
             if (chatRoom != null) {
-                // Update last message and increment unread count for the other party
                 val updates = mutableMapOf<String, Any>(
                     "lastMessage" to text,
                     "lastMessageTime" to System.currentTimeMillis()
                 )
 
                 if (currentUserId == chatRoom.customerId) {
-                    // Customer sent message, increment driver's unread count
-                    updates["driverUnreadCount"] = chatRoom.driverUnreadCount + 1
+                    updates["driverUnreadCount"] = FieldValue.increment(1L)
                 } else {
-                    // Driver sent message, increment customer's unread count
-                    updates["customerUnreadCount"] = chatRoom.customerUnreadCount + 1
+                    updates["customerUnreadCount"] = FieldValue.increment(1L)
                 }
 
-                chatRoomsCollection.document(chatRoomId).update(updates).await()
+                roomRef.update(updates).await()
             }
 
             Result.success(Unit)
@@ -179,37 +193,32 @@ object ChatRepository {
      */
     suspend fun markMessagesAsRead(chatRoomId: String, isCustomer: Boolean): Result<Unit> {
         return try {
-            val chatRoomDoc = chatRoomsCollection.document(chatRoomId).get().await()
-            val chatRoom = chatRoomDoc.toObject(ChatRoom::class.java)
-                ?: return Result.failure(Exception("Chat room not found"))
-
-            // Reset unread count for current user role
+            val currentUserId = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
+            val roomRef = chatRoomsCollection.document(chatRoomId)
+            val batch = firestore.batch()
+            
+            // 1. Reset unread count for current user role
             val update = if (isCustomer) {
                 mapOf("customerUnreadCount" to 0)
             } else {
                 mapOf("driverUnreadCount" to 0)
             }
+            batch.update(roomRef, update)
 
-            chatRoomsCollection.document(chatRoomId).update(update).await()
-
-            // Mark all messages from the OTHER role as read
+            // 2. Mark messages NOT sent by current user as read
             val otherRole = if (isCustomer) "driver" else "customer"
-            
-            val messages = chatRoomsCollection.document(chatRoomId)
+            val unreadMessages = roomRef
                 .collection("messages")
                 .whereEqualTo("senderRole", otherRole)
-                .whereEqualTo("isRead", false)
+                .whereEqualTo("read", false)
                 .get()
                 .await()
 
-            if (!messages.isEmpty) {
-                val batch = firestore.batch()
-                for (doc in messages.documents) {
-                    batch.update(doc.reference, "isRead", true)
-                }
-                batch.commit().await()
+            for (doc in unreadMessages.documents) {
+                batch.update(doc.reference, "read", true)
             }
-
+            
+            batch.commit().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

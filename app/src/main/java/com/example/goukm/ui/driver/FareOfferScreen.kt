@@ -2,8 +2,10 @@ package com.example.goukm.ui.driver
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
@@ -75,6 +77,7 @@ fun FareOfferScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F5))
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -204,25 +207,7 @@ fun FareOfferScreen(
                         color = CBlue
                     )
 
-                    // Suggested Range Info
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFFFF9C4), RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            "💡 Suggested UKM Range: RM ${String.format("%.2f", MIN_FARE)} - RM ${String.format("%.2f", MAX_FARE)}\n" +
-                                    "Fare should be reasonable based on campus distance.",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFF57C00)
-                        )
-                    }
-
-                    Divider(color = Color.LightGray)
-
-                    // Suggested Range
+                    // Consolidated Suggested Range Info
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -237,10 +222,43 @@ fun FareOfferScreen(
                                 color = Color(0xFFF57C00)
                             )
                             Text(
-                                "RM 5.00 - RM 15.00",
+                                "RM ${String.format("%.2f", MIN_FARE)} - RM ${String.format("%.2f", MAX_FARE)}",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFF57C00)
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Fare should be reasonable based on campus distance.",
+                                fontSize = 12.sp,
+                                color = Color(0xFFF57C00).copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+
+                    Divider(color = Color.LightGray)
+
+                    // Quick Offer Buttons
+                    Text(
+                        "Quick Selection",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Gray
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(4, 6, 8, 10).forEach { amount ->
+                            val isSelected = fareAmount == amount.toString()
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { fareAmount = amount.toString() },
+                                label = { Text("RM $amount") },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = AccentYellow,
+                                    selectedLabelColor = Color.Black
+                                )
                             )
                         }
                     }
@@ -279,8 +297,6 @@ fun FareOfferScreen(
                     )
                 }
             }
-
-            Spacer(Modifier.weight(1f))
 
             // Submit Button with Validation Logic
             Button(
