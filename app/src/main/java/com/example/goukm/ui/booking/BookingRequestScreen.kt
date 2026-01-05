@@ -503,20 +503,21 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                             fare = offer.fareLabel.replace("RM ", "")
                                         )
                                         
-                                        bookingRepository.acceptOffer(bookingId, acceptedOffer)
-                                        
-                                        val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-                                        if (currentUser != null) {
-                                            val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
-                                            com.example.goukm.ui.chat.ChatRepository.createChatRoom(
-                                                bookingId = bookingId,
-                                                customerId = currentUser.uid,
-                                                driverId = offer.driverId,
-                                                customerName = customerProfile?.name ?: "Customer",
-                                                driverName = offer.name,
-                                                customerPhone = customerProfile?.phoneNumber ?: "",
-                                                driverPhone = offer.driverPhone
-                                            )
+                                            bookingRepository.acceptOffer(bookingId, acceptedOffer)
+                                            
+                                            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                                            if (currentUser != null) {
+                                                val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
+                                                com.example.goukm.ui.chat.ChatRepository.createChatRoom(
+                                                    bookingId = bookingId,
+                                                    customerId = currentUser.uid,
+                                                    driverId = offer.driverId,
+                                                    customerName = customerProfile?.name ?: "Customer",
+                                                    driverName = offer.name,
+                                                    customerPhone = customerProfile?.phoneNumber ?: "",
+                                                    driverPhone = offer.driverPhone
+                                                )
+                                            }
                                         } catch (e: Exception) {
                                             e.printStackTrace()
                                             android.widget.Toast.makeText(context, "Acceptance error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
@@ -758,7 +759,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
 }
 
 @Composable
-private fun RowScope.SeatChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
+fun RowScope.SeatChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     val bg = if (isSelected) CBlue else Color(0xFFE0E6F3)
     val contentColor = if (isSelected) Color.White else Color.Black
 
