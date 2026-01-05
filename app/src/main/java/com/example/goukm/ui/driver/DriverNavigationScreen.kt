@@ -182,6 +182,11 @@ fun DriverNavigationScreen(
                     val latLng = LatLng(location.latitude, location.longitude)
                     driverLocation = latLng
 
+                    // Sync to Firestore for Customer Tracking
+                    scope.launch {
+                        bookingRepository.updateDriverLocation(bookingId, location.latitude, location.longitude)
+                    }
+
                     // Animate camera to follow driver with 3D tilt
                     if (isMapReady) {
                         val cameraUpdate = CameraPosition.Builder()

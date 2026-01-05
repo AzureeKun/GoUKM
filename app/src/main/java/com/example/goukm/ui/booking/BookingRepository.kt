@@ -31,7 +31,9 @@ data class Booking(
     val driverArrived: Boolean = false,
     val paymentMethod: String = "CASH", // Default to CASH
     val paymentStatus: String = "PENDING",
-    val offeredDriverIds: List<String> = emptyList()
+    val offeredDriverIds: List<String> = emptyList(),
+    val currentDriverLat: Double = 0.0,
+    val currentDriverLng: Double = 0.0
 )
 
 data class Offer(
@@ -187,6 +189,20 @@ class BookingRepository {
     suspend fun updatePaymentStatus(bookingId: String, status: String): Result<Unit> {
         return try {
             bookingsCollection.document(bookingId).update("paymentStatus", status).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateDriverLocation(bookingId: String, lat: Double, lng: Double): Result<Unit> {
+        return try {
+            bookingsCollection.document(bookingId).update(
+                mapOf(
+                    "currentDriverLat" to lat,
+                    "currentDriverLng" to lng
+                )
+            ).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

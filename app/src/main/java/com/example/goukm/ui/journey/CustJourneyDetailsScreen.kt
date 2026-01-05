@@ -59,7 +59,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.Polyline
 import androidx.navigation.NavHostController
+import com.example.goukm.ui.booking.PlacesRepository
+import androidx.compose.ui.platform.LocalContext
 
 
 
@@ -71,11 +74,30 @@ fun CustomerJourneyDetailsScreen(
     paymentMethod: String,
     initialPaymentStatus: String = "PENDING" // Passed from nav or backend
 ) {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val bookingId = navController.currentBackStackEntry?.arguments?.getString("bookingId") ?: ""
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+    val placesRepository = remember { PlacesRepository(context) }
+
     var paymentStatus by remember { mutableStateOf(initialPaymentStatus) }
     var showArrivedAlert by remember { mutableStateOf(false) }
     var isDriverArrived by remember { mutableStateOf(false) }
-    
+    var driverLatLng by remember { mutableStateOf<LatLng?>(null) }
+    var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+
+    var driverName by remember { mutableStateOf("Driver") }
+    var driverPhone by remember { mutableStateOf("") }
+    var chatRoomId by remember { mutableStateOf("") }
+    var carModel by remember { mutableStateOf("Car Model") }
+    var carPlate by remember { mutableStateOf("Plate") }
+    var pickupAddress by remember { mutableStateOf("Loading...") }
+    var dropOffAddress by remember { mutableStateOf("Loading...") }
+    var fareAmount by remember { mutableStateOf("...") }
+    var passengerName by remember { mutableStateOf("Passenger") }
+    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
+    var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
+
     val currentPaymentStatus = navController.currentBackStackEntry?.savedStateHandle
         ?.getStateFlow("paymentStatus", initialPaymentStatus)
         ?.collectAsState()?.value ?: initialPaymentStatus
@@ -91,9 +113,15 @@ fun CustomerJourneyDetailsScreen(
                 val status = snapshot.getString("status")
                 val pStatus = snapshot.getString("paymentStatus") ?: "PENDING"
                 val arrived = snapshot.getBoolean("driverArrived") ?: false
-                
+                val dLat = snapshot.getDouble("currentDriverLat") ?: 0.0
+                val dLng = snapshot.getDouble("currentDriverLng") ?: 0.0
+
                 paymentStatus = pStatus
                 isDriverArrived = arrived
+
+                if (dLat != 0.0 && dLng != 0.0) {
+                    driverLatLng = LatLng(dLat, dLng)
+                }
 
                 if (status == "COMPLETED") {
                     if (pStatus == "PAID") {
@@ -108,24 +136,24 @@ fun CustomerJourneyDetailsScreen(
         }
     }
 
+    // Fetch Route from Driver to Destination
+    LaunchedEffect(driverLatLng, isDriverArrived, pickupLatLng, dropOffLatLng) {
+        val driverLoc = driverLatLng ?: return@LaunchedEffect
+        val targetLoc = if (isDriverArrived) dropOffLatLng else pickupLatLng
+
+        if (targetLoc != null) {
+            val result = placesRepository.getRoute(driverLoc, targetLoc)
+            result.onSuccess { routeResult ->
+                routePoints = routeResult.polyline
+            }
+        }
+    }
+
     LaunchedEffect(currentPaymentStatus) {
         if (currentPaymentStatus == "PAID") {
              paymentStatus = "PAID"
         }
     }
-
-    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
-    var driverName by remember { mutableStateOf("Driver") }
-    var driverPhone by remember { mutableStateOf("") }
-    var chatRoomId by remember { mutableStateOf("") }
-    var carModel by remember { mutableStateOf("Car Model") }
-    var carPlate by remember { mutableStateOf("Plate") }
-    var pickupAddress by remember { mutableStateOf("Loading...") }
-    var dropOffAddress by remember { mutableStateOf("Loading...") }
-    var fareAmount by remember { mutableStateOf("...") }
-    var passengerName by remember { mutableStateOf("Passenger") }
-    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
-    var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
 
     LaunchedEffect(bookingId) {
         if (bookingId.isNotEmpty()) {
@@ -320,6 +348,25 @@ fun CustomerJourneyDetailsScreen(
                         state = com.google.maps.android.compose.rememberMarkerState(position = it),
                         title = "Drop-off",
                         snippet = dropOffAddress
+                    )
+                }
+
+                // --- Live Driver Marker ---
+                driverLatLng?.let {
+                    com.google.maps.android.compose.Marker(
+                        state = com.google.maps.android.compose.rememberMarkerState(position = it),
+                        title = "Your Driver",
+                        snippet = "Current Location",
+                        icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE)
+                    )
+                }
+
+                // --- Driver-to-Destination Route Line ---
+                if (routePoints.isNotEmpty()) {
+                    Polyline(
+                        points = routePoints,
+                        color = Color(0xFF6B87C0),
+                        width = 12f // 5.dp roughly
                     )
                 }
             }
