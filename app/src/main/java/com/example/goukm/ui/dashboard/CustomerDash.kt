@@ -350,7 +350,7 @@ fun CustomerDashboard(
                         subtitle = "Past rides",
                         icon = Icons.Outlined.History,
                         gradientColors = listOf(Color(0xFF667EEA), Color(0xFF764BA2)),
-                        onClick = { /* TODO: navigate to booking history */ }
+                        onClick = { navController.navigate(NavRoutes.CustomerBookingHistory.route) }
                     )
                 }
 

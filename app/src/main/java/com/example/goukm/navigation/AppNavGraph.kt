@@ -41,6 +41,7 @@ import com.example.goukm.ui.driver.JourneySummaryScreen
 import com.example.goukm.ui.booking.PaymentMethodScreen
 import com.example.goukm.ui.journey.CustomerJourneyDetailsScreen
 import com.example.goukm.navigation.NavRoutes.CustomerJourneyDetailsScreen
+import com.example.goukm.ui.history.CustomerBookingHistoryScreen
 
 @Composable
 fun AppNavGraph(
@@ -139,6 +140,11 @@ fun AppNavGraph(
                 navController = navController,
                 userImageUrl = currentUser?.profilePictureUrl
             )
+        }
+
+        // CUSTOMER BOOKING HISTORY
+        composable(NavRoutes.CustomerBookingHistory.route) {
+            CustomerBookingHistoryScreen()
         }
 
         // BOOKING REQUEST
