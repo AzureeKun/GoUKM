@@ -66,7 +66,7 @@ import androidx.navigation.NavHostController
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerJourneyDetailsScreen(
-    onChatClick: () -> Unit,
+    onChatClick: (chatId: String, name: String, phone: String) -> Unit,
     navController: NavHostController,
     paymentMethod: String,
     initialPaymentStatus: String = "PENDING" // Passed from nav or backend
@@ -116,6 +116,8 @@ fun CustomerJourneyDetailsScreen(
 
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     var driverName by remember { mutableStateOf("Driver") }
+    var driverPhone by remember { mutableStateOf("") }
+    var chatRoomId by remember { mutableStateOf("") }
     var carModel by remember { mutableStateOf("Car Model") }
     var carPlate by remember { mutableStateOf("Plate") }
     var pickupAddress by remember { mutableStateOf("Loading...") }
@@ -145,8 +147,17 @@ fun CustomerJourneyDetailsScreen(
                     val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
                     if (userProfile != null) {
                         driverName = userProfile.name
+                        driverPhone = userProfile.phoneNumber
                         carModel = userProfile.vehicleType
                         carPlate = userProfile.vehiclePlateNumber
+                    }
+
+                    // Fetch Chat Room ID
+                    val chatRoomResult = com.example.goukm.ui.chat.ChatRepository.getChatRoomByBookingId(bookingId)
+                    chatRoomResult.onSuccess { room ->
+                        if (room != null) {
+                            chatRoomId = room.id
+                        }
                     }
                 }
             }
@@ -194,8 +205,13 @@ fun CustomerJourneyDetailsScreen(
                 )
 
                 DriverInfoCard(
-                    onChatClick = onChatClick,
+                    onChatClick = {
+                        if (chatRoomId.isNotEmpty()) {
+                            onChatClick(chatRoomId, driverName, driverPhone)
+                        }
+                    },
                     driverName = driverName,
+                    driverPhone = driverPhone,
                     carModel = carModel,
                     carPlate = carPlate,
                     fare = fareAmount
@@ -353,10 +369,12 @@ fun CustomerJourneyDetailsScreen(
 fun DriverInfoCard(
     onChatClick: () -> Unit,
     driverName: String,
+    driverPhone: String,
     carModel: String,
     carPlate: String,
     fare: String
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Card(
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -445,7 +463,12 @@ fun DriverInfoCard(
             ) {
                 // Call Button
                 OutlinedButton(
-                    onClick = { /* Call Action */ },
+                    onClick = {
+                        if (driverPhone.isNotEmpty()) {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$driverPhone"))
+                            context.startActivity(intent)
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),

@@ -443,8 +443,10 @@ fun AppNavGraph(
             val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
             
             CustomerJourneyDetailsScreen(
-                onChatClick = {
-                    navController.navigate(NavRoutes.DriverChatList.route)
+                onChatClick = { chatId, name, phone ->
+                    val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
+                    val encodedPhone = java.net.URLEncoder.encode(phone, "UTF-8")
+                    navController.navigate("customer_chat/$chatId/$encodedName/$encodedPhone")
                 },
                 navController = navController,
                 paymentMethod = paymentMethod,
