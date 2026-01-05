@@ -73,6 +73,8 @@ fun CustomerJourneyDetailsScreen(
 ) {
     val bookingId = navController.currentBackStackEntry?.arguments?.getString("bookingId") ?: ""
     var paymentStatus by remember { mutableStateOf(initialPaymentStatus) }
+    var showArrivedAlert by remember { mutableStateOf(false) }
+    
     val currentPaymentStatus = navController.currentBackStackEntry?.savedStateHandle
         ?.getStateFlow("paymentStatus", initialPaymentStatus)
         ?.collectAsState()?.value ?: initialPaymentStatus
@@ -88,13 +90,15 @@ fun CustomerJourneyDetailsScreen(
                 val status = snapshot.getString("status")
                 val pStatus = snapshot.getString("paymentStatus") ?: "PENDING"
                 
-                if (pStatus == "PAID") {
-                    paymentStatus = "PAID"
-                }
+                paymentStatus = pStatus
 
                 if (status == "COMPLETED") {
-                    navController.navigate("ride_done") {
-                        popUpTo("cust_journey_details/$bookingId") { inclusive = true }
+                    if (pStatus == "PAID") {
+                        navController.navigate("ride_done") {
+                            popUpTo("cust_journey_details/$bookingId") { inclusive = true }
+                        }
+                    } else {
+                        showArrivedAlert = true
                     }
                 }
             }
@@ -316,6 +320,27 @@ fun CustomerJourneyDetailsScreen(
                 )
             }
         }
+    }
+
+    // Trip Finished Alert
+    if (showArrivedAlert && paymentStatus != "PAID") {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { /* Don't allow dismissal if not paid */ },
+            title = { Text("Trip Finished!", fontWeight = FontWeight.Bold) },
+            text = { Text("Your driver has arrived at the destination. Please complete your payment to finish the trip.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        navController.navigate("confirm_pay/$paymentMethod/$bookingId")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text("Pay Now", color = Color.White)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }
 

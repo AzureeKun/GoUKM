@@ -83,22 +83,30 @@ fun DriverNavigationScreen(
     var navMode by remember { mutableStateOf(NavMode.TO_PICKUP) }
     var destinationLocation by remember { mutableStateOf(LatLng(pickupLat, pickupLng)) }
     var destinationAddress by remember { mutableStateOf(pickupAddress) }
+    var showPaymentPendingAlert by remember { mutableStateOf(false) }
 
-    // Fetch Booking Details
+    // Monitor Booking Details in Real-Time
     LaunchedEffect(bookingId) {
-        val result = bookingRepository.getBooking(bookingId)
-        result.onSuccess { 
-            booking = it
-            // Adjust navMode if booking is already ONGOING
-            if (it.status == com.example.goukm.ui.booking.BookingStatus.ONGOING.name || it.driverArrived) {
-                navMode = NavMode.TO_DROPOFF
-                destinationLocation = LatLng(it.dropOffLat, it.dropOffLng)
-                destinationAddress = it.dropOff
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val docRef = db.collection("bookings").document(bookingId)
+        val registration = docRef.addSnapshotListener { snapshot, e ->
+            if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+            
+            val fetchedBooking = snapshot.toObject(com.example.goukm.ui.booking.Booking::class.java)?.copy(id = snapshot.id)
+            if (fetchedBooking != null) {
+                booking = fetchedBooking
+                // Adjust navMode if booking is already ONGOING or higher
+                val status = fetchedBooking.status
+                if (status == com.example.goukm.ui.booking.BookingStatus.ONGOING.name || 
+                    fetchedBooking.driverArrived || 
+                    status == com.example.goukm.ui.booking.BookingStatus.COMPLETED.name) {
+                    navMode = NavMode.TO_DROPOFF
+                }
             }
         }
     }
 
-    // Update destination when NavMode changes
+    // Update destination when NavMode changes or booking updates
     LaunchedEffect(navMode, booking) {
         booking?.let {
             if (navMode == NavMode.TO_DROPOFF) {
@@ -364,11 +372,15 @@ fun DriverNavigationScreen(
                 } else {
                     Button(
                         onClick = {
-                            scope.launch {
-                                bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
-                                navController.navigate("driver_journey_summary/$bookingId") {
-                                    popUpTo("driver_navigation_screen") { inclusive = true }
+                            if (booking?.paymentStatus == "PAID") {
+                                scope.launch {
+                                    bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
+                                    navController.navigate("driver_journey_summary/$bookingId") {
+                                        popUpTo("driver_navigation_screen") { inclusive = true }
+                                    }
                                 }
+                            } else {
+                                showPaymentPendingAlert = true
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = CBlue),
@@ -381,6 +393,25 @@ fun DriverNavigationScreen(
                     }
                 }
             }
+        }
+
+        // Payment Pending Alert
+        if (showPaymentPendingAlert) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showPaymentPendingAlert = false },
+                title = { Text("Payment Pending", fontWeight = FontWeight.Bold) },
+                text = { Text("Customer has not paid yet. Please wait for the passenger to complete the payment.") },
+                confirmButton = {
+                    Button(
+                        onClick = { showPaymentPendingAlert = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = CBlue)
+                    ) {
+                        Text("Okay", color = Color.White)
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }
