@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -42,9 +43,37 @@ import androidx.navigation.NavHostController
 import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.dashboard.BottomNavigationBarDriver
 
+import androidx.compose.runtime.*
+import com.google.firebase.auth.FirebaseAuth
+import com.example.goukm.ui.booking.RatingRepository
+import com.example.goukm.ui.booking.Rating
+import com.example.goukm.ui.booking.DriverStats
+import java.text.SimpleDateFormat
+import java.util.*
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriverScoreScreen(navController: NavHostController) {
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+    var driverStats by remember { mutableStateOf(DriverStats()) }
+    var reviews by remember { mutableStateOf<List<com.example.goukm.ui.booking.Rating>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(currentUserId) {
+        if (currentUserId.isNotEmpty()) {
+            isLoading = true
+            // Fetch Stats
+            driverStats = RatingRepository.getDriverStats(currentUserId)
+            
+            // Fetch Reviews
+            val result = RatingRepository.getRatingsForDriver(currentUserId)
+            result.onSuccess { 
+                reviews = it 
+            }
+            isLoading = false
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -77,50 +106,72 @@ fun DriverScoreScreen(navController: NavHostController) {
         },
         containerColor = Color(0xFFF0F4F8) // Light greyish blue bg
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // 1. High Score Main Card (Theme Blue)
-            item {
-                HighScoreCard()
+        if (isLoading) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFF6B87C0))
             }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. High Score Main Card (Theme Blue)
+                item {
+                    HighScoreCard(driverStats)
+                }
 
-            // 2. Stats Row (Theme Yellow)
-            item {
-                StatsSummaryCard()
-            }
+                // 2. Stats Row (Theme Yellow)
+                item {
+                    StatsSummaryCard(driverStats)
+                }
 
-            // 3. Reviews Header
-            item {
-                Text(
-                    "Recent Reviews",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
+                // 3. Reviews Header
+                item {
+                    Text(
+                        "Recent Reviews",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
 
-            // 4. Reviews List (Clean White)
-            items(reviewList) { review ->
-                ReviewItemCard(review)
-            }
-            
-            item {
-                Spacer(modifier = Modifier.height(20.dp))
+                // 4. Reviews List (Clean White)
+                if (reviews.isEmpty()) {
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                        ) {
+                             Text(
+                                "No reviews yet.",
+                                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                color = Color.Gray
+                             )
+                        }
+                    }
+                } else {
+                    items(reviews) { review ->
+                        ReviewItemCard(review)
+                    }
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-fun HighScoreCard() {
+fun HighScoreCard(stats: DriverStats) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        // Theme: Primary Blue
         colors = CardDefaults.cardColors(containerColor = Color(0xFF6B87C0)), 
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth()
@@ -132,7 +183,7 @@ fun HighScoreCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "High",
+                text = if (stats.isNewDriver) "New Driver" else String.format("%.1f", stats.averageRating),
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Black,
                 color = Color.White
@@ -140,23 +191,32 @@ fun HighScoreCard() {
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Overall Rating:",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                repeat(5) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        // Theme: Yellow Stars
-                        tint = Color(0xFFFFD60A), 
-                        modifier = Modifier.size(24.dp)
+            if (!stats.isNewDriver) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Overall Rating:",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.9f)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    repeat(5) { index ->
+                        val isFilled = stats.averageRating >= (index + 0.5f)
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = if (isFilled) Color(0xFFFFD60A) else Color.White.copy(alpha = 0.3f), 
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
+            } else {
+                 Text(
+                    text = "Welcome to GoUKM!",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -166,37 +226,62 @@ fun HighScoreCard() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Left Column
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                    // Green for excellent feels right universally, or we can use Yellow/White
+                    val reviewLabel = when {
+                        stats.isNewDriver -> "Review: N/A"
+                        stats.averageRating >= 4.5 -> "Review: Excellent"
+                        stats.averageRating >= 3.5 -> "Review: Good"
+                        else -> "Review: Average"
+                    }
+                    val reviewProgress = if (stats.isNewDriver) 0f else stats.averageRating / 5f
+                    
                     MetricProgress(
-                        label = "Review: Excellent", 
-                        progress = 1.0f, 
-                        color = Color(0xFF4CAF50), // Keep Green for "Good" status
+                        label = reviewLabel, 
+                        progress = reviewProgress, 
+                        color = if (reviewProgress >= 0.8f) Color(0xFF4CAF50) else Color(0xFFFFD60A),
                         textColor = Color.White
                     )
                     Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val reputationProgress = (stats.totalWorkComplete / 20f).coerceIn(0f, 1f)
+                    val reputationLabel = when {
+                        reputationProgress >= 0.9f -> "Reputation: Excellent"
+                        reputationProgress >= 0.5f -> "Reputation: Good"
+                        else -> "Reputation: New"
+                    }
+                    
                     MetricProgress(
-                        label = "Reputation: Excellent", 
-                        progress = 1.0f, 
-                        color = Color(0xFF4CAF50),
+                        label = reputationLabel, 
+                        progress = reputationProgress, 
+                        color = if (reputationProgress >= 0.5f) Color(0xFF4CAF50) else Color(0xFFFFD60A),
                         textColor = Color.White
                     )
                 }
 
-                // Right Column
                 Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                    val expProgress = (stats.totalWorkComplete / 50f).coerceIn(0f, 1f)
+                    val expLabel = when {
+                        expProgress >= 0.8f -> "Experience: Professional"
+                        expProgress >= 0.4f -> "Experience: Regular"
+                        else -> "Experience: Novice"
+                    }
+                    
                     MetricProgress(
-                        label = "Experience: Professional", 
-                        progress = 0.8f, 
-                        color = Color(0xFFFFD60A), // Theme Yellow
+                        label = expLabel, 
+                        progress = expProgress, 
+                        color = if (expProgress >= 0.8f) Color(0xFFFFD60A) else Color(0xFF4CAF50),
                         textColor = Color.White
                     )
                     Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val jobsPerDay = stats.totalWorkComplete.toFloat() / stats.daysWorked.coerceAtLeast(1).toFloat()
+                    val frequencyProgress = (jobsPerDay / 5f).coerceIn(0f, 1f)
+                    val frequencyLabel = "Ride Frequency: ${stats.totalWorkComplete} rides / ${stats.daysWorked} days"
+                    
                     MetricProgress(
-                        label = "Ride Frequency: Very Low", 
-                        progress = 0.2f, 
-                        color = Color(0xFFEF5350), // Theme Red
+                        label = frequencyLabel, 
+                        progress = frequencyProgress, 
+                        color = if (frequencyProgress >= 0.5f) Color(0xFF4CAF50) else Color(0xFFFFD60A),
                         textColor = Color.White
                     )
                 }
@@ -229,10 +314,9 @@ fun MetricProgress(label: String, progress: Float, color: Color, textColor: Colo
 }
 
 @Composable
-fun StatsSummaryCard() {
+fun StatsSummaryCard(stats: DriverStats) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        // Theme: Secondary Yellow
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFD60A)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
@@ -246,7 +330,7 @@ fun StatsSummaryCard() {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "13",
+                    text = stats.totalWorkComplete.toString(),
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.Black
@@ -261,7 +345,6 @@ fun StatsSummaryCard() {
                 )
             }
             
-            // Vertical Divider
             Box(
                 modifier = Modifier
                     .width(1.dp)
@@ -271,7 +354,7 @@ fun StatsSummaryCard() {
             
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "10",
+                    text = stats.totalReviews.toString(),
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.Black
@@ -288,7 +371,12 @@ fun StatsSummaryCard() {
 }
 
 @Composable
-fun ReviewItemCard(review: ReviewModel) {
+fun ReviewItemCard(review: com.example.goukm.ui.booking.Rating) {
+    val dateStr = remember(review.timestamp) {
+        val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        sdf.format(Date(review.timestamp))
+    }
+    
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -300,14 +388,26 @@ fun ReviewItemCard(review: ReviewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    repeat(5) { index ->
+                        val isFilled = review.rating >= (index + 1)
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = if (isFilled) Color(0xFFFFD60A) else Color.LightGray.copy(alpha = 0.5f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${review.rating.toInt()} Stars",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
                 Text(
-                    text = "1 Review",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
-                Text(
-                    text = review.date,
+                    text = dateStr,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.LightGray
                 )
@@ -316,11 +416,10 @@ fun ReviewItemCard(review: ReviewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Avatar (Theme Blue with Icon)
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(Color(0xFFE3F2FD), CircleShape), // Very light blue
+                        .background(Color(0xFFE3F2FD), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("😊", fontSize = 24.sp)
@@ -330,43 +429,20 @@ fun ReviewItemCard(review: ReviewModel) {
                 
                 Column {
                     Text(
-                        text = review.name,
+                        text = review.customerName.ifEmpty { "Passenger" },
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         color = Color.Black
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                         Text(
-                            text = review.comment,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.DarkGray
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        repeat(5) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = Color(0xFFFFD60A),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        text = review.comment,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.DarkGray
+                    )
                 }
             }
         }
     }
 }
 
-data class ReviewModel(
-    val name: String,
-    val date: String,
-    val comment: String
-)
-
-val reviewList = listOf(
-    ReviewModel("RITHYA A/P ELMARAN", "18.06.2024", "Was Excellent!"),
-    ReviewModel("ANGELA KELLY", "18.06.2024", "Careful!"),
-    ReviewModel("FARHAN ISKANDAR", "24.04.2024", "Friendly!"),
-    ReviewModel("FATTEH MUSTAFA", "08.04.2024", "Quick!")
-)

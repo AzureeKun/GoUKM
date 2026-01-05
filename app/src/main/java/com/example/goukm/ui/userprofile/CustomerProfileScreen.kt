@@ -51,7 +51,8 @@ data class UserProfile(
     val enrolmentLevel: String = "",
     val academicStatus: String = "",
     val batch: String = "",
-    val isAvailable: Boolean = false
+    val isAvailable: Boolean = false,
+    val onlineDays: List<String> = emptyList()
 )
 
 @Composable

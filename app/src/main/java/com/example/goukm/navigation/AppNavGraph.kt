@@ -382,14 +382,18 @@ fun AppNavGraph(
         }
 
         // RIDE DONE SCREEN
-        composable(NavRoutes.RideDoneScreen.route) {
+        composable(
+            route = NavRoutes.RideDoneScreen.route,
+            arguments = listOf(
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
             RideDoneScreen(
                 navController = navController,
-                fareAmount = "RM 5",
-                carBrand = "Perodua",
-                licensePlate = "XMM404",
+                bookingId = bookingId,
                 onFeedbackSubmitted = { rating, comment ->
-                    // Navigate back to dashboard after feedback
+                    // Navigation handled inside the screen or here
                     navController.navigate(NavRoutes.CustomerDashboard.route) {
                         popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
                     }

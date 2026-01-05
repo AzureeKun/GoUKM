@@ -36,7 +36,8 @@ object UserProfileRepository {
             enrolmentLevel = doc.getString("enrolmentLevel") ?: "",
             academicStatus = doc.getString("academicStatus") ?: "",
             batch = doc.getString("batch") ?: "",
-            isAvailable = doc.getBoolean("isAvailable") ?: false
+            isAvailable = doc.getBoolean("isAvailable") ?: false,
+            onlineDays = doc.get("onlineDays") as? List<String> ?: emptyList()
         )
     }
 
@@ -146,6 +147,17 @@ object UserProfileRepository {
             val data = mapOf("fcmToken" to token)
             db.collection("users").document(uid)
                 .set(data, com.google.firebase.firestore.SetOptions.merge())
+                .await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun recordOnlineDay(uid: String) {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        try {
+            db.collection("users").document(uid)
+                .update("onlineDays", com.google.firebase.firestore.FieldValue.arrayUnion(today))
                 .await()
         } catch (e: Exception) {
             e.printStackTrace()

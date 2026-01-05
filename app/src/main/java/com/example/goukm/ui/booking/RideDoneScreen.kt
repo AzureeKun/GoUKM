@@ -18,19 +18,52 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import com.example.goukm.ui.dashboard.BottomBar
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RideDoneScreen(
     navController: NavHostController,
-    fareAmount: String = "RM 5",
-    carBrand: String = "Perodua Myvi",
-    licensePlate: String = "KFM3004",
-    driverName: String = "Angie",
+    bookingId: String,
     onFeedbackSubmitted: (Float, String) -> Unit = { _, _ -> }
 ) {
+    val scope = rememberCoroutineScope()
     var rating by remember { mutableStateOf(0f) }
     var feedbackComment by remember { mutableStateOf("") }
+    
+    var fareValue by remember { mutableStateOf("...") }
+    var carModel by remember { mutableStateOf("Loading...") }
+    var carPlate by remember { mutableStateOf("...") }
+    var driverNameText by remember { mutableStateOf("Driver") }
+    var driverId by remember { mutableStateOf("") }
+    var customerName by remember { mutableStateOf("") }
+    var customerId by remember { mutableStateOf("") }
+
+    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+
+    LaunchedEffect(bookingId) {
+        if (bookingId.isNotEmpty()) {
+            val result = bookingRepository.getBooking(bookingId)
+            result.onSuccess { booking ->
+                fareValue = "RM ${booking.offeredFare}"
+                driverId = booking.driverId ?: ""
+                customerId = booking.userId
+
+                // Fetch Driver and Customer Names
+                val driverProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
+                if (driverProfile != null) {
+                    driverNameText = driverProfile.name
+                    carModel = driverProfile.vehicleType
+                    carPlate = driverProfile.vehiclePlateNumber
+                }
+
+                val custProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId)
+                if (custProfile != null) {
+                    customerName = custProfile.name
+                }
+            }
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFE8F4FD),
@@ -119,19 +152,19 @@ fun RideDoneScreen(
 
                     Column {
                         Text(
-                            text = fareAmount,
+                            text = fareValue,
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF4CAF50)
                         )
                         Text(
-                            text = carBrand,
+                            text = carModel,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.Black.copy(alpha = 0.87f)
                         )
                         Text(
-                            text = "No Plt: $licensePlate",
+                            text = "No Plt: $carPlate",
                             fontSize = 16.sp,
                             color = Color.Gray
                         )
@@ -186,7 +219,20 @@ fun RideDoneScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             Button(
-                onClick = { onFeedbackSubmitted(rating, feedbackComment) },
+                onClick = {
+                    val finalRating = Rating(
+                        bookingId = bookingId,
+                        customerId = customerId,
+                        customerName = customerName,
+                        driverId = driverId,
+                        rating = rating,
+                        comment = feedbackComment
+                    )
+                    scope.launch {
+                        RatingRepository.submitRating(finalRating)
+                        onFeedbackSubmitted(rating, feedbackComment)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

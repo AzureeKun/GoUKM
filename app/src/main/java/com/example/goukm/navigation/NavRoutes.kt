@@ -12,7 +12,7 @@ sealed class NavRoutes(val route: String) {
     object confirmPay : NavRoutes("confirm_pay/{paymentMethod}/{bookingId}")
     object PaymentMethod : NavRoutes("payment_method") // Keeping this if needed, but we rely on BookingRequest for selection
     object PaymentQR : NavRoutes("payment_qr/{amount}/{bookingId}")
-    object RideDoneScreen : NavRoutes("ride_done")
+    object RideDoneScreen : NavRoutes("ride_done/{bookingId}")
 
     object CustomerJourneyDetailsScreen : NavRoutes ("cust_journey_details")
 

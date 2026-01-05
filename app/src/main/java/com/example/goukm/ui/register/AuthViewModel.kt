@@ -282,6 +282,13 @@ class AuthViewModel(
             
             // Update Firestore
             UserProfileRepository.updateDriverAvailability(isAvailable)
+            
+            if (isAvailable) {
+                val uid = FirebaseAuth.getInstance().currentUser?.uid
+                if (uid != null) {
+                    UserProfileRepository.recordOnlineDay(uid)
+                }
+            }
         }
     }
 

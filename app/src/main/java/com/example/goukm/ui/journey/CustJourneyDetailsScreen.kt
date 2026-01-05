@@ -125,7 +125,7 @@ fun CustomerJourneyDetailsScreen(
 
                 if (status == "COMPLETED") {
                     if (pStatus == "PAID") {
-                        navController.navigate("ride_done") {
+                        navController.navigate("ride_done/$bookingId") {
                             popUpTo("cust_journey_details/$bookingId") { inclusive = true }
                         }
                     } else {
