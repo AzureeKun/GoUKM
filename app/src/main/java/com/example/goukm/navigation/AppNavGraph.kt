@@ -361,29 +361,6 @@ fun AppNavGraph(
             )
         }
 
-        // PAYMENT QR SCREEN
-        composable(
-            route = "payment_qr/{amount}/{bookingId}",
-            arguments = listOf(
-                navArgument("amount") { type = NavType.StringType },
-                navArgument("bookingId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val amount = backStackEntry.arguments?.getString("amount") ?: "RM 0"
-            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
-            val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
-            val scope = rememberCoroutineScope()
-            
-            PaymentQRScreen(
-                totalAmount = amount,
-                onPaymentCompleted = {
-                    scope.launch {
-                        bookingRepository.updatePaymentStatus(bookingId, "PAID")
-                        navController.popBackStack("confirm_pay/{paymentMethod}/{bookingId}", inclusive = true)
-                    }
-                }
-            )
-        }
 
         // PAYMENT METHOD SCREEN
         composable(
@@ -447,6 +424,33 @@ fun AppNavGraph(
             )
         }
         
+
+        // PAYMENT QR SCREEN
+        composable(
+            route = "payment_qr/{amount}/{bookingId}",
+            arguments = listOf(
+                navArgument("amount") { type = NavType.StringType },
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val amount = backStackEntry.arguments?.getString("amount") ?: "0.00"
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
+            val scope = rememberCoroutineScope()
+            
+            PaymentQRScreen(
+                totalAmount = amount,
+                bookingId = bookingId,
+                onPaymentCompleted = {
+                    scope.launch {
+                        bookingRepository.updatePaymentStatus(bookingId, "PAID")
+                        navController.navigate("ride_done") {
+                             popUpTo("payment_qr") { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
 
         // CUSTOMER CHAT LIST
         composable(NavRoutes.CustomerChatList.route) {

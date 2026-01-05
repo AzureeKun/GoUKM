@@ -17,11 +17,42 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.ui.tooling.preview.Preview
 
+import androidx.compose.runtime.*
+import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+
 @Composable
 fun PaymentQRScreen(
     totalAmount: String,
+    bookingId: String,
     onPaymentCompleted: () -> Unit
 ) {
+    var qrCodeUrl by remember { mutableStateOf<String?>(null) }
+    var fetchedAmount by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(bookingId) {
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val bookingSnapshot = firestore.collection("bookings").document(bookingId).get().await()
+            val driverId = bookingSnapshot.getString("driverId")
+            
+            // Try fetch offeredFare (could be String or Double)
+            val fareObj = bookingSnapshot.get("offeredFare")
+            fetchedAmount = fareObj?.toString()
+
+            if (driverId != null) {
+                val driverSnapshot = firestore.collection("users").document(driverId).get().await()
+                qrCodeUrl = driverSnapshot.getString("bankQrUrl")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -45,7 +76,7 @@ fun PaymentQRScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // QR Code Placeholder
+        // QR Code Card
         Card(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
@@ -56,20 +87,34 @@ fun PaymentQRScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // In a real app, this would be an actual QR code image
-                Icon(
-                    imageVector = Icons.Default.QrCode2,
-                    contentDescription = "QR Code",
-                    modifier = Modifier.size(200.dp),
-                    tint = Color.Black
-                )
+                if (isLoading) {
+                    CircularProgressIndicator()
+                } else if (qrCodeUrl != null) {
+                   Image(
+                       painter = rememberAsyncImagePainter(qrCodeUrl),
+                       contentDescription = "Driver QR Code",
+                       modifier = Modifier.fillMaxSize()
+                   )
+                } else {
+                    // Fallback if no QR found
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = "QR Code Placeholder",
+                            modifier = Modifier.size(100.dp),
+                            tint = Color.Gray
+                        )
+                        Text("No QR Code Available", fontSize = 12.sp, color = Color.Gray)
+                        Text("Pay Cash Instead", fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = totalAmount,
+            text = "RM ${fetchedAmount ?: totalAmount}",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF6B87C0)
@@ -78,7 +123,7 @@ fun PaymentQRScreen(
         Spacer(modifier = Modifier.height(48.dp))
 
         Text(
-            text = "Please scan the QR code using your preferred banking or e-wallet app.",
+            text = "Please scan the driver's QR code using your banking app.",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center

@@ -164,7 +164,8 @@ exports.onDriverApplicationApproved = onDocumentUpdated("driverApplications/{use
                 role_driver: true,
                 licenseNumber: newData.licenseNumber || "",
                 vehiclePlateNumber: newData.vehiclePlateNumber || "",
-                vehicleType: newData.vehicleType || ""
+                vehicleType: newData.vehicleType || "",
+                bankQrUrl: newData.documents?.bank_qr || ""
             });
 
             // Send Approval Notification
