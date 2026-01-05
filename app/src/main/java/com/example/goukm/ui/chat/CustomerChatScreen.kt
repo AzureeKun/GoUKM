@@ -1,5 +1,7 @@
 package com.example.goukm.ui.chat
 
+import com.example.goukm.ui.theme.CBlue
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background

@@ -149,7 +149,8 @@ fun DriverDashboard(
                                 pickupLng = pickupLng,
                                 chatRoom = chatRoom,
                                 driverArrived = driverArrived,
-                                paymentMethod = paymentMethod
+                                paymentMethod = paymentMethod,
+                                status = status ?: ""
                             )
                         }
 
@@ -160,12 +161,15 @@ fun DriverDashboard(
                         for (doc in snapshots.documents) {
                             val status = doc.getString("status")
                             val driverId = doc.getString("driverId")
+                            val offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()
                             val model = mapToModel(doc) ?: continue
                             
-                            if (status == "PENDING") {
-                                pendingList.add(model)
-                            } else if (status == "OFFERED" && driverId == currentUserId) {
-                                offeredList.add(model)
+                            if (status == "PENDING" || status == "OFFERED") {
+                                if (offeredDriverIds.contains(currentUserId)) {
+                                    offeredList.add(model)
+                                } else {
+                                    pendingList.add(model)
+                                }
                             } else if ((status == "ACCEPTED" || status == "ONGOING") && driverId == currentUserId) {
                                 acceptedList.add(model)
                             }
@@ -250,7 +254,11 @@ fun DriverDashboard(
                                 onSkip = { 
                                     scope.launch {
                                          val encodedAddress = android.net.Uri.encode(request.pickupPoint)
-                                         navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress")
+                                         if (request.status == "ONGOING") {
+                                             navController.navigate("driver_journey_summary/${request.id}")
+                                         } else {
+                                             navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress/${request.id}")
+                                         }
                                     }
                                 },
                                 onOffer = null,

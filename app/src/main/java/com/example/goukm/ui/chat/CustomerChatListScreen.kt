@@ -28,7 +28,7 @@ import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
 
-val CBlue = Color(0xFF6B87C0)
+import com.example.goukm.ui.theme.CBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,5 +1,7 @@
 package com.example.goukm.ui.chat
 
+import com.example.goukm.ui.theme.CBlue
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

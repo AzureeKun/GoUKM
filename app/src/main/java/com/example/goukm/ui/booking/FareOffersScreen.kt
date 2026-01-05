@@ -56,16 +56,7 @@ import com.example.goukm.ui.driver.FareOfferScreen
 import com.example.goukm.ui.journey.CustomerJourneyDetailsScreen
 import com.google.firebase.auth.FirebaseAuth
 
-data class DriverOffer(
-    val name: String,
-    val fareLabel: String, // e.g., "RM 5"
-    val carBrand: String,
-    val carName: String,
-    val carColor: String,
-    val plate: String,
-    val driverId: String = "",
-    val driverPhone: String = ""
-)
+
 
 @Composable
 fun FareOffersScreen(

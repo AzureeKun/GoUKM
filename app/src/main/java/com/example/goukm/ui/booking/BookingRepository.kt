@@ -30,7 +30,19 @@ data class Booking(
     val dropOffLng: Double = 0.0,
     val driverArrived: Boolean = false,
     val paymentMethod: String = "CASH", // Default to CASH
-    val paymentStatus: String = "PENDING"
+    val paymentStatus: String = "PENDING",
+    val offeredDriverIds: List<String> = emptyList()
+)
+
+data class Offer(
+    val id: String = "",
+    val driverId: String = "",
+    val driverName: String = "",
+    val vehicleType: String = "",
+    val vehiclePlateNumber: String = "",
+    val phoneNumber: String = "",
+    val fare: String = "",
+    val timestamp: Date = Date()
 )
 
 class BookingRepository {
@@ -86,12 +98,41 @@ class BookingRepository {
         }
     }
 
-    suspend fun updateFare(bookingId: String, fare: String, driverId: String): Result<Unit> {
+    suspend fun submitOffer(bookingId: String, fare: String, driverId: String, driverName: String, vehicleType: String, vehiclePlateNumber: String, phoneNumber: String): Result<Unit> {
+        return try {
+            val offerId = bookingsCollection.document(bookingId).collection("offers").document().id
+            val offer = Offer(
+                id = offerId,
+                driverId = driverId,
+                driverName = driverName,
+                vehicleType = vehicleType,
+                vehiclePlateNumber = vehiclePlateNumber,
+                phoneNumber = phoneNumber,
+                fare = fare,
+                timestamp = Date()
+            )
+            
+            bookingsCollection.document(bookingId).collection("offers").document(offerId).set(offer).await()
+            // Also update the main document status to OFFERED and add driver to the tracking list
+            bookingsCollection.document(bookingId).update(
+                mapOf(
+                    "status" to BookingStatus.OFFERED.name,
+                    "offeredDriverIds" to com.google.firebase.firestore.FieldValue.arrayUnion(driverId)
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun acceptOffer(bookingId: String, offer: Offer): Result<Unit> {
         return try {
             bookingsCollection.document(bookingId).update(
                 mapOf(
-                    "offeredFare" to fare,
-                    "driverId" to driverId
+                    "status" to BookingStatus.ACCEPTED.name,
+                    "driverId" to offer.driverId,
+                    "offeredFare" to offer.fare
                 )
             ).await()
             Result.success(Unit)
@@ -131,7 +172,8 @@ class BookingRepository {
                     dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
                     driverArrived = doc.getBoolean("driverArrived") ?: false,
                     paymentMethod = doc.getString("paymentMethod") ?: "CASH",
-                    paymentStatus = doc.getString("paymentStatus") ?: "PENDING"
+                    paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
+                    offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()
                 )
                 Result.success(booking)
             } else {

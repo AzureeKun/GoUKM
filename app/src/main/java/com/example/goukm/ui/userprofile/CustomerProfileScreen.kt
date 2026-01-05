@@ -25,11 +25,12 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import com.example.goukm.ui.theme.CBlue
 import com.example.goukm.ui.register.AuthViewModel
 import com.example.goukm.util.DriverEligibilityChecker
 import kotlinx.coroutines.launch
 
-val CBlue = Color(0xFF6b87c0)
+
 
 data class UserProfile(
     val name: String = "",

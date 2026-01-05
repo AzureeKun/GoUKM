@@ -30,8 +30,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-val CBlue = Color(0xFF6b87c0)
-val CRed = Color(0xFFE53935)
+import com.example.goukm.ui.theme.CBlue
+import com.example.goukm.ui.theme.CRed
 
 val CanvaSansBold = FontFamily(Font(R.font.canva_sans_bold, FontWeight.Bold))
 val CanvaSansRegular = FontFamily(Font(R.font.canva_sans_regular))

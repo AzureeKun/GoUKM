@@ -1,5 +1,7 @@
 package com.example.goukm.ui.dashboard
 
+import com.example.goukm.ui.theme.CBlue
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -66,7 +68,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.example.goukm.navigation.NavRoutes
-import com.example.goukm.ui.userprofile.CBlue
 import com.example.goukm.ui.chat.ChatRepository
 import com.example.goukm.ui.chat.ChatRoom
 import kotlinx.coroutines.launch

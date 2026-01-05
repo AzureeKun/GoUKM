@@ -199,46 +199,43 @@ fun JourneySummaryScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Complete Journey Button
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFD700))
-                ) {
-                    Button(
-                        onClick = {
-                             scope.launch {
-                                  bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
-                                      .onSuccess {
-                                          navController.navigate("driver_dashboard") {
-                                              popUpTo("driver_dashboard") { inclusive = true }
-                                          }
+                Button(
+                    onClick = {
+                         scope.launch {
+                              bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
+                                  .onSuccess {
+                                      navController.navigate("driver_dashboard") {
+                                          popUpTo("driver_dashboard") { inclusive = true }
                                       }
-                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(72.dp)
-                            .padding(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                                  }
+                                  .onFailure {
+                                      android.widget.Toast.makeText(navController.context, "Failed to complete journey: ${it.message}", android.widget.Toast.LENGTH_LONG).show()
+                                  }
+                         }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700))
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "Complete Journey",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = fare,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1976D2)
-                            )
-                        }
+                        Text(
+                            text = "Complete Journey",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = fare,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1976D2)
+                        )
                     }
                 }
             }

@@ -25,7 +25,7 @@ import com.example.goukm.util.EligibilityResult
 import androidx.compose.ui.platform.LocalContext
 
 // Assuming CBlue is defined in the package scope, but defining locally for safety
-val CBlue = Color(0xFF6b87c0)
+import com.example.goukm.ui.theme.CBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -440,18 +440,6 @@ fun AppNavGraph(
             )
         }
         
-        // CONSUMER FARE OFFERS
-        composable(
-            route = "fare_offers_screen/{bookingId}",
-            arguments = listOf(
-                navArgument("bookingId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            com.example.goukm.ui.booking.FareOffersScreen(
-                navController = navController,
-                bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
-            )
-        }
 
         // CUSTOMER CHAT LIST
         composable(NavRoutes.CustomerChatList.route) {

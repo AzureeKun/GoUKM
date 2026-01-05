@@ -1,6 +1,8 @@
 // File: VerificationDocumentsWithCameraX.kt
 package com.example.goukm.ui.form
 
+import com.example.goukm.ui.theme.CBlue
+
 import android.Manifest
 import android.content.Context
 import android.net.Uri

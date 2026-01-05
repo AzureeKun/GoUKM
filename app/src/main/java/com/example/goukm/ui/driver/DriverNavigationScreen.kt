@@ -312,12 +312,14 @@ fun DriverNavigationScreen(
                 // Allow clicking Arrived even if GPS not yet fixed for testing
                 Button(
                     onClick = {
-                        // Navigate to Journey Summary
-                         navController.navigate("driver_journey_summary/$bookingId") {
-                             popUpTo(navController.graph.id) { inclusive = true } // Clear stack to prevent back nav to here? Optional.
-                             // Actually better to just pop this screen
-                             popUpTo("driver_navigation_screen") { inclusive = true }
-                         }
+                        scope.launch {
+                            val bookingRepo = com.example.goukm.ui.booking.BookingRepository()
+                            bookingRepo.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.ONGOING)
+                            // Navigate to Journey Summary
+                            navController.navigate("driver_journey_summary/$bookingId") {
+                                popUpTo("driver_navigation_screen") { inclusive = true }
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     modifier = Modifier

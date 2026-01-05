@@ -61,7 +61,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.example.goukm.navigation.NavRoutes
-import com.example.goukm.ui.userprofile.CBlue
+import com.example.goukm.ui.theme.CBlue
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -120,7 +120,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     var currentBookingId by remember { mutableStateOf<String?>(null) }
 
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
-    var currentOffer by remember { mutableStateOf<DriverOffer?>(null) }
+    var rideOffers by remember { mutableStateOf<List<DriverOffer>>(emptyList()) }
 
     LaunchedEffect(pickupLatLng, dropOffLatLng) {
         if (pickupLatLng != null && dropOffLatLng != null) {
@@ -160,10 +160,13 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     }
 
     // Restore State + Watch for Updates
-    LaunchedEffect(activeBookingId) {
-        if (!activeBookingId.isNullOrEmpty()) {
+    val effectiveBookingId = if (!activeBookingId.isNullOrEmpty()) activeBookingId else currentBookingId
+    
+    LaunchedEffect(effectiveBookingId) {
+        if (!effectiveBookingId.isNullOrEmpty()) {
+            val bookingId = effectiveBookingId!!
             // Initial fetch
-            val result = bookingRepository.getBooking(activeBookingId)
+            val result = bookingRepository.getBooking(bookingId)
             result.onSuccess { booking ->
                 currentBookingId = booking.id
                 pickupQuery = booking.pickup
@@ -174,39 +177,48 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                 isSearching = true
             }
 
-            // Real-time listener
+            // Real-time status listener
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            val docRef = db.collection("bookings").document(activeBookingId)
+            val docRef = db.collection("bookings").document(bookingId)
             val registration = docRef.addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
                 
                 val status = snapshot.getString("status")
-                val driverId = snapshot.getString("driverId") ?: ""
-                val offeredFare = snapshot.getString("offeredFare") ?: ""
 
-                if (status == "OFFERED" && driverId.isNotEmpty()) {
+                if (status == "ACCEPTED" || status == "ONGOING") {
                     scope.launch {
-                        val driver = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(driverId)
-                        if (driver != null) {
-                            currentOffer = DriverOffer(
-                                name = driver.name,
-                                fareLabel = "RM $offeredFare",
-                                carBrand = driver.vehicleType,
-                                carName = "",
-                                carColor = "",
-                                plate = driver.vehiclePlateNumber,
-                                driverId = driverId,
-                                driverPhone = driver.phoneNumber
-                            )
+                        navController.navigate("cust_journey_details/${bookingId}/${selectedPaymentMethod?.name ?: "CASH"}") {
+                            popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
                         }
                     }
-                } else if (status == "ACCEPTED" || status == "ONGOING") {
-                    navController.navigate("cust_journey_details/${activeBookingId}/${selectedPaymentMethod?.name ?: "CASH"}") {
-                        popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
-                    }
-                } else {
-                    currentOffer = null
                 }
+            }
+
+            // Real-time offers listener
+            val offersRef = docRef.collection("offers")
+            val offersRegistration = offersRef.addSnapshotListener { offersSnapshot, offersError ->
+                if (offersError != null || offersSnapshot == null) return@addSnapshotListener
+                
+                val offers = offersSnapshot.documents.mapNotNull { doc ->
+                    val driverId = doc.getString("driverId") ?: ""
+                    val driverName = doc.getString("driverName") ?: ""
+                    val fare = doc.getString("fare") ?: ""
+                    val vehicleType = doc.getString("vehicleType") ?: ""
+                    val vehiclePlateNumber = doc.getString("vehiclePlateNumber") ?: ""
+                    val phoneNumber = doc.getString("phoneNumber") ?: ""
+
+                    DriverOffer(
+                        name = driverName,
+                        fareLabel = "RM $fare",
+                        carBrand = vehicleType,
+                        carName = "",
+                        carColor = "",
+                        plate = vehiclePlateNumber,
+                        driverId = driverId,
+                        driverPhone = phoneNumber
+                    )
+                }
+                rideOffers = offers
             }
         }
     }
@@ -465,37 +477,55 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         }
                     }
 
-                    if (currentOffer != null) {
-                         Text(
-                             text = "Ride Offers",
-                             style = MaterialTheme.typography.titleMedium,
-                             fontWeight = FontWeight.Bold,
-                             modifier = Modifier.padding(top = 8.dp)
-                         )
-                         
-                         OfferCard(
-                             offer = currentOffer!!,
-                             onAccept = {
-                                 scope.launch {
-                                     val bookingId = currentBookingId ?: activeBookingId ?: return@launch
-                                     bookingRepository.updateStatus(bookingId, BookingStatus.ACCEPTED)
-                                     
-                                     val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-                                     if (currentUser != null) {
-                                         val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
-                                         com.example.goukm.ui.chat.ChatRepository.createChatRoom(
-                                             bookingId = bookingId,
-                                             customerId = currentUser.uid,
-                                             driverId = currentOffer!!.driverId,
-                                             customerName = customerProfile?.name ?: "Customer",
-                                             driverName = currentOffer!!.name,
-                                             customerPhone = customerProfile?.phoneNumber ?: "",
-                                             driverPhone = currentOffer!!.driverPhone
-                                         )
-                                     }
-                                 }
-                             }
-                         )
+                    if (rideOffers.isNotEmpty()) {
+                        Text(
+                            text = "Driver Offers",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                        rideOffers.forEach { offer ->
+                            OfferCard(
+                                offer = offer,
+                                onAccept = {
+                                    scope.launch {
+                                        try {
+                                            val bookingId = effectiveBookingId?.takeIf { it.isNotEmpty() } ?: return@launch
+                                        
+                                        // Update booking with the accepted offer details
+                                        val acceptedOffer = com.example.goukm.ui.booking.Offer(
+                                            driverId = offer.driverId,
+                                            driverName = offer.name,
+                                            vehicleType = offer.carBrand,
+                                            vehiclePlateNumber = offer.plate,
+                                            phoneNumber = offer.driverPhone,
+                                            fare = offer.fareLabel.replace("RM ", "")
+                                        )
+                                        
+                                        bookingRepository.acceptOffer(bookingId, acceptedOffer)
+                                        
+                                        val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                                        if (currentUser != null) {
+                                            val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
+                                            com.example.goukm.ui.chat.ChatRepository.createChatRoom(
+                                                bookingId = bookingId,
+                                                customerId = currentUser.uid,
+                                                driverId = offer.driverId,
+                                                customerName = customerProfile?.name ?: "Customer",
+                                                driverName = offer.name,
+                                                customerPhone = customerProfile?.phoneNumber ?: "",
+                                                driverPhone = offer.driverPhone
+                                            )
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                            android.widget.Toast.makeText(context, "Acceptance error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                 }
 
@@ -871,10 +901,7 @@ fun PaymentMethodCard(
     }
 }
 
-enum class PaymentMethod {
-    QR_DUITNOW,
-    CASH
-}
+
 
 @Composable
 fun OfferCard(

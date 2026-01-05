@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 
-val CBlue = Color(0xFF6B87C0)
-val AccentYellow = Color(0xFFFFD60A)
+import com.example.goukm.ui.theme.CBlue
+import com.example.goukm.ui.theme.AccentYellow
 val LightBlueBackground = Color(0xFFE3F2FD)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +43,17 @@ fun FareOfferScreen(
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isWaiting by remember { mutableStateOf(false) }
+    var driverProfile by remember { mutableStateOf<com.example.goukm.ui.userprofile.UserProfile?>(null) }
+
+    LaunchedEffect(Unit) {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            driverProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(uid)
+        }
+    }
+
+
 
     // Constants for Logic
     val MIN_FARE = 3.0
@@ -317,14 +328,21 @@ fun FareOfferScreen(
                         else -> {
                             if (fareAmount.isNotBlank()) {
                                 val driverId = auth.currentUser?.uid
-                                if (driverId != null) {
+                                if (driverId != null && driverProfile != null) {
                                     scope.launch {
-                                        bookingRepository.updateFare(
-                                            bookingId,
-                                            fareAmount,
-                                            driverId
+                                        bookingRepository.submitOffer(
+                                            bookingId = bookingId,
+                                            fare = fareAmount,
+                                            driverId = driverId,
+                                            driverName = driverProfile!!.name,
+                                            vehicleType = driverProfile!!.vehicleType,
+                                            vehiclePlateNumber = driverProfile!!.vehiclePlateNumber,
+                                            phoneNumber = driverProfile!!.phoneNumber
                                         )
-                                        showSuccessDialog = true
+                                        // Redirect to dashboard immediately after submitting offer
+                                        navController.navigate(com.example.goukm.navigation.NavRoutes.DriverDashboard.route) {
+                                            popUpTo(com.example.goukm.navigation.NavRoutes.DriverDashboard.route) { inclusive = true }
+                                        }
                                     }
                                 }
                             }
@@ -350,52 +368,6 @@ fun FareOfferScreen(
             }
         }
 
-        // Success Dialog
-        if (showSuccessDialog) {
-            AlertDialog(
-                onDismissRequest = { },
-                containerColor = Color.White,
-                title = {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            "✅",
-                            fontSize = 48.sp
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Offer Submitted!",
-                            fontWeight = FontWeight.Bold,
-                            color = CBlue
-                        )
-                    }
-                },
-                text = {
-                    Text(
-                        "Your fare offer of RM $fareAmount has been sent to $customerName.",
-                        modifier = Modifier.fillMaxWidth(),
-                        fontSize = 16.sp
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showSuccessDialog = false
-                            // Navigate to Driver Navigation (simulating flow where offer is accepted immediately or we go to nav)
-                            // Encode pickup address to ensure URL safety
-                            val encodedPickup = java.net.URLEncoder.encode(pickup, "UTF-8")
-                            navController.navigate("driver_navigation_screen/0.0/0.0/$encodedPickup/$bookingId")
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = CBlue),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Done", color = Color.White)
-                    }
-                },
-                shape = RoundedCornerShape(16.dp)
-            )
-        }
+
     }
 }

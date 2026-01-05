@@ -1,5 +1,7 @@
     package com.example.goukm.ui.register
 
+import com.example.goukm.ui.theme.CBlue
+
     import androidx.compose.foundation.Image
     import androidx.compose.foundation.background
     import androidx.compose.foundation.layout.Arrangement
