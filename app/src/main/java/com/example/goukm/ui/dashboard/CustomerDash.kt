@@ -407,7 +407,7 @@ private fun ActiveBookingCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         onClick = {
             if (isOffered) {
-                navController.navigate("fare_offers_screen/${activeBooking.id}")
+                navController.navigate("booking_request?bookingId=${activeBooking.id}")
             }
         }
     ) {

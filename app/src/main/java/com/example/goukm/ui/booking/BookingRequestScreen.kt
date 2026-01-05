@@ -493,16 +493,16 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                         try {
                                             val bookingId = effectiveBookingId?.takeIf { it.isNotEmpty() } ?: return@launch
                                         
-                                        // Update booking with the accepted offer details
-                                        val acceptedOffer = com.example.goukm.ui.booking.Offer(
-                                            driverId = offer.driverId,
-                                            driverName = offer.name,
-                                            vehicleType = offer.carBrand,
-                                            vehiclePlateNumber = offer.plate,
-                                            phoneNumber = offer.driverPhone,
-                                            fare = offer.fareLabel.replace("RM ", "")
-                                        )
-                                        
+                                            // Update booking with the accepted offer details
+                                            val acceptedOffer = com.example.goukm.ui.booking.Offer(
+                                                driverId = offer.driverId,
+                                                driverName = offer.name,
+                                                vehicleType = offer.carBrand,
+                                                vehiclePlateNumber = offer.plate,
+                                                phoneNumber = offer.driverPhone,
+                                                fare = offer.fareLabel.replace("RM ", "")
+                                            )
+                                            
                                             bookingRepository.acceptOffer(bookingId, acceptedOffer)
                                             
                                             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
