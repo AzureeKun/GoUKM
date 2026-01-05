@@ -74,6 +74,7 @@ fun CustomerJourneyDetailsScreen(
     val bookingId = navController.currentBackStackEntry?.arguments?.getString("bookingId") ?: ""
     var paymentStatus by remember { mutableStateOf(initialPaymentStatus) }
     var showArrivedAlert by remember { mutableStateOf(false) }
+    var isDriverArrived by remember { mutableStateOf(false) }
     
     val currentPaymentStatus = navController.currentBackStackEntry?.savedStateHandle
         ?.getStateFlow("paymentStatus", initialPaymentStatus)
@@ -89,8 +90,10 @@ fun CustomerJourneyDetailsScreen(
                 
                 val status = snapshot.getString("status")
                 val pStatus = snapshot.getString("paymentStatus") ?: "PENDING"
+                val arrived = snapshot.getBoolean("driverArrived") ?: false
                 
                 paymentStatus = pStatus
+                isDriverArrived = arrived
 
                 if (status == "COMPLETED") {
                     if (pStatus == "PAID") {
@@ -306,18 +309,20 @@ fun CustomerJourneyDetailsScreen(
             }
             
             // Optional: Floating Pill "Your driver is on the way"
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 40.dp)
-                    .background(Color(0xFF6B87C0), RoundedCornerShape(50))
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = "Your driver is on the way",
-                    color = Color.White,
-                    fontWeight = FontWeight.Medium
-                )
+            if (!isDriverArrived) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 40.dp)
+                        .background(Color(0xFF6B87C0), RoundedCornerShape(50))
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = "Your driver is on the way",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
