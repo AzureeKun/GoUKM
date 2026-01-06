@@ -160,7 +160,9 @@ fun DriverProfileScreen(
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Vehicle Details", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
                         Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Vehicle Type", value = user.vehicleType.ifEmpty { "Not specified" })
+                        ReadOnlyField(label = "Car Brand", value = user.carBrand.ifEmpty { "Not specified" })
+                        Spacer(Modifier.height(12.dp))
+                        ReadOnlyField(label = "Car Color", value = user.carColor.ifEmpty { "Not specified" })
                         Spacer(Modifier.height(12.dp))
                         ReadOnlyField(label = "Plate Number", value = user.vehiclePlateNumber.ifEmpty { "Not specified" })
                         Spacer(Modifier.height(12.dp))

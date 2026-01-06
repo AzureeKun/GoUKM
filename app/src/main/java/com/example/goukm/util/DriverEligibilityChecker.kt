@@ -75,8 +75,8 @@ object DriverEligibilityChecker {
             )
         }
         
-        // For older batches (A18 and earlier), only allow if they have active status
-        // This handles edge cases where alumni might still have active status
+        // For older batches (A18 and earlier), allow if "Mendaftar" (e.g., extending studies)
+        // Disallow if "Tamat Pengajian" (handled above)
         if (batchNum <= 18 && user.academicStatus == "Mendaftar") {
             return EligibilityResult(
                 isEligible = true,

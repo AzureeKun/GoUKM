@@ -30,6 +30,8 @@ object UserProfileRepository {
             licenseNumber = doc.getString("licenseNumber") ?: "",
             vehiclePlateNumber = doc.getString("vehiclePlateNumber") ?: "",
             vehicleType = doc.getString("vehicleType") ?: "",
+            carBrand = doc.getString("carBrand") ?: "",
+            carColor = doc.getString("carColor") ?: "",
             faculty = doc.getString("faculty") ?: "",
             academicProgram = doc.getString("academicProgram") ?: "",
             yearOfStudy = (doc.getLong("yearOfStudy") ?: 0).toInt(),
@@ -38,7 +40,51 @@ object UserProfileRepository {
             batch = doc.getString("batch") ?: "",
             isAvailable = doc.getBoolean("isAvailable") ?: false,
             onlineDays = doc.get("onlineDays") as? List<String> ?: emptyList()
-        )
+        ).let { user ->
+            // --- FIX/REPAIR LOGIC ---
+            // If user is a driver but essential details are missing (common for old accounts),
+            // proactively fetch from their application and sync it to the user profile.
+            val missingInfo = user.role_driver && (
+                user.carBrand.isEmpty() || 
+                user.carColor.isEmpty() || 
+                user.licenseNumber.isEmpty() || 
+                user.vehiclePlateNumber.isEmpty()
+            )
+
+            if (missingInfo) {
+                try {
+                    val appDoc = db.collection("driverApplications").document(targetUid).get().await()
+                    if (appDoc.exists()) {
+                        val brand = appDoc.getString("carBrand") ?: ""
+                        val color = appDoc.getString("carColor") ?: ""
+                        val license = appDoc.getString("licenseNumber") ?: ""
+                        val plate = appDoc.getString("vehiclePlateNumber") ?: ""
+
+                        val updates = mutableMapOf<String, Any>()
+                        if (user.carBrand.isEmpty() && brand.isNotEmpty()) updates["carBrand"] = brand
+                        if (user.carColor.isEmpty() && color.isNotEmpty()) updates["carColor"] = color
+                        if (user.licenseNumber.isEmpty() && license.isNotEmpty()) updates["licenseNumber"] = license
+                        if (user.vehiclePlateNumber.isEmpty() && plate.isNotEmpty()) updates["vehiclePlateNumber"] = plate
+
+                        if (updates.isNotEmpty()) {
+                            // Update Firestore proactively for next time
+                            db.collection("users").document(targetUid).update(updates)
+                            
+                            // Return the "repaired" user object for immediate UI update
+                            return@let user.copy(
+                                carBrand = if (user.carBrand.isEmpty()) brand else user.carBrand,
+                                carColor = if (user.carColor.isEmpty()) color else user.carColor,
+                                licenseNumber = if (user.licenseNumber.isEmpty()) license else user.licenseNumber,
+                                vehiclePlateNumber = if (user.vehiclePlateNumber.isEmpty()) plate else user.vehiclePlateNumber
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            user
+        }
     }
 
     // Upload gambar ke Storage dan return download URL
@@ -63,6 +109,8 @@ object UserProfileRepository {
             "licenseNumber" to user.licenseNumber,
             "vehiclePlateNumber" to user.vehiclePlateNumber,
             "vehicleType" to user.vehicleType,
+            "carBrand" to user.carBrand,
+            "carColor" to user.carColor,
             "faculty" to user.faculty,
             "academicProgram" to user.academicProgram,
             "yearOfStudy" to user.yearOfStudy,

@@ -74,7 +74,7 @@ exports.sendNewOfferNotification = onDocumentUpdated("bookings/{bookingId}", asy
         console.log(`New Offer: Booking ${event.params.bookingId}, Fare ${fare}`);
 
         // Get Customer Token
-        const userDoc = await admin.firestore().collection("users").document(userId).get();
+        const userDoc = await admin.firestore().collection("users").doc(userId).get();
         if (!userDoc.exists) return null;
 
         const token = userDoc.data().fcmToken;
@@ -82,7 +82,7 @@ exports.sendNewOfferNotification = onDocumentUpdated("bookings/{bookingId}", asy
         // Get Driver Name
         let driverName = "A Driver";
         if (driverId) {
-            const driverDoc = await admin.firestore().collection("users").document(driverId).get();
+            const driverDoc = await admin.firestore().collection("users").doc(driverId).get();
             if (driverDoc.exists) {
                 driverName = driverDoc.data().name || "A Driver";
             }
@@ -123,13 +123,14 @@ exports.sendOfferAcceptedNotification = onDocumentUpdated("bookings/{bookingId}"
         if (!driverId) return null;
 
         // Get Driver Token
-        const driverDoc = await admin.firestore().collection("users").document(driverId).get();
+        const driverDoc = await admin.firestore().collection("users").doc(driverId).get();
         if (!driverDoc.exists) return null;
 
         const token = driverDoc.data().fcmToken;
 
         // Get Customer Name
-        const userDoc = await admin.firestore().collection("users").document(userId).get();
+        const userDoc = await admin.firestore().collection("users").doc(userId).get();
+        if (!userDoc.exists) return null;
         const customerName = userDoc.data().name || "Customer";
 
         if (!token) return null;
@@ -160,16 +161,18 @@ exports.onDriverApplicationApproved = onDocumentUpdated("driverApplications/{use
 
         try {
             // Upgrade user role in Firestore
-            await admin.firestore().collection("users").document(userId).update({
+            await admin.firestore().collection("users").doc(userId).update({
                 role_driver: true,
                 licenseNumber: newData.licenseNumber || "",
                 vehiclePlateNumber: newData.vehiclePlateNumber || "",
-                vehicleType: newData.vehicleType || "",
+                vehicleType: "Car",
+                carBrand: newData.carBrand || "",
+                carColor: newData.carColor || "",
                 bankQrUrl: newData.documents?.bank_qr || ""
             });
 
             // Send Approval Notification
-            const userDoc = await admin.firestore().collection("users").document(userId).get();
+            const userDoc = await admin.firestore().collection("users").doc(userId).get();
             if (userDoc.exists && userDoc.data().fcmToken) {
                 const token = userDoc.data().fcmToken;
                 await getMessaging().send({
@@ -195,7 +198,7 @@ exports.onDriverApplicationApproved = onDocumentUpdated("driverApplications/{use
         const reason = newData.rejectionReason || "Please ensure your documents are clear and valid.";
 
         try {
-            const userDoc = await admin.firestore().collection("users").document(userId).get();
+            const userDoc = await admin.firestore().collection("users").doc(userId).get();
             if (userDoc.exists && userDoc.data().fcmToken) {
                 const token = userDoc.data().fcmToken;
                 await getMessaging().send({

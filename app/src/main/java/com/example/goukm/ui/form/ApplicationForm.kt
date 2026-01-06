@@ -40,13 +40,14 @@ fun DriverApplicationFormScreen(
     // --- State for Form Fields ---
     var licenseNumber by remember { mutableStateOf(applicationViewModel.licenseNumber) }
     var vehiclePlateNumber by remember { mutableStateOf(applicationViewModel.vehiclePlateNumber) }
-    var selectedVehicleType by remember { mutableStateOf(applicationViewModel.vehicleType) }
-    var acceptedTerms by remember { mutableStateOf(false) }
+    var carBrand by remember { mutableStateOf(applicationViewModel.carBrand) }
+    var carColor by remember { mutableStateOf(applicationViewModel.carColor) }
     val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
 
-    val vehicleTypes = listOf("Motorcycle", "Car", "Van")
-    
+    val carBrands = listOf("Perodua", "Proton", "Honda", "Toyota", "Nissan", "Mazda", "Mitsubishi", "Kia", "Hyundai", "BMW", "Mercedes-Benz", "Ford", "Subaru", "Volkswagen", "Other")
+    val carColors = listOf("White", "Black", "Silver", "Grey", "Red", "Blue", "Green", "Yellow", "Orange", "Brown", "Others")
+
     // Check eligibility
     val eligibilityResult = remember(currentUser) {
         currentUser?.let { DriverEligibilityChecker.checkEligibility(it) }
@@ -56,7 +57,7 @@ fun DriverApplicationFormScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Step 1 of 4: Enter Vehicle Details", color = Color.White) },
+                title = { Text("Step 1 of 3: Enter Vehicle Details", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -164,52 +165,47 @@ fun DriverApplicationFormScreen(
             }
 
             item {
-                // --- Vehicle Type Selection (Dropdown/Exposed Dropdown Menu) ---
-                VehicleTypeDropdown(
-                    selectedType = selectedVehicleType,
-                    onTypeSelected = { selectedVehicleType = it },
-                    vehicleTypes = vehicleTypes
+                // --- Car Brand Selection ---
+                SelectionDropdown(
+                    label = "Car Brand",
+                    selectedOption = carBrand,
+                    onOptionSelected = { carBrand = it },
+                    options = carBrands
                 )
                 Spacer(Modifier.height(16.dp))
             }
 
             item {
-                // --- Terms and Conditions Checkbox ---
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = acceptedTerms,
-                        onCheckedChange = { acceptedTerms = it },
-                        colors = CheckboxDefaults.colors(checkedColor = CBlue)
-                    )
-                    Text(
-                        "I agree to the Driver Terms and Conditions.",
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
-                Spacer(Modifier.height(32.dp))
+                // --- Car Color Selection ---
+                SelectionDropdown(
+                    label = "Car Color",
+                    selectedOption = carColor,
+                    onOptionSelected = { carColor = it },
+                    options = carColors
+                )
+                Spacer(Modifier.height(16.dp))
             }
+
 
             item {
                 // --- Submission Button ---
                 Button(
                     onClick = {
-                        if (acceptedTerms && licenseNumber.isNotBlank() && vehiclePlateNumber.isNotBlank()) {
+                        if (licenseNumber.isNotBlank() && vehiclePlateNumber.isNotBlank() && carBrand.isNotBlank() && carColor.isNotBlank()) {
                             applicationViewModel.setVehicleInfo(
                                 license = licenseNumber,
                                 plate = vehiclePlateNumber,
-                                type = selectedVehicleType
+                                brand = carBrand,
+                                color = carColor
                             )
                                     onApplicationSubmit()
                         }
                     },
                     enabled = eligibilityResult.isEligible &&
-                            acceptedTerms &&
                             licenseNumber.isNotBlank() &&
                             vehiclePlateNumber.isNotBlank() &&
+                            carBrand.isNotBlank() &&
+                            carColor.isNotBlank() &&
                             applicationStatus != "under_review",
                     colors = ButtonDefaults.buttonColors(containerColor = CBlue),
                     modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -229,10 +225,11 @@ fun DriverApplicationFormScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VehicleTypeDropdown(
-    selectedType: String,
-    onTypeSelected: (String) -> Unit,
-    vehicleTypes: List<String>
+fun SelectionDropdown(
+    label: String,
+    selectedOption: String,
+    onOptionSelected: (String) -> Unit,
+    options: List<String>
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -242,10 +239,10 @@ fun VehicleTypeDropdown(
         modifier = Modifier.fillMaxWidth()
     ) {
         OutlinedTextField(
-            value = selectedType,
+            value = selectedOption,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Vehicle Type") },
+            label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
                 focusedBorderColor = CBlue,
@@ -259,11 +256,11 @@ fun VehicleTypeDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            vehicleTypes.forEach { selectionOption ->
+            options.forEach { selectionOption ->
                 DropdownMenuItem(
                     text = { Text(selectionOption) },
                     onClick = {
-                        onTypeSelected(selectionOption)
+                        onOptionSelected(selectionOption)
                         expanded = false
                     },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding

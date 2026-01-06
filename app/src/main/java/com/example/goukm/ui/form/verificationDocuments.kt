@@ -98,7 +98,7 @@ fun verificationDocuments(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Step 3 of 4: Upload Documents", color = Color.White) },
+                title = { Text("Step 3 of 3: Upload Documents", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -176,9 +176,28 @@ fun verificationDocuments(
                 Text(viewModel.lastError!!, color = Color.Red, modifier = Modifier.padding(bottom = 8.dp))
             }
 
+            var acceptedTerms by remember { mutableStateOf(false) }
+
+            // --- Terms and Conditions Checkbox ---
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = acceptedTerms,
+                    onCheckedChange = { acceptedTerms = it },
+                    colors = CheckboxDefaults.colors(checkedColor = CBlue)
+                )
+                Text(
+                    "I agree to the Driver Terms and Conditions.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
             Button(
                 onClick = {
-                    if (drivingLicenseUri != null && vehicleGrantUri != null && bankQrUri != null) {
+                    if (drivingLicenseUri != null && vehicleGrantUri != null && bankQrUri != null && acceptedTerms) {
                         viewModel.setDocuments(drivingLicenseUri, vehicleGrantUri, bankQrUri)
                         scope.launch {
                             val success = viewModel.submitApplication(context)
@@ -188,14 +207,10 @@ fun verificationDocuments(
                         }
                     }
                 },
-                enabled = drivingLicenseUri != null && vehicleGrantUri != null && bankQrUri != null && !viewModel.isSubmitting,
+                enabled = drivingLicenseUri != null && vehicleGrantUri != null && bankQrUri != null && acceptedTerms && !viewModel.isSubmitting,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (viewModel.isSubmitting) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                } else {
-                    Text("Submit Application")
-                }
+                Text("Submit Application")
             }
         }
 
@@ -206,6 +221,36 @@ fun verificationDocuments(
                 onCancel = { showCameraOverlay = false; capturingType = null },
                 executor = executor
             )
+        }
+
+        // Submission Loading Dialog
+        if (viewModel.isSubmitting) {
+             androidx.compose.ui.window.Dialog(onDismissRequest = { /* Prevent dismiss */ }) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = CBlue)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Submitting Application...",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.Black
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Please wait while we upload your documents.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
         }
 
         // File too large dialog

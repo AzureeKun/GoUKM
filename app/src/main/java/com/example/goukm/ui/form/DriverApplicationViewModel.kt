@@ -21,7 +21,9 @@ class DriverApplicationViewModel : ViewModel() {
     // Vehicle info
     var licenseNumber by mutableStateOf("")
     var vehiclePlateNumber by mutableStateOf("")
-    var vehicleType by mutableStateOf("Motorcycle")
+    var vehicleType by mutableStateOf("Car")
+    var carBrand by mutableStateOf("")
+    var carColor by mutableStateOf("")
 
     // Image selections
     var icFrontUri by mutableStateOf<Uri?>(null)
@@ -33,10 +35,12 @@ class DriverApplicationViewModel : ViewModel() {
     var isSubmitting by mutableStateOf(false)
     var lastError by mutableStateOf<String?>(null)
 
-    fun setVehicleInfo(license: String, plate: String, type: String) {
+    fun setVehicleInfo(license: String, plate: String, brand: String, color: String) {
         licenseNumber = license
         vehiclePlateNumber = plate
-        vehicleType = type
+        carBrand = brand
+        carColor = color
+        vehicleType = "Car"
     }
 
     fun setIc(front: Uri?, back: Uri?) {
@@ -55,8 +59,8 @@ class DriverApplicationViewModel : ViewModel() {
         val firestore = FirebaseFirestore.getInstance()
         val storage = FirebaseStorage.getInstance().reference
 
-        if (licenseNumber.isBlank() || vehiclePlateNumber.isBlank()) {
-            lastError = "Please complete vehicle and license details."
+        if (licenseNumber.isBlank() || vehiclePlateNumber.isBlank() || carBrand.isBlank() || carColor.isBlank()) {
+            lastError = "Please complete vehicle details."
             return false
         }
 
@@ -99,6 +103,8 @@ class DriverApplicationViewModel : ViewModel() {
                 "licenseNumber" to licenseNumber,
                 "vehiclePlateNumber" to vehiclePlateNumber,
                 "vehicleType" to vehicleType,
+                "carBrand" to carBrand,
+                "carColor" to carColor,
                 "status" to "under_review",
                 "submittedAt" to FieldValue.serverTimestamp(),
                 "documents" to uploads

@@ -44,6 +44,8 @@ data class UserProfile(
     val licenseNumber: String = "",
     val vehiclePlateNumber: String = "",
     val vehicleType: String = "",
+    val carBrand: String = "",
+    val carColor: String = "",
     // Academic information from SMPWeb
     val faculty: String = "",
     val academicProgram: String = "",

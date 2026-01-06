@@ -233,7 +233,7 @@ fun verificationIC(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Step 2 of 4: Upload Identity Card For Verification", color = Color.White) },
+                title = { Text("Step 2 of 3: Upload Identity Card For Verification", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
