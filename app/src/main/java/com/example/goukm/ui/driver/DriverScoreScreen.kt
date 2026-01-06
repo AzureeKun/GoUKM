@@ -428,12 +428,6 @@ fun ReviewItemCard(review: com.example.goukm.ui.booking.Rating) {
                 Spacer(modifier = Modifier.width(16.dp))
                 
                 Column {
-                    Text(
-                        text = review.customerName.ifEmpty { "Passenger" },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = Color.Black
-                    )
                     if (review.pickup.isNotEmpty() && review.dropOff.isNotEmpty()) {
                         Text(
                             text = "To ${review.dropOff}",

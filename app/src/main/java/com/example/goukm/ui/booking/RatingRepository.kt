@@ -42,10 +42,10 @@ object RatingRepository {
         return try {
             val snapshot = ratingsCollection
                 .whereEqualTo("driverId", driverId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .await()
             val ratings = snapshot.toObjects(Rating::class.java)
+                .sortedByDescending { it.timestamp }
             Result.success(ratings)
         } catch (e: Exception) {
             Result.failure(e)
@@ -66,9 +66,9 @@ object RatingRepository {
                 0f
             }
 
-            val completedJobsSnapshot = bookingsCollection
+            val journeysCollection = db.collection("journeys")
+            val completedJobsSnapshot = journeysCollection
                 .whereEqualTo("driverId", driverId)
-                .whereEqualTo("status", "COMPLETED")
                 .get()
                 .await()
             
