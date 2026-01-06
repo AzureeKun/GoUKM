@@ -97,6 +97,7 @@ fun CustomerJourneyDetailsScreen(
     var passengerName by remember { mutableStateOf("Passenger") }
     var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
     var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
+    var driverRating by remember { mutableStateOf("New") }
 
     val currentPaymentStatus = navController.currentBackStackEntry?.savedStateHandle
         ?.getStateFlow("paymentStatus", initialPaymentStatus)
@@ -180,6 +181,14 @@ fun CustomerJourneyDetailsScreen(
                         carPlate = userProfile.vehiclePlateNumber
                     }
 
+                    // Fetch Driver Stats (Rating)
+                    val stats = com.example.goukm.ui.booking.RatingRepository.getDriverStats(booking.driverId)
+                    driverRating = if (stats.totalReviews > 0) {
+                        String.format("%.1f", stats.averageRating)
+                    } else {
+                        "New"
+                    }
+
                     // Fetch Chat Room ID
                     val chatRoomResult = com.example.goukm.ui.chat.ChatRepository.getChatRoomByBookingId(bookingId)
                     chatRoomResult.onSuccess { room ->
@@ -242,6 +251,7 @@ fun CustomerJourneyDetailsScreen(
                     driverPhone = driverPhone,
                     carModel = carModel,
                     carPlate = carPlate,
+                    driverRating = driverRating,
                     fare = fareAmount
                 )
 
@@ -419,6 +429,7 @@ fun DriverInfoCard(
     driverPhone: String,
     carModel: String,
     carPlate: String,
+    driverRating: String,
     fare: String
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -470,7 +481,7 @@ fun DriverInfoCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "4.9",
+                            text = driverRating,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
