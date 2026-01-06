@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,70 +31,69 @@ import androidx.navigation.NavHostController
 import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.dashboard.BottomNavigationBarDriver
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
-import kotlin.random.Random
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.goukm.ui.booking.Booking
+import java.time.ZoneId
+import java.util.Date
 
 val LightGreen = Color(0xFF4CAF50)
 
 // Data Models
-data class Transaction(
-    val id: String,
-    val customerName: String,
-    val date: String,
-    val amount: Double,
-    val route: String
-)
-
 data class BarData(
     val label: String,
     val value: Float,
-    val fullDate: String = "" // For tooltip or details if needed
+    val fullDate: String = "" 
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DriverEarningScreen(navController: NavHostController) {
-    var selectedNavIndex by remember { mutableStateOf(2) }
+fun DriverEarningScreen(
+    navController: NavHostController,
+    viewModel: DriverEarningViewModel = viewModel()
+) {
+    var selectedNavIndex = 2
     
-    // Main Period Selection: Day, Week, Month, Year
-    var selectedPeriod by remember { mutableStateOf("Day") }
-    
-    // Graph Granularity (Sub-selection): e.g. for Year -> Month, Week, Day
-    var graphGranularity by remember { mutableStateOf("Hour") } 
-    
-    // Current Anchor Date
-    var currentDate by remember { mutableStateOf(LocalDate.now()) }
+    val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    val graphGranularity by viewModel.graphGranularity.collectAsState()
+    val currentDate by viewModel.currentDate.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
-    // Update graph granularity default when main period changes
-    LaunchedEffect(selectedPeriod) {
-        graphGranularity = when (selectedPeriod) {
-            "Day" -> "Hour"
-            "Week" -> "Day"
-            "Month" -> "Day" // Default to Day, can switch to Week
-            "Year" -> "Month" // Default to Month, can switch to Week, Day
-            else -> "Day"
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        val newDate = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                        // Since we don't have a direct setDate, we'll need to move it or add a setDate method.
+                        // For simplicity, let's assume we can add setDate to ViewModel or just move it relative.
+                        // I'll add setDate to ViewModel.
+                        viewModel.moveDateByEpoch(it)
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 
-    // Mock Data Generation based on state
-    val graphData = remember(selectedPeriod, graphGranularity, currentDate) {
-        generateMockGraphData(selectedPeriod, graphGranularity, currentDate)
-    }
-
-    val totalRides = remember(graphData) {
-        graphData.sumOf { it.value.toInt() }
-    }
-
-    val currentEarnings = remember(totalRides) {
-        // Mock average fare between RM 5.00 and 15.00
-        totalRides * (5.0 + Random.nextDouble() * 10.0)
-    }
-    
-    val totalHours = "107h 20m" // Mock
-
-    // Date Range Display String
     val dateRangeText = remember(selectedPeriod, currentDate) {
         getDateRangeLabel(selectedPeriod, currentDate)
     }
@@ -143,7 +143,7 @@ fun DriverEarningScreen(navController: NavHostController) {
                 PeriodSelector(
                     periods = listOf("Day", "Week", "Month", "Year"),
                     selectedPeriod = selectedPeriod,
-                    onPeriodSelected = { selectedPeriod = it }
+                    onPeriodSelected = { viewModel.setPeriod(it) }
                 )
             }
 
@@ -151,16 +151,13 @@ fun DriverEarningScreen(navController: NavHostController) {
             item {
                 EarningsNavigationCard(
                     dateRangeText = dateRangeText,
-                    earnings = currentEarnings,
-                    rides = totalRides,
-                    hours = totalHours,
+                    earnings = uiState.totalEarnings,
+                    rides = uiState.rideCount,
+                    hours = "107h 20m", // Placeholder for hours if not tracked
                     description = "this ${selectedPeriod.lowercase()}",
-                    onPrevClick = {
-                        currentDate = moveDate(currentDate, selectedPeriod, -1)
-                    },
-                    onNextClick = {
-                        currentDate = moveDate(currentDate, selectedPeriod, 1)
-                    }
+                    onPrevClick = { viewModel.moveDate(-1) },
+                    onNextClick = { viewModel.moveDate(1) },
+                    onDateClick = { showDatePicker = true }
                 )
             }
 
@@ -176,7 +173,8 @@ fun DriverEarningScreen(navController: NavHostController) {
                         Text(
                             text = dateRangeText, 
                             fontSize = 14.sp, 
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clickable { showDatePicker = true }
                         )
                         Spacer(Modifier.height(8.dp))
 
@@ -185,7 +183,7 @@ fun DriverEarningScreen(navController: NavHostController) {
                            SubPeriodSelector(
                                mainPeriod = selectedPeriod,
                                selectedSubPeriod = graphGranularity,
-                               onSelect = { graphGranularity = it }
+                               onSelect = { viewModel.setGranularity(it) }
                            )
                            Spacer(Modifier.height(12.dp))
                         }
@@ -199,7 +197,7 @@ fun DriverEarningScreen(navController: NavHostController) {
 
                         // Bar Chart
                         BarChart(
-                            data = graphData,
+                            data = uiState.graphData,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(200.dp)
@@ -208,18 +206,23 @@ fun DriverEarningScreen(navController: NavHostController) {
                 }
             }
 
-            // 4. Recent Ride Header & Mock Transaction
-            item {
-                Text(
-                    "Recent Ride",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                )
-            }
-            item {
-                 // Reusing TransactionCard logic but simpler for "Recent Ride"
-                 RecentRideCard()
+            // 4. Recent Ride Header & Transaction
+            if (uiState.recentRide != null) {
+                item {
+                    Text(
+                        "Recent Ride",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                }
+                item {
+                     RecentRideCard(uiState.recentRide!!)
+                }
+            } else {
+                item {
+                    EmptyStateCard(message = "No rides found for this period")
+                }
             }
             
             item {
@@ -321,10 +324,11 @@ fun EarningsNavigationCard(
     hours: String,
     description: String,
     onPrevClick: () -> Unit,
-    onNextClick: () -> Unit
+    onNextClick: () -> Unit,
+    onDateClick: () -> Unit = {}
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onDateClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -374,8 +378,8 @@ fun EarningsNavigationCard(
                      Text("$rides Rides", fontWeight = FontWeight.SemiBold, color = Color.Gray)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                     Icon(// Use a clock icon if available, or simplified
-                         Icons.Default.AttachMoney, // Placeholder if no clock icon in scope
+                     Icon(
+                         Icons.Default.AttachMoney, 
                          contentDescription = null, tint = Color.Black 
                      )
                      Spacer(Modifier.width(8.dp))
@@ -387,13 +391,39 @@ fun EarningsNavigationCard(
 }
 
 @Composable
+fun EmptyStateCard(message: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth().height(150.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Default.TrendingUp, 
+                contentDescription = null, 
+                tint = Color.LightGray, 
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(message, color = Color.Gray, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
 fun BarChart(
     data: List<BarData>,
     modifier: Modifier = Modifier
 ) {
-    if (data.isEmpty()) return
-
-    val maxVal = data.maxOf { it.value }
+    // If all values are 0, it's an empty state
+    val maxVal = if (data.isEmpty()) 0f else data.maxOf { it.value }
+    val isEmpty = maxVal == 0f
+    
     // Round up max value to nearest 5 for nicer Y-axis steps
     val yStep = 5
     val yMax = if (maxVal == 0f) 5f else (kotlin.math.ceil(maxVal / yStep) * yStep).toFloat()
@@ -515,7 +545,10 @@ fun BarChart(
 }
 
 @Composable
-fun RecentRideCard() {
+fun RecentRideCard(booking: Booking) {
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy - h:mm a")
+    val dateStr = booking.timestamp.toInstant().atZone(ZoneId.systemDefault()).format(formatter)
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -533,23 +566,22 @@ fun RecentRideCard() {
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.TrendingUp, contentDescription = null, tint = Color.White) // Placeholder avatar
+                Icon(Icons.Default.Person, contentDescription = null, tint = Color.White)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("ANGELA KELLY", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("23/08/2025 - 8:17 pm", color = Color(0xFFFFA000), fontSize = 12.sp)
+                Text("CUSTOMER #${booking.userId.takeLast(4)}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(dateStr, color = Color(0xFFFFA000), fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("Trip Total", fontSize = 10.sp, color = Color.Gray)
-                Text("RM 10", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("RM ${booking.offeredFare}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
     }
 }
 
 
-// --- Logic Helper Functions ---
 
 fun getDateRangeLabel(period: String, date: LocalDate): String {
     val formatter = DateTimeFormatter.ofPattern("dd MMMM yyyy")
@@ -563,52 +595,5 @@ fun getDateRangeLabel(period: String, date: LocalDate): String {
         "Month" -> date.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
         "Year" -> date.format(DateTimeFormatter.ofPattern("yyyy"))
         else -> ""
-    }
-}
-
-fun moveDate(current: LocalDate, period: String, direction: Int): LocalDate {
-    return when (period) {
-        "Day" -> current.plusDays(direction.toLong())
-        "Week" -> current.plusWeeks(direction.toLong())
-        "Month" -> current.plusMonths(direction.toLong())
-        "Year" -> current.plusYears(direction.toLong())
-        else -> current
-    }
-}
-
-fun generateMockGraphData(period: String, granularity: String, date: LocalDate): List<BarData> {
-    val random = Random(date.hashCode()) // Consistent random per date
-    
-    return when (granularity) {
-        "Hour" -> {
-            // 6AM to 11PM
-            val hours = listOf("6AM","7AM","8AM","9AM","10AM","11AM","12PM","1PM","2PM","3PM","4PM","5PM","6PM","7PM","11PM")
-            hours.map { BarData(it, random.nextFloat() * 5) } // Max 5 rides per hour
-        }
-        "Day" -> {
-            // Mon - Sun for Week view, or 1-30 for Month view
-            if (period == "Week") {
-                listOf("Mon","Tue","Wed","Thu","Fri","Sat","Sun").map { 
-                    BarData(it, random.nextFloat() * 15) // Max 15 rides per day
-                }
-            } else if (period == "Month") {
-                 val daysInMonth = date.lengthOfMonth()
-                 (1..daysInMonth).map { 
-                     BarData(if(it % 5 == 0 || it == 1) "$it" else "", random.nextFloat() * 12)
-                 }
-            } else { 
-                 (1..12).map { BarData("$it", random.nextFloat() * 20) }
-            }
-        }
-        "Week" -> {
-            // 4-5 weeks in a month
-             (1..4).map { BarData("W$it", random.nextFloat() * 80) } // Max 80 rides per week
-        }
-        "Month" -> {
-            listOf("J","F","M","A","M","J","J","A","S","O","N","D").map {
-                BarData(it, random.nextFloat() * 300) // Max 300 rides per month
-            }
-        }
-        else -> emptyList()
     }
 }

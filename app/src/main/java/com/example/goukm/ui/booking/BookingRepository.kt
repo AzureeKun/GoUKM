@@ -2,6 +2,9 @@ package com.example.goukm.ui.booking
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
@@ -193,6 +196,47 @@ class BookingRepository {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    fun getBookingsByDriverAndStatus(driverId: String, status: BookingStatus): Flow<List<Booking>> = callbackFlow {
+        val listener = bookingsCollection
+            .whereEqualTo("driverId", driverId)
+            .whereEqualTo("status", status.name)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                
+                val bookings = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        Booking(
+                            id = doc.id,
+                            userId = doc.getString("userId") ?: "",
+                            pickup = doc.getString("pickup") ?: "",
+                            dropOff = doc.getString("dropOff") ?: "",
+                            seatType = doc.getString("seatType") ?: "",
+                            status = doc.getString("status") ?: "",
+                            offeredFare = doc.getString("offeredFare") ?: "",
+                            driverId = doc.getString("driverId") ?: "",
+                            timestamp = doc.getDate("timestamp") ?: Date(),
+                            pickupLat = doc.getDouble("pickupLat") ?: 0.0,
+                            pickupLng = doc.getDouble("pickupLng") ?: 0.0,
+                            dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
+                            dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
+                            driverArrived = doc.getBoolean("driverArrived") ?: false,
+                            paymentMethod = doc.getString("paymentMethod") ?: "CASH",
+                            paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
+                            offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                } ?: emptyList()
+                
+                trySend(bookings)
+            }
+        awaitClose { listener.remove() }
     }
 
     suspend fun updateDriverLocation(bookingId: String, lat: Double, lng: Double): Result<Unit> {
