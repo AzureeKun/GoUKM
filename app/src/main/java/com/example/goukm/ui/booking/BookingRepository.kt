@@ -97,6 +97,15 @@ class BookingRepository {
     suspend fun updateStatus(bookingId: String, status: BookingStatus): Result<Unit> {
         return try {
             bookingsCollection.document(bookingId).update("status", status.name).await()
+            
+            if (status == BookingStatus.COMPLETED) {
+                // Fetch the full booking to create a Journey
+                val bookingResult = getBooking(bookingId)
+                bookingResult.onSuccess { booking ->
+                    JourneyRepository.createJourneyFromBooking(booking)
+                }
+            }
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

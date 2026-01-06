@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +38,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goukm.ui.booking.Booking
+import com.example.goukm.ui.booking.Journey
 import java.time.ZoneId
 import java.util.Date
 
@@ -424,11 +426,11 @@ fun BarChart(
     val maxVal = if (data.isEmpty()) 0f else data.maxOf { it.value }
     val isEmpty = maxVal == 0f
     
-    // Round up max value to nearest 5 for nicer Y-axis steps
-    val yStep = 5
+    // Dynamically set yStep based on maxVal for better granularity
+    val yStep = if (maxVal <= 10f) 1 else 5
     val yMax = if (maxVal == 0f) 5f else (kotlin.math.ceil(maxVal / yStep) * yStep).toFloat()
     
-    // Y-Axis labels (0, 5, 10, ... yMax)
+    // Y-Axis labels
     val yLabels = (0..yMax.toInt() step yStep).toList().reversed()
 
     Row(modifier = modifier) {
@@ -507,14 +509,27 @@ fun BarChart(
                             .weight(1f)
                             .fillMaxHeight()
                     ) {
+                        // Fraction of the height the bar should take
+                        val barFraction = (item.value / yMax).coerceIn(0f, 1f)
+                        
+                        // Spacer for the top part
+                        if (barFraction < 1f) {
+                            Spacer(Modifier.weight(1f - barFraction))
+                        }
+                        
                         // Bar
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.6f)
-                                .weight(if (item.value <= 0f) 0.001f else (item.value / yMax))
-                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(Color(0xFF4285F4))
-                        )
+                        if (barFraction > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.6f)
+                                    .weight(barFraction)
+                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    .background(Color(0xFF4285F4))
+                            )
+                        } else {
+                            // Completely empty if zero
+                            Spacer(Modifier.weight(0.0001f))
+                        }
                     }
                 }
             }
@@ -527,9 +542,12 @@ fun BarChart(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
             ) {
-                 data.forEach { item ->
+                 data.forEachIndexed { index, item ->
+                     // If too many items (like hours), show every 3rd label to avoid crowding
+                     val showLabel = data.size <= 12 || (index % 3 == 0)
+                     
                      Text(
-                        text = item.label,
+                        text = if (showLabel) item.label.replace("AM", "A").replace("PM", "P") else "",
                         fontSize = 10.sp,
                         color = Color.Gray,
                         textAlign = TextAlign.Center,
@@ -545,9 +563,9 @@ fun BarChart(
 }
 
 @Composable
-fun RecentRideCard(booking: Booking) {
+fun RecentRideCard(journey: Journey) {
     val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy - h:mm a")
-    val dateStr = booking.timestamp.toInstant().atZone(ZoneId.systemDefault()).format(formatter)
+    val dateStr = journey.timestamp.toInstant().atZone(ZoneId.systemDefault()).format(formatter)
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -570,12 +588,48 @@ fun RecentRideCard(booking: Booking) {
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("CUSTOMER #${booking.userId.takeLast(4)}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("CUSTOMER #${journey.userId.takeLast(4)}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text(dateStr, color = Color(0xFFFFA000), fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("Trip Total", fontSize = 10.sp, color = Color.Gray)
-                Text("RM ${booking.offeredFare}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("RM ${journey.offeredFare}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+        
+        // Rating and Comment Section
+        if (journey.rating > 0) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = Color.LightGray.copy(alpha = 0.3f)
+            )
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    repeat(5) { index ->
+                        val isFilled = journey.rating >= (index + 1)
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = if (isFilled) Color(0xFFFFD60A) else Color.LightGray.copy(alpha = 0.5f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${journey.rating.toInt()} Stars",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+                if (journey.comment.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = journey.comment,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.DarkGray
+                    )
+                }
             }
         }
     }

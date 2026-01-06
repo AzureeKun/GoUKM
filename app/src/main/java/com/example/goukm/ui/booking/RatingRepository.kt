@@ -11,6 +11,8 @@ data class Rating(
     val customerId: String = "",
     val customerName: String = "",
     val driverId: String = "",
+    val pickup: String = "",
+    val dropOff: String = "",
     val rating: Float = 0f,
     val comment: String = "",
     val timestamp: Long = 0
@@ -26,6 +28,10 @@ object RatingRepository {
             val docRef = ratingsCollection.document()
             val finalRating = rating.copy(id = docRef.id, timestamp = System.currentTimeMillis())
             docRef.set(finalRating).await()
+            
+            // Also update the Journey record if it exists
+            JourneyRepository.updateJourneyRating(rating.bookingId, rating.rating, rating.comment)
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

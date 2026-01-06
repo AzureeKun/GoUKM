@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.goukm.ui.booking.Booking
 import com.example.goukm.ui.booking.BookingRepository
 import com.example.goukm.ui.booking.BookingStatus
+import com.example.goukm.ui.booking.Journey
+import com.example.goukm.ui.booking.JourneyRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,7 +18,8 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 
 class DriverEarningViewModel(
-    private val repository: BookingRepository = BookingRepository(),
+    private val bookingRepository: BookingRepository = BookingRepository(),
+    private val journeyRepository: JourneyRepository = JourneyRepository,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
 
@@ -29,10 +32,10 @@ class DriverEarningViewModel(
     private val _graphGranularity = MutableStateFlow("Hour")
     val graphGranularity: StateFlow<String> = _graphGranularity.asStateFlow()
 
-    private val _bookings = MutableStateFlow<List<Booking>>(emptyList())
+    private val _journeys = MutableStateFlow<List<Journey>>(emptyList())
     
-    val uiState = combine(_bookings, _selectedPeriod, _currentDate, _graphGranularity) { bookings, period, date, granularity ->
-        val filtered = filterBookings(bookings, period, date)
+    val uiState = combine(_journeys, _selectedPeriod, _currentDate, _graphGranularity) { journeys, period, date, granularity ->
+        val filtered = filterJourneys(journeys, period, date)
         val aggregatedData = aggregateData(filtered, period, date, granularity)
         val totalEarnings = filtered.sumOf { it.offeredFare.toDoubleOrNull() ?: 0.0 }
         val rideCount = filtered.size
@@ -49,8 +52,8 @@ class DriverEarningViewModel(
         val currentUser = auth.currentUser
         if (currentUser != null) {
             viewModelScope.launch {
-                repository.getBookingsByDriverAndStatus(currentUser.uid, BookingStatus.COMPLETED)
-                    .collect { _bookings.value = it }
+                journeyRepository.getJourneysByDriver(currentUser.uid)
+                    .collect { _journeys.value = it }
             }
         }
     }
@@ -86,7 +89,7 @@ class DriverEarningViewModel(
         }
     }
 
-    private fun filterBookings(bookings: List<Booking>, period: String, date: LocalDate): List<Booking> {
+    private fun filterJourneys(journeys: List<Journey>, period: String, date: LocalDate): List<Journey> {
         val start: LocalDate
         val end: LocalDate
 
@@ -110,18 +113,18 @@ class DriverEarningViewModel(
             else -> return emptyList()
         }
 
-        return bookings.filter { booking ->
-            val bDate = booking.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+        return journeys.filter { journey ->
+            val bDate = journey.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
             !bDate.isBefore(start) && !bDate.isAfter(end)
         }
     }
 
-    private fun aggregateData(bookings: List<Booking>, period: String, date: LocalDate, granularity: String): List<BarData> {
+    private fun aggregateData(journeys: List<Journey>, period: String, date: LocalDate, granularity: String): List<BarData> {
         return when (granularity) {
             "Hour" -> {
                 val hours = (6..23).map { if (it < 12) "${it}AM" else if (it == 12) "12PM" else "${it-12}PM" }
                 hours.map { label ->
-                    val count = bookings.count { b ->
+                    val count = journeys.count { b ->
                         val bHour = b.timestamp.toInstant().atZone(ZoneId.systemDefault()).hour
                         val labelHour = parseHourLabel(label)
                         bHour == labelHour
@@ -134,7 +137,7 @@ class DriverEarningViewModel(
                     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
                     days.mapIndexed { index, label ->
                         val targetDate = date.with(java.time.DayOfWeek.MONDAY).plusDays(index.toLong())
-                        val count = bookings.count { b ->
+                        val count = journeys.count { b ->
                             val bDate = b.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
                             bDate == targetDate
                         }
@@ -143,7 +146,7 @@ class DriverEarningViewModel(
                 } else if (period == "Month") {
                     val daysInMonth = date.lengthOfMonth()
                     (1..daysInMonth).map { day ->
-                        val count = bookings.count { b ->
+                        val count = journeys.count { b ->
                             val bDate = b.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
                             bDate.dayOfMonth == day
                         }
@@ -154,7 +157,7 @@ class DriverEarningViewModel(
             "Month" -> {
                 val months = listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")
                 months.mapIndexed { index, label ->
-                    val count = bookings.count { b ->
+                    val count = journeys.count { b ->
                         val bMonth = b.timestamp.toInstant().atZone(ZoneId.systemDefault()).monthValue
                         bMonth == (index + 1)
                     }
@@ -176,5 +179,5 @@ data class EarningUiState(
     val totalEarnings: Double = 0.0,
     val rideCount: Int = 0,
     val graphData: List<BarData> = emptyList(),
-    val recentRide: Booking? = null
+    val recentRide: Journey? = null
 )

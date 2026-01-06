@@ -1,6 +1,7 @@
 package com.example.goukm.ui.booking
 
-import android.media.Rating
+import com.example.goukm.ui.booking.Rating
+import com.example.goukm.ui.booking.RatingRepository
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -39,6 +40,8 @@ fun RideDoneScreen(
     var driverId by remember { mutableStateOf("") }
     var customerName by remember { mutableStateOf("") }
     var customerId by remember { mutableStateOf("") }
+    var pickupPoint by remember { mutableStateOf("") }
+    var dropOffPoint by remember { mutableStateOf("") }
 
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
 
@@ -62,6 +65,9 @@ fun RideDoneScreen(
                 if (custProfile != null) {
                     customerName = custProfile.name
                 }
+                
+                pickupPoint = booking.pickup
+                dropOffPoint = booking.dropOff
             }
         }
     }
@@ -226,6 +232,8 @@ fun RideDoneScreen(
                         customerId = customerId,
                         customerName = customerName,
                         driverId = driverId,
+                        pickup = pickupPoint,
+                        dropOff = dropOffPoint,
                         rating = rating,
                         comment = feedbackComment
                     )

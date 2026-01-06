@@ -349,7 +349,9 @@ fun AppNavGraph(
                 oncashConfirmation = {
                      scope.launch {
                          bookingRepository.updatePaymentStatus(bookingId, "PAID")
-                         navController.popBackStack()
+                         navController.navigate("ride_done/$bookingId") {
+                             popUpTo("confirm_pay/{paymentMethod}/{bookingId}") { inclusive = true }
+                         }
                      }
                 },
                 onNavigateToQR = {
@@ -448,8 +450,8 @@ fun AppNavGraph(
                 onPaymentCompleted = {
                     scope.launch {
                         bookingRepository.updatePaymentStatus(bookingId, "PAID")
-                        navController.navigate("ride_done") {
-                             popUpTo("payment_qr") { inclusive = true }
+                        navController.navigate("ride_done/$bookingId") {
+                             popUpTo("payment_qr/{amount}/{bookingId}") { inclusive = true }
                         }
                     }
                 }

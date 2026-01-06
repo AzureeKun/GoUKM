@@ -131,7 +131,7 @@ fun DriverScoreScreen(navController: NavHostController) {
                 // 3. Reviews Header
                 item {
                     Text(
-                        "Recent Reviews",
+                        "Recent Ride Reviews",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 4.dp)
@@ -434,12 +434,21 @@ fun ReviewItemCard(review: com.example.goukm.ui.booking.Rating) {
                         fontSize = 14.sp,
                         color = Color.Black
                     )
-                    Text(
-                        text = review.comment,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.DarkGray
-                    )
+                    if (review.pickup.isNotEmpty() && review.dropOff.isNotEmpty()) {
+                        Text(
+                            text = "To ${review.dropOff}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                    if (review.comment.isNotEmpty()) {
+                        Text(
+                            text = review.comment,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.DarkGray
+                        )
+                    }
                 }
             }
         }
