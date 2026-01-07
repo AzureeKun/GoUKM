@@ -101,17 +101,6 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     // Payment Method State
     var selectedPaymentMethod by remember { mutableStateOf<PaymentMethod?>(null) }
 
-    // Autocomplete State
-    var pickupQuery by remember { mutableStateOf("") }
-    var pickupPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
-    var pickupPlaceId by remember { mutableStateOf<String?>(null) }
-    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
-
-    var dropOffQuery by remember { mutableStateOf("") }
-    var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
-    var dropOffPlaceId by remember { mutableStateOf<String?>(null) }
-    var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
-
     // Hoisted State and Dependencies
     val context = LocalContext.current
     val placesRepository = remember { PlacesRepository(context) }
@@ -119,26 +108,23 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     val bookingRepository = remember { BookingRepository() }
     var currentBookingId by remember { mutableStateOf<String?>(null) }
 
+    data class LocationInfo(
+        val address: String = "",
+        val latLng: LatLng? = null,
+        val placeId: String? = null
+    )
+
+    var pickupLocation by remember { mutableStateOf(LocationInfo()) }
+    var dropOffLocation by remember { mutableStateOf(LocationInfo()) }
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
     var rideOffers by remember { mutableStateOf<List<DriverOffer>>(emptyList()) }
 
-    LaunchedEffect(pickupLatLng, dropOffLatLng) {
-        if (pickupLatLng != null && dropOffLatLng != null) {
-            val result = placesRepository.getRoute(pickupLatLng!!, dropOffLatLng!!)
-            result.onSuccess {
-                routePoints = it.polyline
-            }.onFailure {
-                // Fallback: Draw a straight line if API fails
-                routePoints = listOf(pickupLatLng!!, dropOffLatLng!!)
-                android.widget.Toast.makeText(context, "Route Error: ${it.message}. Showing straight line.", android.widget.Toast.LENGTH_LONG).show()
-            }
-        } else {
-            routePoints = emptyList()
-        }
-    }
+    var pickupPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
+    var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
 
     var isSearching by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
+    var isSelectingPickupOnMap by remember { mutableStateOf(false) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -159,6 +145,19 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
         hasLocationPermission = isGranted
     }
 
+    LaunchedEffect(pickupLocation.latLng, dropOffLocation.latLng) {
+        if (pickupLocation.latLng != null && dropOffLocation.latLng != null) {
+            val result = placesRepository.getRoute(pickupLocation.latLng!!, dropOffLocation.latLng!!)
+            result.onSuccess {
+                routePoints = it.polyline
+            }.onFailure {
+                routePoints = listOf(pickupLocation.latLng!!, dropOffLocation.latLng!!)
+            }
+        } else {
+            routePoints = emptyList()
+        }
+    }
+
     // Restore State + Watch for Updates
     val effectiveBookingId = if (!activeBookingId.isNullOrEmpty()) activeBookingId else currentBookingId
     
@@ -169,11 +168,17 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
             val result = bookingRepository.getBooking(bookingId)
             result.onSuccess { booking ->
                 currentBookingId = booking.id
-                pickupQuery = booking.pickup
-                dropOffQuery = booking.dropOff
+                pickupLocation = LocationInfo(
+                    address = booking.pickup,
+                    latLng = LatLng(booking.pickupLat, booking.pickupLng),
+                    placeId = "restored"
+                )
+                dropOffLocation = LocationInfo(
+                    address = booking.dropOff,
+                    latLng = LatLng(booking.dropOffLat, booking.dropOffLng),
+                    placeId = "restored"
+                )
                 selectedSeat = if (booking.seatType.startsWith("4")) "4-Seat" else "6-Seat"
-                pickupLatLng = LatLng(booking.pickupLat, booking.pickupLng)
-                dropOffLatLng = LatLng(booking.dropOffLat, booking.dropOffLng)
                 isSearching = true
             }
 
@@ -232,39 +237,26 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
 
     // Automatically fetch location and geocode when permission is granted
     LaunchedEffect(hasLocationPermission, currentBookingId) {
-        if (hasLocationPermission && currentBookingId == null && pickupLatLng == null) {
+        if (hasLocationPermission && currentBookingId == null && pickupLocation.latLng == null) {
             val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
             try {
-                // Suppress missing permission warning because we checked hasLocationPermission
                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                     if (location != null) {
                         val latLng = LatLng(location.latitude, location.longitude)
-                        pickupLatLng = latLng
-
                         // Reverse Geocoding
                         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                             try {
                                 val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                    geocoder.getFromLocation(location.latitude, location.longitude, 1) { addresses ->
-                                        if (addresses.isNotEmpty()) {
-                                            val address = addresses[0]
-                                            // Construct a readable address string
-                                            val addressText = address.getAddressLine(0) ?: address.featureName
-                                            scope.launch {
-                                                pickupQuery = addressText
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                                    if (!addresses.isNullOrEmpty()) {
-                                        val address = addresses[0]
-                                        val addressText = address.getAddressLine(0) ?: address.featureName
-                                        scope.launch {
-                                            pickupQuery = addressText
-                                        }
+                                @Suppress("DEPRECATION")
+                                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                if (!addresses.isNullOrEmpty()) {
+                                    val addressText = addresses[0].getAddressLine(0) ?: addresses[0].featureName
+                                    scope.launch {
+                                        pickupLocation = LocationInfo(
+                                            address = addressText,
+                                            latLng = latLng,
+                                            placeId = "auto_detect"
+                                        )
                                     }
                                 }
                             } catch (e: Exception) {
@@ -273,9 +265,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         }
                     }
                 }
-            } catch (e: SecurityException) {
-                // Should not happen as we checked permission
-            }
+            } catch (e: SecurityException) { }
         }
     }
 
@@ -291,7 +281,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 160.dp,
+        sheetPeekHeight = if (isSelectingPickupOnMap) 0.dp else 160.dp,
         sheetContainerColor = Color.White,
         sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         sheetDragHandle = {}, // disable default handle; we draw our own
@@ -362,50 +352,54 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text("Pickup Point", fontWeight = FontWeight.Bold)
+                            
                             AutocompleteTextField(
-                                label = "Enter Pickup Location",
-                                value = pickupQuery,
+                                label = "Pickup Location",
+                                value = pickupLocation.address,
                                 onValueChange = { query ->
-                                    pickupQuery = query
-                                    pickupPlaceId = null // Reset validity on type
-                                    pickupLatLng = null
+                                    pickupLocation = pickupLocation.copy(address = query, placeId = null, latLng = null)
                                     scope.launch {
                                         pickupPredictions = placesRepository.getPredictions(query)
                                     }
                                 },
                                 predictions = pickupPredictions,
                                 onPredictionSelect = { placeId, address ->
-                                    pickupQuery = address
-                                    pickupPlaceId = placeId
-                                    pickupPredictions = emptyList() // Hide list
+                                    pickupLocation = pickupLocation.copy(address = address, placeId = placeId)
+                                    pickupPredictions = emptyList()
                                     scope.launch {
                                         val place = placesRepository.getPlaceDetails(placeId)
-                                        pickupLatLng = place?.latLng
+                                        pickupLocation = pickupLocation.copy(latLng = place?.latLng)
                                     }
                                 },
-                                leadingIcon = Icons.Default.Send
+                                leadingIcon = Icons.Default.Send,
+                                trailingIcon = {
+                                    IconButton(onClick = { isSelectingPickupOnMap = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Place,
+                                            contentDescription = "Select on Map",
+                                            tint = CBlue
+                                        )
+                                    }
+                                }
                             )
 
                             Text("Drop-Off Point", fontWeight = FontWeight.Bold)
                             AutocompleteTextField(
                                 label = "Enter Drop-off Location",
-                                value = dropOffQuery,
+                                value = dropOffLocation.address,
                                 onValueChange = { query ->
-                                    dropOffQuery = query
-                                    dropOffPlaceId = null // Reset validity
-                                    dropOffLatLng = null
+                                    dropOffLocation = dropOffLocation.copy(address = query, placeId = null, latLng = null)
                                     scope.launch {
-                                        dropOffPredictions = placesRepository.getPredictions(query)
+                                        dropOffPredictions = placesRepository.getPredictions(query, pickupLocation.latLng)
                                     }
                                 },
                                 predictions = dropOffPredictions,
                                 onPredictionSelect = { placeId, address ->
-                                    dropOffQuery = address
-                                    dropOffPlaceId = placeId
+                                    dropOffLocation = dropOffLocation.copy(address = address, placeId = placeId)
                                     dropOffPredictions = emptyList() // Hide list
                                     scope.launch {
                                         val place = placesRepository.getPlaceDetails(placeId)
-                                        dropOffLatLng = place?.latLng
+                                        dropOffLocation = dropOffLocation.copy(latLng = place?.latLng)
                                     }
                                 },
                                 leadingIcon = Icons.Default.Place
@@ -460,7 +454,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                  Spacer(Modifier.width(8.dp))
                                  Column {
                                      Text("Pickup", fontSize = 12.sp, color = Color.Gray)
-                                     Text(pickupQuery, fontWeight = FontWeight.SemiBold)
+                                     Text(pickupLocation.address, fontWeight = FontWeight.SemiBold)
                                  }
                              }
 
@@ -471,7 +465,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                  Spacer(Modifier.width(8.dp))
                                  Column {
                                      Text("Drop-off", fontSize = 12.sp, color = Color.Gray)
-                                     Text(dropOffQuery, fontWeight = FontWeight.SemiBold)
+                                     Text(dropOffLocation.address, fontWeight = FontWeight.SemiBold)
                                  }
                              }
                         }
@@ -541,35 +535,30 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             showCancelDialog = true
                         } else {
                             // VALIDATION LOGIC
+                            val isPickupValid = pickupLocation.latLng != null && pickupLocation.address.isNotBlank()
+                            val isDropOffValid = dropOffLocation.latLng != null && dropOffLocation.placeId != null
+
                             when {
-                                pickupQuery.isBlank() || dropOffQuery.isBlank() -> {
-                                    android.widget.Toast.makeText(context, "Please enter pickup and drop-off locations", android.widget.Toast.LENGTH_SHORT).show()
+                                !isPickupValid -> {
+                                    android.widget.Toast.makeText(context, "Please select a valid pickup location", android.widget.Toast.LENGTH_SHORT).show()
                                 }
-                                pickupPlaceId == null || dropOffPlaceId == null -> {
-                                    android.widget.Toast.makeText(context, "Please select locations from the suggestions", android.widget.Toast.LENGTH_SHORT).show()
+                                !isDropOffValid -> {
+                                    android.widget.Toast.makeText(context, "Please search and select a drop-off location from the suggestions", android.widget.Toast.LENGTH_LONG).show()
                                 }
-                                pickupLatLng == null || dropOffLatLng == null -> {
-                                    android.widget.Toast.makeText(context, "Unable to get coordinates for selected locations", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                                pickupPlaceId == dropOffPlaceId -> {
+                                pickupLocation.latLng == dropOffLocation.latLng -> {
                                     android.widget.Toast.makeText(context, "Pickup and Drop-off cannot be the same", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                                 else -> {
                                     // All Valid
                                     scope.launch {
-                                        val pickupLat = pickupLatLng?.latitude ?: 0.0
-                                        val pickupLng = pickupLatLng?.longitude ?: 0.0
-                                        val dropOffLat = dropOffLatLng?.latitude ?: 0.0
-                                        val dropOffLng = dropOffLatLng?.longitude ?: 0.0
-
                                         val result = bookingRepository.createBooking(
-                                            pickup = pickupQuery,
-                                            dropOff = dropOffQuery,
+                                            pickup = pickupLocation.address,
+                                            dropOff = dropOffLocation.address,
                                             seatType = selectedSeat,
-                                            pickupLat = pickupLat,
-                                            pickupLng = pickupLng,
-                                            dropOffLat = dropOffLat,
-                                            dropOffLng = dropOffLng,
+                                            pickupLat = pickupLocation.latLng!!.latitude,
+                                            pickupLng = pickupLocation.latLng!!.longitude,
+                                            dropOffLat = dropOffLocation.latLng!!.latitude,
+                                            dropOffLng = dropOffLocation.latLng!!.longitude,
                                             paymentMethod = selectedPaymentMethod?.name ?: "CASH"
                                         )
 
@@ -614,13 +603,15 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                 position = CameraPosition.fromLatLngZoom(ukmLocation, 15f)
             }
 
-            // Animate camera to pickup location when auto-detected
-            LaunchedEffect(pickupLatLng) {
-                if (pickupLatLng != null && routePoints.isEmpty()) {
-                    cameraPositionState.animate(
-                        com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(pickupLatLng!!, 17f),
-                        1000
-                    )
+            // Animate camera to pickup location when auto-detected or selecting on map
+            LaunchedEffect(pickupLocation.latLng, isSelectingPickupOnMap) {
+                if (pickupLocation.latLng != null) {
+                    if (isSelectingPickupOnMap || routePoints.isEmpty()) {
+                        cameraPositionState.animate(
+                            com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(pickupLocation.latLng!!, 17f),
+                            1000
+                        )
+                    }
                 }
             }
 
@@ -653,19 +644,19 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                 uiSettings = mapUiSettings,
                 onMapLoaded = { /* Map is ready */ }
             ) {
-                if (pickupLatLng != null) {
+                if (pickupLocation.latLng != null) {
                     Marker(
-                        state = MarkerState(position = pickupLatLng!!),
+                        state = MarkerState(position = pickupLocation.latLng!!),
                         title = "Pickup",
-                        snippet = pickupQuery,
+                        snippet = pickupLocation.address,
                         icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
                     )
                 }
-                if (dropOffLatLng != null) {
+                if (dropOffLocation.latLng != null) {
                     Marker(
-                        state = MarkerState(position = dropOffLatLng!!),
+                        state = MarkerState(position = dropOffLocation.latLng!!),
                         title = "Drop off",
-                        snippet = dropOffQuery,
+                        snippet = dropOffLocation.address,
                         icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
                     )
                 }
@@ -679,6 +670,90 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         endCap = RoundCap(),
                         geodesic = true
                     )
+                }
+            }
+
+            // --- MAP SELECTION OVERLAY ---
+            if (isSelectingPickupOnMap) {
+                // 1. Center Pin
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Place,
+                        contentDescription = "Picker Pin",
+                        tint = Color(0xFFD32F2F),
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(bottom = 24.dp) // Lift slightly so the tip is at center
+                    )
+                }
+
+                // 2. Buttons (Confirm / Cancel)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp, start = 20.dp, end = 20.dp)
+                        .fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = { isSelectingPickupOnMap = false },
+                            modifier = Modifier.weight(1f).height(56.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                        ) {
+                            Text("Cancel", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Button(
+                            onClick = {
+                                val target = cameraPositionState.position.target
+                                isSelectingPickupOnMap = false
+                                pickupLocation = pickupLocation.copy(
+                                    latLng = target,
+                                    address = "Fetching address...",
+                                    placeId = "manual"
+                                )
+                                
+                                // Reverse Geocode
+                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    try {
+                                        val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                                        @Suppress("DEPRECATION")
+                                        val addresses = geocoder.getFromLocation(target.latitude, target.longitude, 1)
+                                        if (!addresses.isNullOrEmpty()) {
+                                            val address = addresses[0]
+                                            val addressText = address.getAddressLine(0) ?: address.featureName
+                                            scope.launch {
+                                                pickupLocation = pickupLocation.copy(
+                                                    address = addressText,
+                                                    placeId = "manual_selection"
+                                                )
+                                            }
+                                        } else {
+                                            scope.launch {
+                                                pickupLocation = pickupLocation.copy(
+                                                    address = "${target.latitude}, ${target.longitude}",
+                                                    placeId = "manual_selection"
+                                                )
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(2f).height(56.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                        ) {
+                            Text("Confirm Pickup Location", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
 
@@ -710,18 +785,13 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                             android.widget.Toast.makeText(context, "Booking Cancelled", android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     }
+                                    // Reset UI State but KEEP Location Data for easy re-booking
                                     showCancelDialog = false
                                     isSearching = false
                                     currentBookingId = null
-
-                                    // Reset Inputs and Map
-                                    pickupQuery = ""
-                                    dropOffQuery = ""
-                                    pickupLatLng = null
-                                    dropOffLatLng = null
-                                    pickupPlaceId = null
-                                    dropOffPlaceId = null
-                                    routePoints = emptyList()
+                                    rideOffers = emptyList() 
+                                    
+                                    // Removed input resets to retain user data as requested
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -787,6 +857,7 @@ fun AutocompleteTextField(
     predictions: List<AutocompletePrediction>,
     onPredictionSelect: (String, String) -> Unit, // placeId, address
     leadingIcon: ImageVector,
+    trailingIcon: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
@@ -795,6 +866,7 @@ fun AutocompleteTextField(
             onValueChange = onValueChange,
             label = { Text(label) },
             leadingIcon = { Icon(leadingIcon, contentDescription = null) },
+            trailingIcon = trailingIcon,
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 containerColor = Color(0xFFF2F3F5),

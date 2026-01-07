@@ -9,6 +9,7 @@ import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import kotlinx.coroutines.tasks.await
+import com.google.android.gms.maps.model.LatLng
 
 class PlacesRepository(private val context: Context) {
     private val placesClient: PlacesClient
@@ -22,13 +23,27 @@ class PlacesRepository(private val context: Context) {
         placesClient = Places.createClient(context)
     }
 
-    suspend fun getPredictions(query: String): List<AutocompletePrediction> {
+    suspend fun getPredictions(query: String, biasLocation: LatLng? = null): List<AutocompletePrediction> {
         return try {
-            val request = FindAutocompletePredictionsRequest.builder()
+            val builder = FindAutocompletePredictionsRequest.builder()
                 .setQuery(query)
                 .setCountries("MY") // Limit to Malaysia
-                .build()
 
+            if (biasLocation != null) {
+                // Bias results to 5km radius around the user
+                val lat = biasLocation.latitude
+                val lng = biasLocation.longitude
+                val offset = 0.05 // Approx 5km
+                
+                val sw = LatLng(lat - offset, lng - offset)
+                val ne = LatLng(lat + offset, lng + offset)
+                val bounds = com.google.android.libraries.places.api.model.RectangularBounds.newInstance(sw, ne)
+                
+                builder.setLocationBias(bounds)
+                builder.setOrigin(biasLocation) 
+            }
+
+            val request = builder.build()
             val response = placesClient.findAutocompletePredictions(request).await()
             response.autocompletePredictions
         } catch (e: Exception) {
