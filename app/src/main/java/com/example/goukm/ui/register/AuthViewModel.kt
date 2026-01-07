@@ -44,8 +44,6 @@ class AuthViewModel(
 
     private var applicationListener: ListenerRegistration? = null
     
-    // Flag to handle app startup state reset
-    private var isFirstLoad = true
 
 
     // 2. Initializer to check session status on startup
@@ -82,18 +80,7 @@ class AuthViewModel(
             val user = UserProfileRepository.getUserProfile()
 
             
-            // Force Driver Offline on App Start (First Load)
-            var finalUser = user
-            if (isFirstLoad && user != null && user.role_driver == true && user.isAvailable) {
-                finalUser = user.copy(isAvailable = false)
-                launch { UserProfileRepository.updateDriverAvailability(false) }
-                isFirstLoad = false
-            } else {
-                 // For subsequent fetches, respect the fetched state (or if not driver/available)
-                 if (isFirstLoad) isFirstLoad = false
-            }
-
-            _currentUser.value = finalUser
+            _currentUser.value = user
 
             // Restore from Firestore or default to customer
             _activeRole.value = if (defaultToCustomer) {
@@ -256,7 +243,6 @@ class AuthViewModel(
             userListener?.remove()
             _activeRole.value = "customer" // Ensure role is reset
             _authState.value = AuthState.LoggedOut
-            isFirstLoad = true
         }
     }
 
