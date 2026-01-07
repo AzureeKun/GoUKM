@@ -194,9 +194,9 @@ fun AppNavGraph(
                         0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
                             popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        1 -> navController.navigate(NavRoutes.DriverScore.route)
-                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
-                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
+                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
+                        2 -> navController.navigate(NavRoutes.DriverScore.route)
+                        3 -> navController.navigate(NavRoutes.DriverEarning.route)
                     }
                 }
             )
@@ -305,7 +305,7 @@ fun AppNavGraph(
                 authViewModel = authViewModel,
                 onEditProfile = { navController.navigate(NavRoutes.EditProfile.route) },
                 onLogout = { authViewModel.logout() },
-                selectedNavIndex = 3
+                selectedNavIndex = -1
             )
         }
         

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -40,9 +41,9 @@ fun BottomNavigationBarDriver(selectedIndex: Int, onSelected: (Int) -> Unit) {
     ) {
         val items = listOf(
             Triple(Icons.Default.List, "Requests", 0),
-            Triple(Icons.Default.Star, "Score", 1),
-            Triple(Icons.Default.AttachMoney, "Earning", 2),
-            Triple(Icons.Default.Person, "Profile", 3)
+            Triple(Icons.Default.Message, "Chat", 1),
+            Triple(Icons.Default.Star, "Score", 2),
+            Triple(Icons.Default.AttachMoney, "Earning", 3)
         )
 
         items.forEach { (icon, label, index) ->

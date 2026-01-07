@@ -420,9 +420,9 @@ fun DriverProfileScreen(
                         0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
                             popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        1 -> navController.navigate(NavRoutes.DriverScore.route)
-                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
-                        3 -> { /* Already here */ }
+                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
+                        2 -> navController.navigate(NavRoutes.DriverScore.route)
+                        3 -> navController.navigate(NavRoutes.DriverEarning.route)
                     }
                 }
             )

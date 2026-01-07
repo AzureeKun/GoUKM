@@ -28,7 +28,7 @@ fun DriverChatListScreen(navController: NavHostController) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val chatRooms = remember { mutableStateListOf<ChatRoom>() }
     var isLoading by remember { mutableStateOf(true) }
-    var selectedNavIndex by remember { mutableStateOf(-1) }
+    var selectedNavIndex by remember { mutableStateOf(1) }
 
     // Listen to chat rooms in real-time
     LaunchedEffect(Unit) {
@@ -62,9 +62,9 @@ fun DriverChatListScreen(navController: NavHostController) {
                         0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
                             popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        1 -> navController.navigate(NavRoutes.DriverScore.route)
-                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
-                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
+                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
+                        2 -> navController.navigate(NavRoutes.DriverScore.route)
+                        3 -> navController.navigate(NavRoutes.DriverEarning.route)
                     }
                 }
             )

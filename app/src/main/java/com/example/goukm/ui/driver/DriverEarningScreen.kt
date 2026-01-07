@@ -61,7 +61,7 @@ fun DriverEarningScreen(
     navController: NavHostController,
     viewModel: DriverEarningViewModel = viewModel()
 ) {
-    var selectedNavIndex = 2
+    var selectedNavIndex = 3
     
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val graphGranularity by viewModel.graphGranularity.collectAsState()
@@ -126,9 +126,9 @@ fun DriverEarningScreen(
                         0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
                             popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        1 -> navController.navigate(NavRoutes.DriverScore.route)
-                        2 -> { /* Already here */ }
-                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
+                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
+                        2 -> navController.navigate(NavRoutes.DriverScore.route)
+                        3 -> { /* Already here */ }
                     }
                 }
             )

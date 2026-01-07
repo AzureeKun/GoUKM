@@ -235,36 +235,29 @@ fun DriverDashboard(
                     .background(Color.White)
                     .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                // Left: Status & Vehicle Info
+                Column(
+                    modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isOnline) "You are Online" else "You are Offline",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isOnline) OnlineGreen else Color.Gray
-                        )
-                        user?.let { u ->
-                            if (u.vehiclePlateNumber.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .background(PrimaryBlue.copy(alpha=0.1f), RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "In Use: ${u.carBrand} • ${u.vehiclePlateNumber}",
-                                        fontSize = 13.sp,
-                                        color = PrimaryBlue,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
+                    Text(
+                        text = if (isOnline) "Online" else "Offline",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isOnline) OnlineGreen else OfflineRed
+                    )
+                    Text(
+                        text = "${user?.carBrand ?: "Unknown"} - ${user?.vehiclePlateNumber ?: "No Plate"}",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Medium
+                        // modifier = Modifier.padding(top = 2.dp) 
+                    )
+                }
+
+                // Center: Switch ONLY (No text)
+                Box(
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
                     Switch(
                         checked = isOnline,
                         onCheckedChange = {
@@ -278,7 +271,21 @@ fun DriverDashboard(
                         ),
                         modifier = Modifier.scale(0.9f)
                     )
+                }
 
+                // Right: Settings Button
+                IconButton(
+                    onClick = { 
+                        navController.navigate(com.example.goukm.navigation.NavRoutes.DriverProfile.route) 
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
             

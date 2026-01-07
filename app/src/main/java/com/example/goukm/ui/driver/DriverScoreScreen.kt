@@ -91,15 +91,15 @@ fun DriverScoreScreen(navController: NavHostController) {
         },
         bottomBar = {
             BottomNavigationBarDriver(
-                selectedIndex = 1,
+                selectedIndex = 2,
                 onSelected = { index ->
                     when (index) {
                         0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
                             popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
                         }
-                        1 -> { /* Already here */ }
-                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
-                        3 -> navController.navigate(NavRoutes.DriverProfile.route)
+                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
+                        2 -> { /* Already here */ }
+                        3 -> navController.navigate(NavRoutes.DriverEarning.route)
                     }
                 }
             )
