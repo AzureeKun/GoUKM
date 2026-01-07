@@ -40,10 +40,13 @@ data class Vehicle(
     val color: String = "",
     val plateNumber: String = "",
     val licenseNumber: String = "",
+    val grantUrl: String = "",
+    val status: String = "Approved", // Approved, Pending, Rejected
     val lastEditedAt: Long = 0
 )
 
 data class UserProfile(
+    val uid: String = "",
     val name: String = "",
     val matricNumber: String = "",
     val profilePictureUrl: String? = null,
@@ -72,7 +75,7 @@ data class UserProfile(
 @Composable
 fun ReadOnlyField(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(text = label, color = Color.Black.copy(alpha = 0.7f), fontSize = 14.sp)
+        Text(text = label, color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
         Spacer(Modifier.height(4.dp))
         Box(
             modifier = Modifier
@@ -235,7 +238,7 @@ fun CustomerProfileScreen(
             item {
                 Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CBlue)) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text("Contact Information", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+                        Text("Contact Information", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                         Spacer(Modifier.height(12.dp))
                         ReadOnlyField(label = "Email", value = user.email)
                         Spacer(Modifier.height(12.dp))
@@ -263,7 +266,7 @@ fun CustomerProfileScreen(
                                 if (applicationStatus == "under_review") "Application Pending" else "Start Working",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.Black
+                                color = Color.White
                             )
 
                             Spacer(Modifier.height(8.dp))
@@ -272,7 +275,7 @@ fun CustomerProfileScreen(
                                 if (applicationStatus == "under_review") "Your application is currently being reviewed. Please wait for approval."
                                 else "Make side income by becoming our driver!",
                                 fontSize = 12.sp,
-                                color = Color.Black,
+                                color = Color.White.copy(alpha = 0.9f),
                                 textAlign = TextAlign.Center
                             )
 

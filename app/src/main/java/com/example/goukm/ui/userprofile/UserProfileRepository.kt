@@ -20,6 +20,7 @@ object UserProfileRepository {
         if (!doc.exists()) return null
 
         return UserProfile(
+            uid = targetUid,
             name = doc.getString("name") ?: "",
             matricNumber = doc.getString("matricNumber") ?: "",
             profilePictureUrl = doc.getString("profilePictureUrl"),
@@ -48,6 +49,8 @@ object UserProfileRepository {
                     color = (it["color"] as? String) ?: "",
                     plateNumber = (it["plateNumber"] as? String) ?: "",
                     licenseNumber = (it["licenseNumber"] as? String) ?: "",
+                    grantUrl = (it["grantUrl"] as? String) ?: "",
+                    status = (it["status"] as? String) ?: "Approved",
                     lastEditedAt = (it["lastEditedAt"] as? Long) ?: 0L
                 )
             } ?: emptyList()
@@ -136,6 +139,12 @@ object UserProfileRepository {
     // Upload gambar ke Storage dan return download URL
     suspend fun uploadProfilePicture(uid: String, uri: Uri): String {
         val fileRef = storage.child("profile_pictures/$uid/profile.jpg")
+        fileRef.putFile(uri).await()
+        return fileRef.downloadUrl.await().toString()
+    }
+
+    suspend fun uploadVehicleGrant(uid: String, uri: Uri): String {
+        val fileRef = storage.child("vehicle_grant/$uid/${System.currentTimeMillis()}.jpg")
         fileRef.putFile(uri).await()
         return fileRef.downloadUrl.await().toString()
     }
@@ -315,6 +324,8 @@ object UserProfileRepository {
                 "color" to vehicle.color,
                 "plateNumber" to vehicle.plateNumber,
                 "licenseNumber" to vehicle.licenseNumber,
+                "grantUrl" to vehicle.grantUrl,
+                "status" to vehicle.status,
                 "lastEditedAt" to vehicle.lastEditedAt
             )
             db.collection("users").document(uid).update(
@@ -344,6 +355,8 @@ object UserProfileRepository {
                     "color" to it.color,
                     "plateNumber" to it.plateNumber,
                     "licenseNumber" to it.licenseNumber,
+                    "grantUrl" to it.grantUrl,
+                    "status" to it.status,
                     "lastEditedAt" to it.lastEditedAt
                 )
             }
@@ -361,6 +374,24 @@ object UserProfileRepository {
                         "vehiclePlateNumber" to updatedVehicle.plateNumber
                     )
                 )
+                if (updatedVehicle.status == "Approved") {
+                    db.collection("users").document(uid).update(
+                        mapOf(
+                            "carBrand" to updatedVehicle.brand,
+                            "carColor" to updatedVehicle.color,
+                            "vehiclePlateNumber" to updatedVehicle.plateNumber
+                        )
+                    )
+                } else if (user.vehiclePlateNumber == updatedVehicle.plateNumber) {
+                     // If the active vehicle became pending, clear the active status
+                     db.collection("users").document(uid).update(
+                        mapOf(
+                            "carBrand" to "",
+                            "carColor" to "",
+                            "vehiclePlateNumber" to ""
+                        )
+                    )
+                }
             }
             
             true
@@ -376,19 +407,23 @@ object UserProfileRepository {
             val user = getUserProfile(uid) ?: return false
             val vehicleToDelete = user.vehicles.find { it.id == vehicleId } ?: return false
 
-            val vehicleMap = mapOf(
-                "id" to vehicleToDelete.id,
-                "brand" to vehicleToDelete.brand,
-                "color" to vehicleToDelete.color,
-                "plateNumber" to vehicleToDelete.plateNumber,
-                "licenseNumber" to vehicleToDelete.licenseNumber,
-                "lastEditedAt" to vehicleToDelete.lastEditedAt
-            )
+            // REMOVE from vehicles list by ID
+            val updatedVehicles = user.vehicles.filter { it.id != vehicleId }.map { 
+                mapOf(
+                    "id" to it.id,
+                    "brand" to it.brand,
+                    "color" to it.color,
+                    "plateNumber" to it.plateNumber,
+                    "licenseNumber" to it.licenseNumber,
+                    "grantUrl" to it.grantUrl,
+                    "status" to it.status,
+                    "lastEditedAt" to it.lastEditedAt
+                )
+            }
 
-            // Remove from vehicles list
             val batch = db.batch()
             val userRef = db.collection("users").document(uid)
-            batch.update(userRef, "vehicles", com.google.firebase.firestore.FieldValue.arrayRemove(vehicleMap))
+            batch.update(userRef, "vehicles", updatedVehicles)
 
             // If this was the active vehicle, clear the active vehicle fields
             if (user.vehiclePlateNumber == vehicleToDelete.plateNumber) {
@@ -400,6 +435,30 @@ object UserProfileRepository {
             }
             
             batch.commit().await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun submitVehicleApplication(matricNumber: String, vehicle: Vehicle): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return try {
+            val applicationMap = mapOf(
+                "id" to vehicle.id,
+                "userId" to uid,
+                "matricNumber" to matricNumber,
+                "brand" to vehicle.brand,
+                "color" to vehicle.color,
+                "plateNumber" to vehicle.plateNumber,
+                "licenseNumber" to vehicle.licenseNumber,
+                "grantUrl" to vehicle.grantUrl,
+                "status" to "Pending",
+                "submittedAt" to System.currentTimeMillis()
+            )
+            // Use plateNumber as document ID to avoid duplicate overlapping applications for same car
+            db.collection("newVehicleApplications").document(vehicle.plateNumber).set(applicationMap).await()
             true
         } catch (e: Exception) {
             e.printStackTrace()
