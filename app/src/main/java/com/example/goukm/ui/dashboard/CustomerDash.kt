@@ -70,6 +70,8 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.chat.ChatRepository
 import com.example.goukm.ui.chat.ChatRoom
+import com.example.goukm.ui.booking.RecentPlace
+import com.example.goukm.ui.booking.RecentPlaceRepository
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -92,6 +94,7 @@ fun CustomerDashboard(
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance() }
     var activeBooking by remember { mutableStateOf<com.example.goukm.ui.booking.Booking?>(null) }
     var chatRoom by remember { mutableStateOf<ChatRoom?>(null) }
+    var recentPlaces by remember { mutableStateOf<List<RecentPlace>>(emptyList()) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -109,6 +112,10 @@ fun CustomerDashboard(
         if (activeBooking?.driverArrived == true) {
             android.widget.Toast.makeText(context, "Driver has arrived!", android.widget.Toast.LENGTH_LONG).show()
         }
+    }
+
+    LaunchedEffect(Unit) {
+        recentPlaces = RecentPlaceRepository.getRecentPlaces()
     }
 
     LaunchedEffect(activeBooking) {
@@ -305,9 +312,29 @@ fun CustomerDashboard(
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
-                        RecentPlaceRow("Fakulti Teknologi dan Sains Maklumat")
-                        RecentPlaceRow("Kolej Pendeta Za'ba - UKM")
-                        RecentPlaceRow("Kolej Ibrahim Yaakub - UKM")
+                        if (recentPlaces.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 20.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No recent places yet",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            recentPlaces.forEach { place ->
+                                RecentPlaceRow(
+                                    text = place.name,
+                                    onClick = { 
+                                        navController.navigate("booking_request")
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -444,11 +471,11 @@ private fun ActiveBookingCard(
 }
 
 @Composable
-private fun RecentPlaceRow(text: String) {
+private fun RecentPlaceRow(text: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

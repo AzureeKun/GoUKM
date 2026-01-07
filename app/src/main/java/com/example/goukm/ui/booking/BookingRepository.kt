@@ -91,6 +91,11 @@ class BookingRepository {
             )
 
             bookingsCollection.document(bookingId).set(booking).await()
+            
+            // Save to Recent Places
+            RecentPlaceRepository.savePlace(pickup, pickup, pickupLat, pickupLng)
+            RecentPlaceRepository.savePlace(dropOff, dropOff, dropOffLat, dropOffLng)
+            
             Result.success(bookingId)
         } catch (e: Exception) {
             Result.failure(e)

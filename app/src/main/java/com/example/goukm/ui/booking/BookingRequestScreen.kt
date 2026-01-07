@@ -91,6 +91,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import com.google.android.libraries.places.api.model.Place
+import com.example.goukm.ui.booking.RecentPlace
+import com.example.goukm.ui.booking.RecentPlaceRepository
 
 
 
@@ -118,6 +120,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     var dropOffLocation by remember { mutableStateOf(LocationInfo()) }
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
     var rideOffers by remember { mutableStateOf<List<DriverOffer>>(emptyList()) }
+    var recentPlaces by remember { mutableStateOf<List<RecentPlace>>(emptyList()) }
 
     var pickupPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
     var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
@@ -235,6 +238,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
         if (!hasLocationPermission) {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+        recentPlaces = RecentPlaceRepository.getRecentPlaces()
     }
 
     // Automatically fetch location and geocode when permission is granted
@@ -365,6 +369,14 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                     }
                                 },
                                 predictions = pickupPredictions,
+                                recentPlaces = recentPlaces,
+                                onRecentPlaceSelect = { place ->
+                                    pickupLocation = pickupLocation.copy(
+                                        address = place.address,
+                                        latLng = LatLng(place.lat, place.lng),
+                                        placeId = "recent"
+                                    )
+                                },
                                 onPredictionSelect = { placeId, address ->
                                     pickupLocation = pickupLocation.copy(address = address, placeId = placeId)
                                     pickupPredictions = emptyList()
@@ -396,6 +408,14 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                     }
                                 },
                                 predictions = dropOffPredictions,
+                                recentPlaces = recentPlaces,
+                                onRecentPlaceSelect = { place ->
+                                    dropOffLocation = dropOffLocation.copy(
+                                        address = place.address,
+                                        latLng = LatLng(place.lat, place.lng),
+                                        placeId = "recent"
+                                    )
+                                },
                                 onPredictionSelect = { placeId, address ->
                                     dropOffLocation = dropOffLocation.copy(address = address, placeId = placeId)
                                     dropOffPredictions = emptyList() // Hide list
@@ -857,7 +877,9 @@ fun AutocompleteTextField(
     value: String,
     onValueChange: (String) -> Unit,
     predictions: List<AutocompletePrediction>,
+    recentPlaces: List<RecentPlace> = emptyList(),
     onPredictionSelect: (String, String) -> Unit, // placeId, address
+    onRecentPlaceSelect: ((RecentPlace) -> Unit)? = null,
     leadingIcon: ImageVector,
     trailingIcon: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -878,47 +900,101 @@ fun AutocompleteTextField(
             shape = RoundedCornerShape(12.dp)
         )
 
-        if (predictions.isNotEmpty()) {
+        if (predictions.isNotEmpty() || (value.isEmpty() && recentPlaces.isNotEmpty())) {
             Surface(
                 modifier = Modifier
                     .padding(top = 60.dp) // Below text field
                     .fillMaxWidth()
-                    .heightIn(max = 200.dp),
+                    .heightIn(max = 250.dp),
                 shape = RoundedCornerShape(8.dp),
-                shadowElevation = 4.dp
+                shadowElevation = 4.dp,
+                color = Color.White
             ) {
                 LazyColumn(
                     modifier = Modifier.background(Color.White)
                 ) {
-                    items(predictions.size) { index ->
-                        val prediction = predictions[index]
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onPredictionSelect(prediction.placeId, prediction.getPrimaryText(null).toString())
+                    if (value.isEmpty() && recentPlaces.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Recent Places",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.Gray
+                            )
+                        }
+                        items(recentPlaces.size) { index ->
+                            val place = recentPlaces[index]
+                            RecentPlaceItem(place) {
+                                onRecentPlaceSelect?.invoke(place)
+                            }
+                        }
+                    }
+
+                    if (predictions.isNotEmpty()) {
+                        items(predictions.size) { index ->
+                            val prediction = predictions[index]
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onPredictionSelect(prediction.placeId, prediction.getPrimaryText(null).toString())
+                                    }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Place, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = prediction.getPrimaryText(null).toString(),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = prediction.getSecondaryText(null).toString(),
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
                                 }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Place, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = prediction.getPrimaryText(null).toString(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    text = prediction.getSecondaryText(null).toString(),
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
-                                )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun RecentPlaceItem(place: RecentPlace, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Place,
+            contentDescription = null,
+            tint = Color(0xFF6B87C0),
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(
+                text = place.name,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = Color.Black
+            )
+            Text(
+                text = place.address,
+                fontSize = 12.sp,
+                color = Color.Gray,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
         }
     }
 }
