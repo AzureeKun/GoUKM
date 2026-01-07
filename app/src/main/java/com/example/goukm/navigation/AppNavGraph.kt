@@ -343,7 +343,7 @@ fun AppNavGraph(
             val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
             
             confirmPay(
-                totalAmount = "RM 25",
+                bookingId = bookingId,
                 paymentMethod = paymentMethod,
                 onProceedPayment = { },
                 oncashConfirmation = {
@@ -355,8 +355,8 @@ fun AppNavGraph(
                          }
                      }
                 },
-                onNavigateToQR = {
-                    navController.navigate("payment_qr/RM 25/$bookingId")
+                onNavigateToQR = { fetchedAmount ->
+                    navController.navigate("payment_qr/$fetchedAmount/$bookingId")
                 },
                 onBack = {
                     navController.popBackStack()
