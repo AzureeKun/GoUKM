@@ -163,7 +163,7 @@ fun DriverProfileScreen(
                                                 // We do not trust the individual vehicle record if it differs from the driver's main profile.
                                                 val licenseToUse = user?.licenseNumber ?: ""
 
-                                                val updatedVehicle = Vehicle(
+                                                val  updatedVehicle = Vehicle(
                                                     id = editingVehicleId!!,
                                                     brand = newBrand.trim(),
                                                     color = newColor.trim(),
