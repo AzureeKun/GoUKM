@@ -12,7 +12,7 @@ object UserProfileRepository {
     private val db = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance().reference
 
-    // GET user profile
+    // get user profile
     suspend fun getUserProfile(uid: String? = null): UserProfile? {
         val targetUid = uid ?: auth.currentUser?.uid ?: return null
 
