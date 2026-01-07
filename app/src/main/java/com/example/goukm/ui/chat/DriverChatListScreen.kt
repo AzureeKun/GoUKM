@@ -46,34 +46,18 @@ fun DriverChatListScreen(navController: NavHostController) {
                 title = {
                     Text(
                         "Messages",
-                        color = Color.White,
+                        color = Color(0xFF1E293B), // Dark Navy
                         fontWeight = FontWeight.Bold
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
-            )
-        },
-        bottomBar = {
-            BottomNavigationBarDriver(
-                selectedIndex = selectedNavIndex,
-                onSelected = { index ->
-                    selectedNavIndex = index
-                    when (index) {
-                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
-                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
-                        }
-                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
-                        2 -> navController.navigate(NavRoutes.DriverScore.route)
-                        3 -> navController.navigate(NavRoutes.DriverEarning.route)
-                    }
-                }
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(Color(0xFFF8FAFC)) // Standardized Background
                 .padding(paddingValues)
         ) {
             when {

@@ -17,12 +17,17 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 
 // Modern color palette
 private val PrimaryBlue = Color(0xFF6B87C0)
@@ -48,21 +53,36 @@ fun BottomNavigationBarDriver(selectedIndex: Int, onSelected: (Int) -> Unit) {
 
         items.forEach { (icon, label, index) ->
             val isSelected = selectedIndex == index
+            
+            // Animation for icon scaling
+            val scale by animateFloatAsState(
+                targetValue = if (isSelected) 1.15f else 1.0f,
+                animationSpec = tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                label = "iconScale"
+            )
+
+            // Animation for background alpha
+            val alpha by animateFloatAsState(
+                targetValue = if (isSelected) 0.2f else 0.0f,
+                animationSpec = tween(durationMillis = 300),
+                label = "bgAlpha"
+            )
+
             NavigationBarItem(
                 selected = isSelected,
                 onClick = { onSelected(index) },
                 icon = { 
                     Box(
-                        modifier = if (isSelected) {
-                            Modifier
-                                .background(
-                                    color = Color.White.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        } else {
-                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        }
+                        modifier = Modifier
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                            .background(
+                                color = Color.White.copy(alpha = alpha),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Icon(
                             imageVector = icon, 

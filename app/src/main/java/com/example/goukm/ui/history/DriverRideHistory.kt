@@ -40,11 +40,7 @@ fun DriverRideBookingHistoryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFFF8F9FA), Color.White)
-                )
-            )
+            .background(Color(0xFFF8FAFC))
             .padding(20.dp)
     ) {
         // Header Row: Title + Filter Button

@@ -80,8 +80,9 @@ fun DriverScoreScreen(navController: NavHostController) {
                 title = {
                     Text(
                         "Driver Score",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        color = Color(0xFF1E293B), // Dark Navy
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -89,22 +90,7 @@ fun DriverScoreScreen(navController: NavHostController) {
                 )
             )
         },
-        bottomBar = {
-            BottomNavigationBarDriver(
-                selectedIndex = 2,
-                onSelected = { index ->
-                    when (index) {
-                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
-                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
-                        }
-                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
-                        2 -> { /* Already here */ }
-                        3 -> navController.navigate(NavRoutes.DriverEarning.route)
-                    }
-                }
-            )
-        },
-        containerColor = Color(0xFFF0F4F8) // Light greyish blue bg
+        containerColor = Color(0xFFF8FAFC) // Unified Modern Gray-White
     ) { padding ->
         if (isLoading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {

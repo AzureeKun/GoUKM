@@ -82,69 +82,6 @@ private val CardSurface = Color(0xFFFFFFFF)
 private val AccentPink = Color(0xFFFFE4E4)
 private val AccentLightBlue = Color(0xFFDCE6FF)
 
-@Composable
-fun BottomBar(navController: NavHostController) {
-    NavigationBar(
-        containerColor = PrimaryBlue,
-        tonalElevation = 0.dp,
-        modifier = Modifier
-            .shadow(
-                elevation = 16.dp,
-                spotColor = DarkBlue.copy(alpha = 0.3f)
-            )
-    ) {
-        val items = listOf(
-            Triple(Icons.Default.Home, "Home", true),
-            Triple(Icons.Default.Message, "Chat", false),
-            Triple(Icons.Default.Person, "Profile", false)
-        )
-        
-        items.forEachIndexed { index, (icon, label, selected) ->
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    when (index) {
-                        1 -> navController.navigate(NavRoutes.CustomerChatList.route)
-                        2 -> navController.navigate(NavRoutes.CustomerProfile.route)
-                    }
-                },
-                icon = {
-                    Box(
-                        modifier = if (selected) {
-                            Modifier
-                                .background(
-                                    color = Color.White.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        } else {
-                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        }
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = label,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                },
-                label = { 
-                    Text(
-                        label, 
-                        color = Color.White,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 12.sp
-                    ) 
-                },
-                alwaysShowLabel = true,
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color.Transparent
-                )
-            )
-        }
-    }
-}
 
 @Composable
 fun CustomerDashboard(
@@ -218,7 +155,6 @@ fun CustomerDashboard(
     }
 
     Scaffold(
-        bottomBar = { BottomBar(navController) },
         containerColor = SurfaceColor
     ) { paddingValues ->
 

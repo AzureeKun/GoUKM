@@ -1,10 +1,13 @@
 package com.example.goukm.ui.dashboard
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,6 +33,9 @@ import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -105,7 +111,7 @@ fun DriverDashboard(
     DisposableEffect(isOnline) {
         if (isOnline) {
             val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-            val currentUserId = auth.currentUser?.uid
+            val currentUserId = auth.currentUser?.uid ?: ""
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val listener = db.collection("bookings")
                 .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED", "ONGOING"))
@@ -197,12 +203,27 @@ fun DriverDashboard(
     }
 
     Scaffold(
-        containerColor = Color(0xFFF8F9FA), // Lighter, clean background
-        bottomBar = {
-            BottomNavigationBarDriver(
-                selectedIndex = selectedNavIndex,
-                onSelected = onNavSelected
-            )
+        containerColor = Color(0xFFF8FAFC), // Unified Modern Gray-White
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = isOnline,
+                enter = scaleIn(),
+                exit = scaleOut()
+            ) {
+                androidx.compose.material3.FloatingActionButton(
+                    onClick = { authViewModel.setDriverAvailability(false) },
+                    containerColor = Color(0xFFEF5350), // Soft Red
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(64.dp) // Slightly larger for emphasis
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PowerSettingsNew,
+                        contentDescription = "Go Offline",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         Column(
@@ -210,7 +231,9 @@ fun DriverDashboard(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Modern Minimal Header
+            
+            // Header: Only show when "Online" or let it persist but change state? 
+            // Let's persist it for a "Modern" app feel.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -219,50 +242,30 @@ fun DriverDashboard(
                     // No heavy shadow, just white cleanliness. Or maybe a very subtle 1dp border
                     .shadow(elevation = 1.dp, spotColor = Color.Black.copy(alpha = 0.05f))
             ) {
-                 // Left: Status
+                 // Left: Greeting / Status
                 Column(
                     modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    val statusColor = if(isOnline) Color(0xFF22C55E) else Color(0xFFEF5350) // Brighter green/red
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier.size(8.dp).background(statusColor, CircleShape)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = if (isOnline) "ONLINE" else "OFFLINE",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp,
-                            color = statusColor
-                        )
-                    }
-                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "${user?.carBrand ?: "Unknown"} • ${user?.vehiclePlateNumber ?: "No Plate"}",
-                        fontSize = 12.sp,
-                        color = Color(0xFF94A3B8),
-                        fontWeight = FontWeight.Medium
+                        "Hello, ${user?.name ?: "Driver"}",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
                     )
+                     Spacer(Modifier.height(4.dp))
+                     Row(verticalAlignment = Alignment.CenterVertically) {
+                         if (isOnline) {
+                             BlinkingDot()
+                             Spacer(Modifier.width(8.dp))
+                             Text("Online & Searching", fontSize = 12.sp, color = Color(0xFF22C55E), fontWeight = FontWeight.Medium)
+                         } else {
+                             Box(Modifier.size(6.dp).background(Color.Gray, CircleShape))
+                             Spacer(Modifier.width(8.dp))
+                             Text("Offline", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                         }
+                     }
                 }
 
-                // Center: Switch 
-                Box(
-                    modifier = Modifier.align(Alignment.Center)
-                ) {
-                    Switch(
-                        checked = isOnline,
-                        onCheckedChange = { authViewModel.setDriverAvailability(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF22C55E),
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFE2E8F0),
-                            uncheckedBorderColor = Color.Transparent
-                        ),
-                        modifier = Modifier.scale(0.9f)
-                    )
-                }
 
                 // Right: Settings
                 IconButton(
@@ -271,169 +274,181 @@ fun DriverDashboard(
                     },
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .background(Color(0xFFF1F5F9), CircleShape) // Light gray bg for icon
-                        .size(40.dp)
+                        .size(44.dp)
+                        .background(Color(0xFFF1F5F9), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "Settings",
                         tint = Color(0xFF64748B),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
             
             
-            if (isOnline) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 24.dp, bottom = 100.dp),
-                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
-                ) {
-                    // ACCEPTED JOBS
-                    if (acceptedRequests.isNotEmpty()) {
-                        item { SectionHeader("CURRENT RIDE") }
-                        items(acceptedRequests, key = { it.id }) { request ->
-                             RideRequestCard(
-                                request = request,
-                                onSkip = { 
-                                    scope.launch {
-                                         val encodedAddress = android.net.Uri.encode(request.pickupPoint)
-                                         if (request.status == "ONGOING") {
-                                             navController.navigate("driver_journey_summary/${request.id}")
-                                         } else {
-                                             navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress/${request.id}")
-                                         }
-                                    }
-                                },
-                                onOffer = null,
-                                skipLabel = "Navigate",
-                                onChat = if (request.chatRoom != null) {
-                                    {
-                                        val encodedName = URLEncoder.encode(request.chatRoom.customerName, "UTF-8")
-                                        val encodedPhone = URLEncoder.encode(request.chatRoom.customerPhone, "UTF-8")
-                                        navController.navigate("driver_chat/${request.chatRoom.id}/$encodedName/$encodedPhone")
-                                    }
-                                } else null,
-                                onArrive = null 
-                             )
-                        }
-                    }
-
-                    // OFFERED JOBS
-                    if (offeredRequests.isNotEmpty() && acceptedRequests.isEmpty()) {
-                        item { SectionHeader("Awaiting Response") }
-                         items(offeredRequests, key = { it.id }) { request ->
-                             RideRequestCard(
-                                request = request,
-                                onSkip = {
-                                    scope.launch {
-                                         bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
-                                            .onSuccess {
-                                                android.widget.Toast.makeText(context, "Offer Cancelled", android.widget.Toast.LENGTH_SHORT).show()
-                                            }
-                                    }
-                                },
-                                onOffer = null,
-                                skipLabel = "Cancel Offer"
-                             )
-                        }
-                    }
-
-                    // NEW REQUESTS
-                     if (rideRequests.isNotEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
-                        item { SectionHeader("NEW REQUESTS") } // All caps for minimal look
-                        items(rideRequests, key = { it.id }) { request ->
-                            RideRequestCard(
-                                request = request,
-                                onSkip = {
-                                    scope.launch {
-                                        bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
-                                            .onSuccess {
-                                                android.widget.Toast.makeText(context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
-                                            }
-                                    }
-                                },
-                                onOffer = {
-                                    scope.launch {
-                                        bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.OFFERED)
-                                            .onSuccess {
-                                                navController.navigate(
-                                                    "fare_offer/${request.customerName}/${request.pickupPoint}/${request.dropOffPoint}/${request.seats}/${request.id}"
-                                                )
-                                            }
-                                    }
-                                }
-                            )
-                        }
-                     } else if (rideRequests.isEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
-                         item {
-                             EmptyStateView(
-                                 message = "No requests nearby",
-                                 subMessage = "We'll notify you when a trip is available."
-                             )
-                         }
-                     }
-                }
-            } else {
-                // Offline State (Refreshed)
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(32.dp)
+            Crossfade(
+                targetState = isOnline,
+                label = "OnlineStateCrossfade",
+                animationSpec = tween(durationMillis = 400)
+            ) { online ->
+                if (online) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 24.dp, bottom = 100.dp),
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(20.dp)
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.carroad),
-                            contentDescription = "Offline",
-                            modifier = Modifier
-                                .size(280.dp) // Larger
-                                .clip(RoundedCornerShape(32.dp))
-                                .shadow(12.dp, RoundedCornerShape(32.dp), spotColor = Color.Black.copy(0.1f)),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.height(32.dp))
-                        
-                        Text(
-                            "You're currently Offline",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp,
-                            color = Color(0xFF1E293B)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Go online to start earning",
-                            fontSize = 16.sp,
-                            color = Color(0xFF64748B)
-                        )
-                        Spacer(modifier = Modifier.height(40.dp))
-                        
-                        Button(
-                            onClick = { authViewModel.setDriverAvailability(true) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E)),
-                            shape = RoundedCornerShape(50) // Pill button
-                        ) {
-                            Text("GO ONLINE", fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                        // ACCEPTED JOBS
+                        if (acceptedRequests.isNotEmpty()) {
+                            item { SectionHeader("Ongoing Trip") }
+                            items(acceptedRequests, key = { it.id }) { request ->
+                                 RideRequestCard(
+                                    request = request,
+                                    onSkip = { 
+                                        scope.launch {
+                                             val encodedAddress = android.net.Uri.encode(request.pickupPoint)
+                                             if (request.status == "ONGOING") {
+                                                 navController.navigate("driver_journey_summary/${request.id}")
+                                             } else {
+                                                 navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress/${request.id}")
+                                             }
+                                        }
+                                    },
+                                    onOffer = null,
+                                    skipLabel = "Navigate",
+                                    onChat = if (request.chatRoom != null) {
+                                        {
+                                            val encodedName = URLEncoder.encode(request.chatRoom.customerName, "UTF-8")
+                                            val encodedPhone = URLEncoder.encode(request.chatRoom.customerPhone, "UTF-8")
+                                            navController.navigate("driver_chat/${request.chatRoom.id}/$encodedName/$encodedPhone")
+                                        }
+                                    } else null,
+                                    onArrive = null 
+                                 )
+                            }
                         }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    authViewModel.switchActiveRole("customer")
-                                    navController.navigate("customer_dashboard") {
-                                        popUpTo("driver_dashboard") { inclusive = true }
+    
+                        // OFFERED JOBS
+                        if (offeredRequests.isNotEmpty() && acceptedRequests.isEmpty()) {
+                            item { SectionHeader("Your Offers") }
+                             items(offeredRequests, key = { it.id }) { request ->
+                                 RideRequestCard(
+                                    request = request,
+                                    onSkip = {
+                                        scope.launch {
+                                             bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
+                                                .onSuccess {
+                                                    android.widget.Toast.makeText(context, "Offer Cancelled", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                        }
+                                    },
+                                    onOffer = null,
+                                    skipLabel = "Cancel Offer"
+                                 )
+                            }
+                        }
+    
+                        // NEW REQUESTS
+                         if (rideRequests.isNotEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
+                            item { SectionHeader("New Requests") }
+                            items(rideRequests, key = { it.id }) { request ->
+                                RideRequestCard(
+                                    request = request,
+                                    onSkip = {
+                                        scope.launch {
+                                            bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
+                                                .onSuccess {
+                                                    android.widget.Toast.makeText(context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                        }
+                                    },
+                                    onOffer = {
+                                        scope.launch {
+                                            bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.OFFERED)
+                                                .onSuccess {
+                                                    navController.navigate(
+                                                        "fare_offer/${request.customerName}/${request.pickupPoint}/${request.dropOffPoint}/${request.seats}/${request.id}"
+                                                    )
+                                                }
+                                        }
                                     }
-                                }
-                            },
+                                )
+                            }
+                         } else if (rideRequests.isEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
+                             item {
+                                 ScanningStateView()
+                             }
+                         }
+                    }
+                } else {
+                    // Fun/Modern Offline State
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("Switch to Customer Mode", fontSize = 14.sp, color = Color(0xFF64748B))
+                            // "Start Engine" / Go Online Button
+                            Box(
+                                modifier = Modifier
+                                    .size(160.dp)
+                                    .shadow(
+                                         elevation = 20.dp, 
+                                         shape = CircleShape, 
+                                         spotColor = Color(0xFF22C55E).copy(alpha = 0.4f)
+                                    )
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(Color(0xFF4ADE80), Color(0xFF22C55E))
+                                        ), 
+                                        CircleShape
+                                    )
+                                    .clickable { authViewModel.setDriverAvailability(true) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        // Using a standard material icon or we can use painterResource if we had a power icon
+                                        // Using PlayArrow as strict replacement for "Start"
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Go Online",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(60.dp)
+                                    )
+                                    Text("GO ONLINE", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(40.dp))
+                            
+                            Text(
+                                "Ready to roll?",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 26.sp,
+                                color = Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Tap the button to start receiving rides.",
+                                fontSize = 16.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            TextButton(
+                               onClick = {
+                                    scope.launch {
+                                        authViewModel.switchActiveRole("customer")
+                                        navController.navigate("customer_dashboard") {
+                                            popUpTo("driver_dashboard") { inclusive = true }
+                                        }
+                                    }
+                               }
+                            ) {
+                                Text("Or switch to Customer Mode", color = Color(0xFF94A3B8))
+                            }
                         }
                     }
                 }
@@ -446,50 +461,110 @@ fun DriverDashboard(
 fun SectionHeader(title: String) {
     Text(
         text = title,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Black,
-        color = Color(0xFF94A3B8),
-        letterSpacing = 1.2.sp,
+        fontSize = 16.sp, // Slightly bigger, not caps
+        fontWeight = FontWeight.Bold,
+        color = Color(0xFF1E293B),
         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
     )
 }
 
 @Composable
-fun EmptyStateView(message: String, subMessage: String) {
+fun ScanningStateView() {
+    val infiniteTransition = rememberInfiniteTransition(label = "scanningRipple")
+    
+    // Animation for the first ripple
+    val scale1 by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 2.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Restart
+        ),
+        label = "scale1"
+    )
+    val alpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Restart
+        ),
+        label = "alpha1"
+    )
+
+    // Animation for the second ripple (just a slightly different timing or size if we could, 
+    // but simplified: we'll just layer a second one with a static offset modifier or accept one pulsing ring for simplicity & performance,
+    // OR just use a second independent transition with initial delay if we were in a LaunchedEffect, but infiniteTransition runs immediately.
+    // Let's stick to one nice large pulse + a static inner glow to keep it clean.)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 80.dp),
+            .padding(top = 100.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .background(Color(0xFFF1F5F9), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(contentAlignment = Alignment.Center) {
+             // Pulsing Ripple
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .graphicsLayer {
+                        scaleX = scale1
+                        scaleY = scale1
+                        alpha = alpha1
+                    }
+                    .background(Color(0xFF0EA5E9), CircleShape)
+            )
+            
+             // Static Inner Glow
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .background(Color(0xFFE0F2FE).copy(alpha = 0.3f), CircleShape)
+            )
+            
+            // Icon
             Icon(
-                Icons.Default.Notifications, // Or a better icon
+                imageVector = Icons.Default.Search,
                 contentDescription = null,
-                tint = Color(0xFF94A3B8),
-                modifier = Modifier.size(40.dp)
+                tint = Color(0xFF0EA5E9),
+                modifier = Modifier.size(48.dp)
             )
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        
+        Spacer(modifier = Modifier.height(32.dp))
         Text(
-            message,
-            fontSize = 18.sp,
+            "Scanning area...",
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E293B)
+            color = Color(0xFF0F172A)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            subMessage,
-            fontSize = 14.sp,
+            "Relax, we'll ping you when a ride appears!",
+            fontSize = 15.sp,
             color = Color(0xFF64748B),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
+}
+
+@Composable
+fun BlinkingDot() {
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        )
+    )
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .background(Color(0xFF22C55E).copy(alpha = alpha), CircleShape)
+    )
 }
 
 // Extension to help with scaling effect for switch

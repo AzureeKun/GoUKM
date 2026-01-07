@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
-import com.example.goukm.ui.dashboard.BottomBar
+
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,9 +74,6 @@ fun RideDoneScreen(
 
     Scaffold(
         containerColor = Color(0xFFE8F4FD),
-        bottomBar = {
-            BottomBar(navController)
-        }
     ) { padding ->
         Column(
             modifier = Modifier

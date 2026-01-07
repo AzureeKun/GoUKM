@@ -2,7 +2,11 @@ package com.example.goukm.navigation
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Scaffold
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -11,9 +15,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.goukm.ui.register.*
 import com.example.goukm.ui.dashboard.CustomerDashboard
 import com.example.goukm.ui.dashboard.DriverDashboard
+import com.example.goukm.ui.dashboard.BottomNavigationBarDriver
+import com.example.goukm.ui.dashboard.BottomNavigationBarCustomer
 import com.example.goukm.ui.booking.BookingRequestScreen
 import com.example.goukm.ui.userprofile.CustomerProfileScreen
 import com.example.goukm.ui.userprofile.EditProfileScreen
@@ -93,11 +100,107 @@ fun AppNavGraph(
         return
     }
 
-    // NavHost
-    NavHost(
-        navController = navController,
-        startDestination = NavRoutes.Loading.route
-    ) {
+    // List of driver routes that show the bottom bar
+    val driverBottomNavRoutes = listOf(
+        NavRoutes.DriverDashboard.route,
+        NavRoutes.DriverChatList.route,
+        NavRoutes.DriverScore.route,
+        NavRoutes.DriverEarning.route
+    )
+
+    // List of customer routes that show the bottom bar
+    val customerBottomNavRoutes = listOf(
+        NavRoutes.CustomerDashboard.route,
+        NavRoutes.CustomerChatList.route,
+        NavRoutes.CustomerProfile.route
+    )
+
+    // Observe current route
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val isDriverRouteWithBottomBar = currentRoute in driverBottomNavRoutes
+    val isCustomerRouteWithBottomBar = currentRoute in customerBottomNavRoutes
+
+    Scaffold(
+        bottomBar = {
+            if (isDriverRouteWithBottomBar) {
+                val selectedIndex = when (currentRoute) {
+                    NavRoutes.DriverDashboard.route -> 0
+                    NavRoutes.DriverChatList.route -> 1
+                    NavRoutes.DriverScore.route -> 2
+                    NavRoutes.DriverEarning.route -> 3
+                    else -> 0
+                }
+                BottomNavigationBarDriver(
+                    selectedIndex = selectedIndex,
+                    onSelected = { index ->
+                        val targetRoute = when (index) {
+                            0 -> NavRoutes.DriverDashboard.route
+                            1 -> NavRoutes.DriverChatList.route
+                            2 -> NavRoutes.DriverScore.route
+                            3 -> NavRoutes.DriverEarning.route
+                            else -> NavRoutes.DriverDashboard.route
+                        }
+                        if (currentRoute != targetRoute) {
+                            navController.navigate(targetRoute) {
+                                popUpTo(NavRoutes.DriverDashboard.route) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                )
+            } else if (isCustomerRouteWithBottomBar) {
+                val selectedIndex = when (currentRoute) {
+                    NavRoutes.CustomerDashboard.route -> 0
+                    NavRoutes.CustomerChatList.route -> 1
+                    NavRoutes.CustomerProfile.route -> 2
+                    else -> 0
+                }
+                BottomNavigationBarCustomer(
+                    selectedIndex = selectedIndex,
+                    onSelected = { index ->
+                        val targetRoute = when (index) {
+                            0 -> NavRoutes.CustomerDashboard.route
+                            1 -> NavRoutes.CustomerChatList.route
+                            2 -> NavRoutes.CustomerProfile.route
+                            else -> NavRoutes.CustomerDashboard.route
+                        }
+                        if (currentRoute != targetRoute) {
+                            navController.navigate(targetRoute) {
+                                popUpTo(NavRoutes.CustomerDashboard.route) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
+        // NavHost
+        NavHost(
+            navController = navController,
+            startDestination = NavRoutes.Loading.route,
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = {
+                fadeIn(animationSpec = tween(400))
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(400))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(400))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(400))
+            }
+        ) {
         // REGISTER
         composable(NavRoutes.Register.route) {
             RegisterScreen(
@@ -197,22 +300,11 @@ fun AppNavGraph(
 
         // DRIVER DASHBOARD
         composable(NavRoutes.DriverDashboard.route) {
-            var localSelectedDriverNavIndex by remember { mutableStateOf(0) }
             DriverDashboard(
                 navController = navController,
                 authViewModel = authViewModel,
-                selectedNavIndex = localSelectedDriverNavIndex,
-                onNavSelected = { index ->
-                    localSelectedDriverNavIndex = index
-                    when (index) {
-                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
-                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
-                        }
-                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
-                        2 -> navController.navigate(NavRoutes.DriverScore.route)
-                        3 -> navController.navigate(NavRoutes.DriverEarning.route)
-                    }
-                }
+                selectedNavIndex = 0,
+                onNavSelected = { /* Handled by global scaffold */ }
             )
         }
 
@@ -554,3 +646,5 @@ fun AppNavGraph(
         }
     }
 }
+}
+

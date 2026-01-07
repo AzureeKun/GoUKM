@@ -89,32 +89,6 @@ fun ReadOnlyField(label: String, value: String, modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun BottomBarCust(navController: NavHostController) {
-    NavigationBar(containerColor = CBlue) {
-        NavigationBarItem(
-            selected = false,
-            onClick = { navController.navigate(NavRoutes.CustomerDashboard.route) },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White) },
-            label = { Text("Home", color = Color.White) },
-            alwaysShowLabel = true
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { navController.navigate(NavRoutes.CustomerChatList.route) },
-            icon = { Icon(Icons.Default.Message, contentDescription = "Chat", tint = Color.White) },
-            label = { Text("Chat", color = Color.White) },
-            alwaysShowLabel = true
-        )
-        NavigationBarItem(
-            selected = true,
-            onClick = { /* Already on Profile */ },
-            icon = { Icon(Icons.Default.Person, contentDescription = "Profile", tint = Color.White) },
-            label = { Text("Profile", color = Color.White) },
-            alwaysShowLabel = true
-        )
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,14 +122,13 @@ fun CustomerProfileScreen(
                 title = { Text("My Profile", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
             )
-        },
-        bottomBar = { BottomBarCust(navController) }
+        }
     ) { paddingValues ->
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Color(0xFFF5F7FB)) // Standardized Background
                 .padding(paddingValues)
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally

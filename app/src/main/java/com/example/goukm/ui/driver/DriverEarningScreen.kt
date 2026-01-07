@@ -110,34 +110,18 @@ fun DriverEarningScreen(
                 title = {
                     Text(
                         "My Earnings",
-                        color = Color.White,
+                        color = Color(0xFF1E293B), // Dark Navy
                         fontWeight = FontWeight.Bold
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
-            )
-        },
-        bottomBar = {
-            BottomNavigationBarDriver(
-                selectedIndex = selectedNavIndex,
-                onSelected = { index ->
-                    selectedNavIndex = index
-                    when (index) {
-                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
-                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
-                        }
-                        1 -> navController.navigate(NavRoutes.DriverChatList.route)
-                        2 -> navController.navigate(NavRoutes.DriverScore.route)
-                        3 -> { /* Already here */ }
-                    }
-                }
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(Color(0xFFF8FAFC)) // Standardized Background
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

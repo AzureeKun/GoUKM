@@ -59,34 +59,12 @@ fun CustomerChatListScreen(navController: NavHostController) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
             )
-        },
-        bottomBar = {
-            NavigationBar(containerColor = CBlue) {
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate("customer_dashboard") },
-                    icon = { Icon(Icons.Default.Home, "Home", tint = Color.White) },
-                    label = { Text("Home", color = Color.White) }
-                )
-                NavigationBarItem(
-                    selected = true,
-                    onClick = { },
-                    icon = { Icon(Icons.Default.Message, "Chat", tint = Color.White) },
-                    label = { Text("Chat", color = Color.White) }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate("customer_profile") },
-                    icon = { Icon(Icons.Default.Person, "Profile", tint = Color.White) },
-                    label = { Text("Profile", color = Color.White) }
-                )
-            }
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(Color(0xFFF5F7FB)) // SurfaceColor from dashboard
                 .padding(paddingValues)
         ) {
             when {
