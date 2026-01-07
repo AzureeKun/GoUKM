@@ -363,6 +363,15 @@ fun ReviewItemCard(review: com.example.goukm.ui.booking.Rating) {
         sdf.format(Date(review.timestamp))
     }
     
+    val ratingEmoji = when(review.rating.toInt()) {
+        5 -> "🤩"
+        4 -> "😊"
+        3 -> "😐"
+        2 -> "🙁"
+        1 -> "😠"
+        else -> "🤔"
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -386,7 +395,7 @@ fun ReviewItemCard(review: com.example.goukm.ui.booking.Rating) {
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "${review.rating.toInt()} Stars",
+                        text = "${review.rating.toInt()} Stars $ratingEmoji",
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         color = Color.Gray
@@ -405,10 +414,20 @@ fun ReviewItemCard(review: com.example.goukm.ui.booking.Rating) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(Color(0xFFE3F2FD), CircleShape),
+                        .background(
+                            color = when(review.rating.toInt()) {
+                                5 -> Color(0xFFE8F5E9) // Light Green
+                                4 -> Color(0xFFF1F8E9) // Light Lime
+                                3 -> Color(0xFFFFF3E0) // Light Orange
+                                2 -> Color(0xFFFFFDE7) // Light Yellow
+                                1 -> Color(0xFFFFEBEE) // Light Red
+                                else -> Color(0xFFF5F5F5)
+                            }, 
+                            shape = CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("😊", fontSize = 24.sp)
+                    Text(ratingEmoji, fontSize = 24.sp)
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))
