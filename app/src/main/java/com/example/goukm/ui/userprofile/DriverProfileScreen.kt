@@ -74,15 +74,11 @@ fun DriverProfileScreen(
     val userRepo = UserProfileRepository
     val executor = ContextCompat.getMainExecutor(context)
 
-    if (user == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (user == null) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            return@Box
         }
-        return
-    }
 
     // State for managing Bottom Sheet content (Vehicle List vs Add Vehicle Form)
     var isAddingVehicle by rememberSaveable { mutableStateOf(false) }
@@ -211,7 +207,7 @@ fun DriverProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .let { if (isAddingVehicle) it.height(500.dp) else it.wrapContentHeight() }
+                    .let { if (isAddingVehicle) it.fillMaxHeight(0.9f) else it.wrapContentHeight() }
             ) {
                 if (isAddingVehicle) {
                     // --- ADD NEW VEHICLE FORM ---
@@ -622,7 +618,6 @@ fun DriverProfileScreen(
                             ) {
                                 Text("Confirm Selection", fontSize = 16.sp)
                             }
-
                         } ?: run {
                             Text(
                                 "No vehicles found",
@@ -636,6 +631,38 @@ fun DriverProfileScreen(
                             }
                         }
                     }
+                }
+                // --- FORM OVERLAYS (Inside Box to appear on top) ---
+                if (showCameraOverlay) {
+                    CameraOverlay(
+                        onCaptured = { uri -> onCameraCaptured(uri) },
+                        onCancel = { showCameraOverlay = false },
+                        executor = executor
+                    )
+                }
+
+                if (showFileTooLargeDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showFileTooLargeDialog = false },
+                        title = { Text("File Too Large") },
+                        text = { Text("The selected file is too large. Please select an image smaller than 5MB.") },
+                        confirmButton = {
+                            Button(onClick = { showFileTooLargeDialog = false }) { Text("OK") }
+                        }
+                    )
+                }
+
+                if (showApplicationSubmittedDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showApplicationSubmittedDialog = false },
+                        title = { Text("Submitted", fontWeight = FontWeight.Bold) },
+                        text = { Text("Application submitted successfully, pending admin approval") },
+                        confirmButton = {
+                            Button(onClick = {
+                                showApplicationSubmittedDialog = false
+                            }) { Text("OK") }
+                        }
+                    )
                 }
             }
         }
@@ -831,35 +858,9 @@ fun DriverProfileScreen(
                 }
             }
         }
+    }
 
-        if (showCameraOverlay) {
-            CameraOverlay(
-                onCaptured = { uri -> onCameraCaptured(uri) },
-                onCancel = { showCameraOverlay = false },
-                executor = executor
-            )
-        }
-
-        if (showCameraOverlay) {
-            CameraOverlay(
-                onCaptured = { uri -> onCameraCaptured(uri) },
-                onCancel = { showCameraOverlay = false },
-                executor = executor
-            )
-        }
-
-        if (showFileTooLargeDialog) {
-            AlertDialog(
-                onDismissRequest = { showFileTooLargeDialog = false },
-                title = { Text("File Too Large") },
-                text = { Text("The selected file is too large. Please select an image smaller than 5MB.") },
-                confirmButton = {
-                    Button(onClick = { showFileTooLargeDialog = false }) { Text("OK") }
-                }
-            )
-        }
-
-        if (showApplicationApprovedDialog) {
+    if (showApplicationApprovedDialog) {
             AlertDialog(
                 onDismissRequest = { showApplicationApprovedDialog = false },
                 title = { Text("Application Approved!", fontWeight = FontWeight.Bold) },
@@ -867,7 +868,7 @@ fun DriverProfileScreen(
                 confirmButton = {
                     Button(onClick = {
                         showApplicationApprovedDialog = false
-                    }) { Text("Great!") }
+                    }) { Text("OKAY") }
                 }
             )
         }
@@ -891,17 +892,5 @@ fun DriverProfileScreen(
             )
         }
 
-        if (showApplicationSubmittedDialog) {
-            AlertDialog(
-                onDismissRequest = { showApplicationSubmittedDialog = false },
-                title = { Text("Submitted", fontWeight = FontWeight.Bold) },
-                text = { Text("Application submitted successfully, pending admin approval") },
-                confirmButton = {
-                    Button(onClick = {
-                        showApplicationSubmittedDialog = false
-                    }) { Text("OK") }
-                }
-            )
-        }
     }
 }
