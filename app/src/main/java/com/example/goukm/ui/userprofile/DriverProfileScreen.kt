@@ -128,12 +128,12 @@ fun DriverProfileScreen(
                         Spacer(Modifier.height(12.dp))
 
                         OutlinedTextField(
-                            value = newLicense,
-                            onValueChange = { newLicense = it },
-                            label = { Text("License Number") },
+                            value = user?.licenseNumber ?: "",
+                            onValueChange = { },
+                            label = { Text("License Number (Fixed)") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            enabled = true
+                            enabled = true // Make it read-only
                         )
 
                         Spacer(Modifier.height(24.dp))
@@ -159,9 +159,9 @@ fun DriverProfileScreen(
                                         scope.launch {
                                             if (editingVehicleId != null) {
                                                 // UPDATE EXISTING
-                                                // User requested to unlock editing of license number. 
-                                                // We use the input value if present, else fallback to user profile default.
-                                                val licenseToUse = newLicense.trim().ifEmpty { user?.licenseNumber ?: "" }
+                                                // Always use the User's master license number to ensure consistency.
+                                                // We do not trust the individual vehicle record if it differs from the driver's main profile.
+                                                val licenseToUse = user?.licenseNumber ?: ""
 
                                                 val updatedVehicle = Vehicle(
                                                     id = editingVehicleId!!,
@@ -187,7 +187,7 @@ fun DriverProfileScreen(
                                                     brand = newBrand.trim(),
                                                     color = newColor.trim(),
                                                     plateNumber = newPlate.trim().uppercase(),
-                                                    licenseNumber = newLicense.trim().ifEmpty { user?.licenseNumber ?: "" },
+                                                    licenseNumber = user?.licenseNumber ?: "",
                                                     // Set lastEditedAt to 0 ensures "never edited" status
                                                     lastEditedAt = 0L 
                                                 )
