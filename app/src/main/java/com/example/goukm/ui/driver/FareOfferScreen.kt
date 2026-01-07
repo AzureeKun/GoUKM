@@ -337,7 +337,8 @@ fun FareOfferScreen(
                                             driverName = driverProfile!!.name,
                                             vehicleType = driverProfile!!.vehicleType,
                                             vehiclePlateNumber = driverProfile!!.vehiclePlateNumber,
-                                            phoneNumber = driverProfile!!.phoneNumber
+                                            phoneNumber = driverProfile!!.phoneNumber,
+                                            driverProfileUrl = driverProfile!!.profilePictureUrl ?: ""
                                         )
                                         // Redirect to dashboard immediately after submitting offer
                                         navController.navigate(com.example.goukm.navigation.NavRoutes.DriverDashboard.route) {

@@ -211,6 +211,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                     val vehicleType = doc.getString("vehicleType") ?: ""
                     val vehiclePlateNumber = doc.getString("vehiclePlateNumber") ?: ""
                     val phoneNumber = doc.getString("phoneNumber") ?: ""
+                    val driverProfileUrl = doc.getString("driverProfileUrl") ?: ""
 
                     DriverOffer(
                         name = driverName,
@@ -220,7 +221,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         carColor = "",
                         plate = vehiclePlateNumber,
                         driverId = driverId,
-                        driverPhone = phoneNumber
+                        driverPhone = phoneNumber,
+                        driverProfileUrl = driverProfileUrl
                     )
                 }
                 rideOffers = offers
@@ -1012,11 +1014,20 @@ fun OfferCard(
                         .background(grayBg),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = Color.Black
-                    )
+                    if (offer.driverProfileUrl.isNotEmpty()) {
+                        androidx.compose.foundation.Image(
+                            painter = coil.compose.rememberAsyncImagePainter(offer.driverProfileUrl),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.Black
+                        )
+                    }
                 }
                 Text(offer.name.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black)
             }

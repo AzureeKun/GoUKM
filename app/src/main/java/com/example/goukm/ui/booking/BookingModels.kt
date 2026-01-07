@@ -8,7 +8,8 @@ data class DriverOffer(
     val carColor: String,
     val plate: String,
     val driverId: String = "",
-    val driverPhone: String = ""
+    val driverPhone: String = "",
+    val driverProfileUrl: String = ""
 )
 
 enum class PaymentMethod {

@@ -13,6 +13,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +50,7 @@ fun confirmPay(
     var carName by remember { mutableStateOf("-") } // Usually Model
     var carColor by remember { mutableStateOf("-") }
     var carPlate by remember { mutableStateOf("-") }
+    var driverProfileUrl by remember { mutableStateOf("") }
     
     LaunchedEffect(bookingId) {
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -76,6 +78,7 @@ fun confirmPay(
                     carName = driverSnapshot.getString("vehicleType") ?: "" // mapped to vehicleType often
                     carColor = driverSnapshot.getString("carColor") ?: ""
                     carPlate = driverSnapshot.getString("vehiclePlateNumber") ?: ""
+                    driverProfileUrl = driverSnapshot.getString("profilePictureUrl") ?: ""
                 }
             }
         } catch (e: Exception) {
@@ -208,8 +211,17 @@ fun confirmPay(
                                         .background(Color.Black, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                     // Could add driver Image here
-                                     Icon(Icons.Default.Person, contentDescription = null, tint = Color.White)
+                                     // Driver Image
+                                     if (driverProfileUrl.isNotEmpty()) {
+                                        androidx.compose.foundation.Image(
+                                            painter = coil.compose.rememberAsyncImagePainter(driverProfileUrl),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                        )
+                                     } else {
+                                        Icon(Icons.Default.Person, contentDescription = null, tint = Color.White)
+                                     }
                                 }
 
                                 Column(horizontalAlignment = Alignment.Start) {

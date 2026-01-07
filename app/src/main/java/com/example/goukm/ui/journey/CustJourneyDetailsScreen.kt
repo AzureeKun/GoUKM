@@ -85,6 +85,7 @@ fun CustomerJourneyDetailsScreen(
     var showDriverCancelledAlert by remember { mutableStateOf(false) }
     var isDriverArrived by remember { mutableStateOf(false) }
     var isTripCompleted by remember { mutableStateOf(false) }
+    var hasNavigated by remember { mutableStateOf(false) }
     var driverLatLng by remember { mutableStateOf<LatLng?>(null) }
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
 
@@ -93,10 +94,12 @@ fun CustomerJourneyDetailsScreen(
     var chatRoomId by remember { mutableStateOf("") }
     var carModel by remember { mutableStateOf("Car Model") }
     var carPlate by remember { mutableStateOf("Plate") }
+    var driverProfileUrl by remember { mutableStateOf("") }
     var pickupAddress by remember { mutableStateOf("Loading...") }
     var dropOffAddress by remember { mutableStateOf("Loading...") }
     var fareAmount by remember { mutableStateOf("...") }
     var passengerName by remember { mutableStateOf("Passenger") }
+    var passengerProfileUrl by remember { mutableStateOf("") }
     var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
     var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
     var driverRating by remember { mutableStateOf("New") }
@@ -124,7 +127,8 @@ fun CustomerJourneyDetailsScreen(
                 isTripCompleted = status == "COMPLETED"
 
                 // Auto-Navigate to Rating Screen if Completed AND Paid
-                if (status == "COMPLETED" && pStatus == "PAID") {
+                if (status == "COMPLETED" && pStatus == "PAID" && !hasNavigated) {
+                     hasNavigated = true
                      navController.navigate("ride_done/$bookingId") {
                         popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
                      }
@@ -178,6 +182,7 @@ fun CustomerJourneyDetailsScreen(
                 val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId)
                 if (customerProfile != null) {
                     passengerName = customerProfile.name
+                    passengerProfileUrl = customerProfile.profilePictureUrl ?: ""
                 }
 
                 if (!booking.driverId.isNullOrEmpty()) {
@@ -187,6 +192,7 @@ fun CustomerJourneyDetailsScreen(
                         driverPhone = userProfile.phoneNumber
                         carModel = userProfile.vehicleType
                         carPlate = userProfile.vehiclePlateNumber
+                        driverProfileUrl = userProfile.profilePictureUrl ?: ""
                     }
 
                     // Fetch Driver Stats (Rating)
@@ -260,6 +266,7 @@ fun CustomerJourneyDetailsScreen(
                     carModel = carModel,
                     carPlate = carPlate,
                     driverRating = driverRating,
+                    driverProfileUrl = driverProfileUrl,
                     fare = fareAmount
                 )
 
@@ -325,7 +332,8 @@ fun CustomerJourneyDetailsScreen(
                 JourneySummarySection(
                     pickup = pickupAddress,
                     dropOff = dropOffAddress,
-                    passengerName = passengerName
+                    passengerName = passengerName,
+                    passengerProfileUrl = passengerProfileUrl
                 )
                 
                 Spacer(modifier = Modifier.height(40.dp))
@@ -466,6 +474,7 @@ fun DriverInfoCard(
     carModel: String,
     carPlate: String,
     driverRating: String,
+    driverProfileUrl: String = "",
     fare: String
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -489,14 +498,23 @@ fun DriverInfoCard(
                     color = Color.Black,
                     modifier = Modifier.size(64.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier
-                            .padding(12.dp)
-                            .fillMaxSize()
-                    )
+                    if (driverProfileUrl.isNotEmpty()) {
+                        androidx.compose.foundation.Image(
+                            painter = coil.compose.rememberAsyncImagePainter(driverProfileUrl),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .fillMaxSize()
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -598,7 +616,12 @@ fun DriverInfoCard(
 }
 
 @Composable
-fun JourneySummarySection(pickup: String, dropOff: String, passengerName: String) {
+fun JourneySummarySection(
+    pickup: String, 
+    dropOff: String, 
+    passengerName: String,
+    passengerProfileUrl: String = ""
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         
         // Passenger Info Row (Optional based on image, but adds "Professional" touch)
@@ -608,12 +631,21 @@ fun JourneySummarySection(pickup: String, dropOff: String, passengerName: String
                 color = Color.LightGray,
                 modifier = Modifier.size(40.dp)
             ) {
-                 Icon(
-                     Icons.Default.Person,
-                     contentDescription = null,
-                     tint = Color.Gray,
-                     modifier = Modifier.padding(8.dp)
-                 )
+                 if (passengerProfileUrl.isNotEmpty()) {
+                    androidx.compose.foundation.Image(
+                        painter = coil.compose.rememberAsyncImagePainter(passengerProfileUrl),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                 } else {
+                     Icon(
+                         Icons.Default.Person,
+                         contentDescription = null,
+                         tint = Color.Gray,
+                         modifier = Modifier.padding(8.dp)
+                     )
+                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {

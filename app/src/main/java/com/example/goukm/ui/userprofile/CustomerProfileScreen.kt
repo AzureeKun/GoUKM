@@ -26,6 +26,7 @@ import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import com.example.goukm.navigation.NavRoutes
 import com.example.goukm.ui.theme.CBlue
 import com.example.goukm.ui.register.AuthViewModel
 import com.example.goukm.util.DriverEligibilityChecker
@@ -90,14 +91,14 @@ fun BottomBarCust(navController: NavHostController) {
     NavigationBar(containerColor = CBlue) {
         NavigationBarItem(
             selected = false,
-            onClick = { navController.navigate("customer_dashboard") },
+            onClick = { navController.navigate(NavRoutes.CustomerDashboard.route) },
             icon = { Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White) },
             label = { Text("Home", color = Color.White) },
             alwaysShowLabel = true
         )
         NavigationBarItem(
             selected = false,
-            onClick = { /* TODO: Navigate Chat */ },
+            onClick = { navController.navigate(NavRoutes.CustomerChatList.route) },
             icon = { Icon(Icons.Default.Message, contentDescription = "Chat", tint = Color.White) },
             label = { Text("Chat", color = Color.White) },
             alwaysShowLabel = true

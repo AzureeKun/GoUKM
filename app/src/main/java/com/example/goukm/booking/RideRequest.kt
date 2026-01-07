@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.rememberAsyncImagePainter
 import com.example.goukm.R
 
 private val PrimaryBlue = Color(0xFF6B87C0)
@@ -63,15 +64,26 @@ fun RideRequestCard(
                         .background(Color(0xFFF0F4F8))
                         .border(2.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = request.customerImageRes),
-                        contentDescription = "Customer",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
+                 ) {
+                     if (request.customerProfileUrl != null) {
+                        Image(
+                            painter = rememberAsyncImagePainter(request.customerProfileUrl),
+                            contentDescription = "Customer",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                     } else {
+                        Image(
+                            painter = painterResource(id = request.customerImageRes),
+                            contentDescription = "Customer",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                     }
                 }
                 
                 Spacer(Modifier.width(12.dp))

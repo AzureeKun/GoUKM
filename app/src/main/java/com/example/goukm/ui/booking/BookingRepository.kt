@@ -49,7 +49,8 @@ data class Offer(
     val vehiclePlateNumber: String = "",
     val phoneNumber: String = "",
     val fare: String = "",
-    val timestamp: Date = Date()
+    val timestamp: Date = Date(),
+    val driverProfileUrl: String = ""
 )
 
 class BookingRepository {
@@ -114,7 +115,7 @@ class BookingRepository {
         }
     }
 
-    suspend fun submitOffer(bookingId: String, fare: String, driverId: String, driverName: String, vehicleType: String, vehiclePlateNumber: String, phoneNumber: String): Result<Unit> {
+    suspend fun submitOffer(bookingId: String, fare: String, driverId: String, driverName: String, vehicleType: String, vehiclePlateNumber: String, phoneNumber: String, driverProfileUrl: String): Result<Unit> {
         return try {
             val offerId = bookingsCollection.document(bookingId).collection("offers").document().id
             val offer = Offer(
@@ -125,7 +126,8 @@ class BookingRepository {
                 vehiclePlateNumber = vehiclePlateNumber,
                 phoneNumber = phoneNumber,
                 fare = fare,
-                timestamp = Date()
+                timestamp = Date(),
+                driverProfileUrl = driverProfileUrl
             )
             
             bookingsCollection.document(bookingId).collection("offers").document(offerId).set(offer).await()

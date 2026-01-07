@@ -157,6 +157,7 @@ fun DriverDashboard(
                                 pickupLng = pickupLng,
                                 chatRoom = chatRoom,
                                 driverArrived = driverArrived,
+                                customerProfileUrl = userProfile?.profilePictureUrl,
                                 paymentMethod = paymentMethod,
                                 status = status ?: ""
                             )

@@ -13,6 +13,7 @@ data class RideRequestModel(
     val pickupLng: Double = 0.0,
     val chatRoom: com.example.goukm.ui.chat.ChatRoom? = null,
     val driverArrived: Boolean = false,
+    val customerProfileUrl: String? = null,
     val paymentMethod: String = "",
     val status: String = ""
 )
