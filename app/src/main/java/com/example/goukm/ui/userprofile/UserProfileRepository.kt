@@ -19,6 +19,22 @@ object UserProfileRepository {
         val doc = db.collection("users").document(targetUid).get().await()
         if (!doc.exists()) return null
 
+        val vehiclesList = (doc.get("vehicles") as? List<Map<String, Any>>)?.map {
+            Vehicle(
+                id = (it["id"] as? String) ?: "",
+                brand = (it["brand"] as? String) ?: "",
+                color = (it["color"] as? String) ?: "",
+                plateNumber = (it["plateNumber"] as? String) ?: "",
+                licenseNumber = (it["licenseNumber"] as? String) ?: "",
+                grantUrl = (it["grantUrl"] as? String) ?: "",
+                status = (it["status"] as? String) ?: "Approved",
+                lastEditedAt = (it["lastEditedAt"] as? Long) ?: 0L
+            )
+        } ?: emptyList()
+
+        // Deduplicate vehicles by plate number immediately to clean up existing data
+        val uniqueVehicles = vehiclesList.distinctBy { it.plateNumber.uppercase().trim() }
+
         return UserProfile(
             uid = targetUid,
             name = doc.getString("name") ?: "",
@@ -42,18 +58,7 @@ object UserProfileRepository {
             isAvailable = doc.getBoolean("isAvailable") ?: false,
             onlineDays = doc.get("onlineDays") as? List<String> ?: emptyList(),
             onlineWorkDurations = (doc.get("onlineWorkDurations") as? Map<String, Long>) ?: emptyMap(),
-            vehicles = (doc.get("vehicles") as? List<Map<String, Any>>)?.map {
-                Vehicle(
-                    id = (it["id"] as? String) ?: "",
-                    brand = (it["brand"] as? String) ?: "",
-                    color = (it["color"] as? String) ?: "",
-                    plateNumber = (it["plateNumber"] as? String) ?: "",
-                    licenseNumber = (it["licenseNumber"] as? String) ?: "",
-                    grantUrl = (it["grantUrl"] as? String) ?: "",
-                    status = (it["status"] as? String) ?: "Approved",
-                    lastEditedAt = (it["lastEditedAt"] as? Long) ?: 0L
-                )
-            } ?: emptyList()
+            vehicles = uniqueVehicles
         ).let { initialUser ->
             var user = initialUser
 
@@ -318,11 +323,16 @@ object UserProfileRepository {
     suspend fun addNewVehicle(vehicle: Vehicle): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return try {
+            val user = getUserProfile(uid)
+            if (user != null && user.vehicles.any { it.plateNumber.uppercase().trim() == vehicle.plateNumber.uppercase().trim() }) {
+                return true // Already exists, consider it a success
+            }
+
             val vehicleMap = mapOf(
                 "id" to vehicle.id,
                 "brand" to vehicle.brand,
                 "color" to vehicle.color,
-                "plateNumber" to vehicle.plateNumber,
+                "plateNumber" to vehicle.plateNumber.uppercase().trim(),
                 "licenseNumber" to vehicle.licenseNumber,
                 "grantUrl" to vehicle.grantUrl,
                 "status" to vehicle.status,

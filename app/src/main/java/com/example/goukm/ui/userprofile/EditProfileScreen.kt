@@ -1,3 +1,4 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
 package com.example.goukm.ui.userprofile
 
 import com.example.goukm.ui.theme.CBlue
@@ -22,12 +23,17 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import androidx.navigation.NavHostController
 import android.widget.Toast
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
     navController: NavHostController,
@@ -38,10 +44,12 @@ fun EditProfileScreen(
     var matricNumber by remember { mutableStateOf(user.matricNumber) }
     var profilePictureUrl by remember { mutableStateOf(user.profilePictureUrl) }
     var email by remember { mutableStateOf(user.email) }
-    var phoneNumber by remember { mutableStateOf(user.phoneNumber)}
+    var phoneNumber by remember { mutableStateOf(user.phoneNumber) }
     var isUploading by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
+    val surfaceColor = Color(0xFFF5F7FB)
+    val darkNavy = Color(0xFF1E293B)
 
     // Image Picker
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -63,130 +71,147 @@ fun EditProfileScreen(
         }
     }
 
-
-
     Scaffold(
+        containerColor = surfaceColor,
         topBar = {
-            TopAppBar(title = { Text("Edit Profile", color = Color.White) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue))
+            TopAppBar(
+                title = { Text("Edit Profile", fontWeight = FontWeight.Bold, color = darkNavy) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(androidx.compose.material.icons.Icons.Default.ArrowBack, contentDescription = "Back", tint = darkNavy)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = surfaceColor)
+            )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Picture
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(130.dp) // Slightly larger container for the badge
-            ) {
-                // Main Image Container
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(Color.LightGray)
-                        .clickable { launcher.launch("image/*") },
-                    contentAlignment = Alignment.Center
+            Spacer(Modifier.height(32.dp))
+
+            // Profile Picture with Edit Badge
+            Box(contentAlignment = Alignment.Center) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.size(140.dp)
                 ) {
-                    if (isUploading) {
-                        CircularProgressIndicator(color = CBlue)
-                    } else {
-                        profilePictureUrl?.let { url ->
-                            Image(
-                                painter = rememberAsyncImagePainter(url),
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } ?: run {
-                            // Default Placeholder
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.AccountCircle,
-                                contentDescription = "Default Profile",
-                                modifier = Modifier.fillMaxSize(),
-                                tint = Color.Gray
-                            )
+                    Box(contentAlignment = Alignment.Center) {
+                        if (isUploading) {
+                            CircularProgressIndicator(color = CBlue)
+                        } else {
+                            profilePictureUrl?.let { url ->
+                                Image(
+                                    painter = rememberAsyncImagePainter(url),
+                                    contentDescription = "Profile Picture",
+                                    modifier = Modifier.fillMaxSize().clickable { launcher.launch("image/*") },
+                                    contentScale = ContentScale.Crop
+                                )
+                            } ?: run {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.AccountCircle,
+                                    contentDescription = "Default Profile",
+                                    modifier = Modifier.size(80.dp).clickable { launcher.launch("image/*") },
+                                    tint = CBlue.copy(alpha = 0.3f)
+                                )
+                            }
                         }
                     }
                 }
-
-                // Edit Icon Overlay (Bottom Right)
+                
                 if (!isUploading) {
-                    Box(
+                    FilledIconButton(
+                        onClick = { launcher.launch("image/*") },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(8.dp) // Offset slightly inside
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(CBlue)
-                            .clickable { launcher.launch("image/*") },
-                        contentAlignment = Alignment.Center
+                            .size(40.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = CBlue)
                     ) {
                         Icon(
                             imageVector = androidx.compose.material.icons.Icons.Default.Edit,
                             contentDescription = "Edit Picture",
                             tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(40.dp))
 
-            // Name Field
-            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+            // Input Fields Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text("Personal Details", fontWeight = FontWeight.ExtraBold, color = darkNavy, fontSize = 16.sp)
+                    Spacer(Modifier.height(24.dp))
+                    
+                    CozyTextField(value = name, onValueChange = { name = it }, label = "Full Name")
+                    Spacer(Modifier.height(20.dp))
+                    CozyTextField(value = matricNumber, onValueChange = { matricNumber = it }, label = "Matric Number")
+                    Spacer(Modifier.height(20.dp))
+                    CozyTextField(value = email, onValueChange = { email = it }, label = "Email Address")
+                    Spacer(Modifier.height(20.dp))
+                    CozyTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Phone Number")
+                }
+            }
 
-            Spacer(Modifier.height(12.dp))
-
-            // Matric Number Field
-            OutlinedTextField(value = matricNumber, onValueChange = { matricNumber = it }, label = { Text("Matric Number") }, modifier = Modifier.fillMaxWidth())
-
-            Spacer(Modifier.height(12.dp))
-
-            // email Field
-            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
-
-            Spacer(Modifier.height(12.dp))
-
-            // Phone Number Field
-            OutlinedTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = { Text("Phone Number") }, modifier = Modifier.fillMaxWidth())
-
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(40.dp))
 
             // Save Button
             Button(
                 onClick = {
                     val updatedUser = user.copy(
-                        name = name,
-                        matricNumber = matricNumber,
+                        name = name.trim(),
+                        matricNumber = matricNumber.trim(),
                         profilePictureUrl = profilePictureUrl,
-                        phoneNumber = phoneNumber,
-                        email = email
+                        phoneNumber = phoneNumber.trim(),
+                        email = email.trim()
                     )
-
-                    // Update Firestore
                     scope.launch {
                         val success = UserProfileRepository.updateUserProfile(updatedUser)
                         if (success) {
-
                             onSave(updatedUser)
-                            //navController.popBackStack()
+                            navController.popBackStack()
                         }
                     }
-                          },
-                modifier = Modifier.fillMaxWidth(),
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = CBlue)
             ) {
-                Text("Save", color = Color.White)
+                Text("Save Changes", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
+            
+            Spacer(Modifier.height(32.dp))
         }
     }
+}
+
+@Composable
+fun CozyTextField(value: String, onValueChange: (String) -> Unit, label: String) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = TextFieldDefaults.outlinedTextFieldColors(
+            focusedBorderColor = CBlue,
+            unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
+            focusedLabelColor = CBlue
+        ),
+        singleLine = true
+    )
 }

@@ -39,6 +39,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.ui.platform.LocalContext
 import com.example.goukm.ui.form.DocumentCard
 import com.example.goukm.ui.form.DocumentType
@@ -139,6 +141,9 @@ fun DriverProfileScreen(
     // --- Real-time Listener ---
     DisposableEffect(currentUid) {
         if (currentUid.isEmpty()) return@DisposableEffect onDispose {}
+        
+        // Reset local applications state when UID changes to prevent leaking data from previous driver
+        applications = emptyList()
 
         val registration = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             .collection("newVehicleApplications")
@@ -436,11 +441,12 @@ fun DriverProfileScreen(
                             val combinedVehicles = remember(approvedVehicles, applications) {
                                 val list = approvedVehicles.toMutableList()
                                 applications.forEach { app ->
-                                    if (list.none { it.plateNumber == app.plateNumber }) {
+                                    if (list.none { it.plateNumber.uppercase().trim() == app.plateNumber.uppercase().trim() }) {
                                         list.add(app)
                                     }
                                 }
-                                list
+                                // Final deduplication for safety
+                                list.distinctBy { it.plateNumber.uppercase().trim() }
                             }
 
                             var tempSelected by remember(selectedPlate.value) {
@@ -668,229 +674,321 @@ fun DriverProfileScreen(
         }
     }
 
+    val surfaceColor = Color(0xFFF5F7FB)
+    val darkNavy = Color(0xFF1E293B)
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Driver Profile", color = Color.White) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
-            )
-        },
-        bottomBar = {
-            // Reusing the Driver Bottom Bar, but assuming we can handle navigation back to dashboard
-            BottomNavigationBarDriver(
-                selectedIndex = selectedNavIndex, // 3 is usually Profile if we added it, but let's assume valid index is passed
-                onSelected = { index ->
-                    when (index) {
-                        0 -> navController.navigate(NavRoutes.DriverDashboard.route) {
-                            popUpTo(NavRoutes.DriverDashboard.route) { inclusive = true }
-                        }
-
-                        1 -> navController.navigate(NavRoutes.DriverScore.route)
-                        2 -> navController.navigate(NavRoutes.DriverEarning.route)
-                        3 -> { /* Already here */
-                        }
-                    }
-                }
-            )
-        }
+        containerColor = surfaceColor
     ) { paddingValues ->
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
-                .padding(paddingValues)
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
+            // Header Section
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    // Image
-                    user.profilePictureUrl?.let { url ->
-                        Image(
-                            painter = rememberAsyncImagePainter(url),
-                            contentDescription = "Profile Picture",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } ?: run {
-                        Icon(
-                            Icons.Default.AccountCircle,
-                            contentDescription = "Default Picture",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(CBlue)
-                                .padding(8.dp),
-                            tint = Color.White
-                        )
-                    }
-
-                    Spacer(Modifier.width(20.dp))
-                    Column {
-                        Text(user.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            "@${user.matricNumber}",
-                            fontSize = 16.sp,
-                            color = Color.Black.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            "Driver Account",
-                            fontSize = 14.sp,
-                            color = Color(0xFF4CAF50),
-                            fontWeight = FontWeight.Bold
-                        )
+                Spacer(Modifier.height(48.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.size(120.dp)
+                    ) {
+                        user.profilePictureUrl?.let { url ->
+                            Image(
+                                painter = rememberAsyncImagePainter(url),
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } ?: run {
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = "Default Picture",
+                                modifier = Modifier.padding(24.dp),
+                                tint = CBlue.copy(alpha = 0.5f)
+                            )
+                        }
                     }
                 }
-            }
 
-            item { Spacer(Modifier.height(20.dp)) }
-
-            item {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            authViewModel.switchActiveRole("customer")
-                            // Navigation is handled by AppNavGraph observing activeRole
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = CBlue)
+                Spacer(Modifier.height(24.dp))
+                
+                Text(
+                    text = user.name,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = darkNavy
+                )
+                Text(
+                    text = "@${user.matricNumber}",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(Modifier.height(12.dp))
+                
+                // Account Type Pill
+                Surface(
+                    color = Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        text = "Switch to Customer Mode",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        "Driver Account",
+                        fontSize = 12.sp,
+                        color = Color(0xFF2E7D32),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
+                
+                Spacer(Modifier.height(32.dp))
             }
 
-            item { Spacer(Modifier.height(20.dp)) }
-
+            // Vehicle Details Section
             item {
-                Button(
-                    onClick = { onEditProfile(user) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = CBlue)
-                ) {
-                    Text("Edit Profile", color = Color.White)
-                }
-            }
+                ProfileCard(title = "Your Vehicles") {
+                    // Combine approved vehicles from profile with real-time applications
+                    val combinedVehicles = remember(user.vehicles, applications) {
+                        val list = user.vehicles.toMutableList()
+                        applications.forEach { app ->
+                            if (list.none { it.plateNumber.uppercase().trim() == app.plateNumber.uppercase().trim() }) {
+                                list.add(app)
+                            }
+                        }
+                        // Final deduplication just in case
+                        list.distinctBy { it.plateNumber.uppercase().trim() }
+                    }
 
-            item { Spacer(Modifier.height(20.dp)) }
+                    if (combinedVehicles.isNotEmpty()) {
+                        combinedVehicles.forEachIndexed { index, vehicle ->
+                            val isActive = vehicle.plateNumber.uppercase().trim() == user.vehiclePlateNumber.uppercase().trim()
+                            
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Vehicle ${index + 1}",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = CBlue,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isActive) {
+                                        Surface(
+                                            color = CBlue.copy(alpha = 0.1f),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Rounded.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = CBlue,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    "Active",
+                                                    color = CBlue,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    } else if (vehicle.status == "Approved") {
+                                        // "Set as Active" button for other approved cars
+                                        val coroutineScope = rememberCoroutineScope()
+                                        FilledTonalButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    val success = UserProfileRepository.switchVehicle(vehicle.plateNumber)
+                                                    if (success) {
+                                                        Toast.makeText(context, "Switched to ${vehicle.brand}", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.height(32.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp),
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = CBlue.copy(alpha = 0.1f),
+                                                contentColor = CBlue
+                                            ),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Rounded.Cached,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Set Active", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    
+                                    IconButton(onClick = { showVehicleSheet = true }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Manage", tint = CBlue)
+                                    }
+                                }
+                                
+                                Spacer(Modifier.height(12.dp))
+                                
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        InfoRow(label = "Brand & Model", value = vehicle.brand)
+                                    }
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        InfoRow(label = "Plate Number", value = vehicle.plateNumber)
+                                    }
+                                }
+                                
+                                Spacer(Modifier.height(16.dp))
+                                
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        InfoRow(label = "Car Color", value = vehicle.color)
+                                    }
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        val displayLicense = vehicle.licenseNumber.ifEmpty { user.licenseNumber }
+                                        InfoRow(label = "License Number", value = displayLicense)
+                                    }
+                                }
 
-            // Vehicle Details Card
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = CBlue)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            "Vehicle Details",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(
-                            label = "Car Brand & Model",
-                            value = user.carBrand.ifEmpty { "Not specified" })
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(
-                            label = "Car Color",
-                            value = user.carColor.ifEmpty { "Not specified" })
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(
-                            label = "Plate Number",
-                            value = user.vehiclePlateNumber.ifEmpty { "Not specified" })
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(
-                            label = "License Number",
-                            value = user.licenseNumber.ifEmpty { "Not specified" })
+                                if (vehicle.status != "Approved") {
+                                    Spacer(Modifier.height(12.dp))
+                                    Surface(
+                                        color = if (vehicle.status == "Rejected") Color.Red.copy(alpha = 0.1f) else Color(0xFFFFF3E0),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Status: ${vehicle.status}",
+                                            color = if (vehicle.status == "Rejected") Color.Red else Color(0xFFE65100),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                                
+                                if (index < combinedVehicles.size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(top = 20.dp),
+                                        color = Color.LightGray.copy(alpha = 0.3f)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("No vehicles registered", color = Color.Gray)
+                            Spacer(Modifier.height(16.dp))
+                            Button(
+                                onClick = { showVehicleSheet = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = CBlue),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Register Vehicle")
+                            }
+                        }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = { showVehicleSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CBlue)
-                ) {
-                    Text("Change Vehicle", color = CBlue, fontWeight = FontWeight.Bold)
+            }
+
+            item { Spacer(Modifier.height(16.dp)) }
+
+            // Account Info Card
+            item {
+                ProfileCard(title = "Account Details") {
+                    InfoRow(label = "Driving License", value = user.licenseNumber.ifEmpty { "Not Provided" })
+                    Spacer(Modifier.height(16.dp))
+                    InfoRow(label = "Faculty", value = user.faculty.ifEmpty { "Universiti Kebangsaan Malaysia" })
                 }
             }
 
-            item { Spacer(Modifier.height(20.dp)) }
-
+            // Actions Section
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = CBlue)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            "Contact Information",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Email", value = user.email)
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Phone Number", value = user.phoneNumber)
+                Spacer(Modifier.height(16.dp))
+                ProfileCard(title = "Actions") {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                authViewModel.switchActiveRole("customer")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CBlue)
+                    ) {
+                        Text("Switch to Customer Mode", fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Spacer(Modifier.height(12.dp))
+                    
+                    OutlinedButton(
+                        onClick = { onEditProfile(user) },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Edit Personal Details", color = CBlue, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
-            item { Spacer(Modifier.height(20.dp)) }
-
+            // Logout Section
             item {
-                Button(
+                Spacer(Modifier.height(24.dp))
+                TextButton(
                     onClick = onLogout,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                    modifier = Modifier.padding(horizontal = 32.dp)
                 ) {
-                    Text("Logout", color = Color.White)
+                    Text("Logout from GoUKM", color = Color.Red.copy(alpha = 0.7f), fontWeight = FontWeight.Medium)
                 }
             }
         }
     }
-
-    if (showApplicationApprovedDialog) {
+        // Status Popups (Restored and Styled)
+        if (showApplicationApprovedDialog) {
             AlertDialog(
                 onDismissRequest = { showApplicationApprovedDialog = false },
-                title = { Text("Application Approved!", fontWeight = FontWeight.Bold) },
-                text = { Text("Your vehicle has been approved and added to the list") },
+                title = { Text("Vehicle Approved! 🚗", fontWeight = FontWeight.ExtraBold, color = Color(0xFF2E7D32)) },
+                text = { Text("Your vehicle application has been accepted. You can now start driving with GoUKM!") },
                 confirmButton = {
-                    Button(onClick = {
-                        showApplicationApprovedDialog = false
-                    }) { Text("OKAY") }
-                }
+                    Button(
+                        onClick = { showApplicationApprovedDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = CBlue),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Great!") }
+                },
+                shape = RoundedCornerShape(28.dp),
+                containerColor = Color.White
             )
         }
 
         if (showApplicationRejectedDialog) {
             AlertDialog(
                 onDismissRequest = { showApplicationRejectedDialog = false },
-                title = {
-                    Text(
-                        "Application Rejected",
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = { Text("Your application was rejected, please resubmit vehicle details") },
+                title = { Text("Update Required", fontWeight = FontWeight.ExtraBold, color = Color.Red) },
+                text = { Text("Your application was rejected. Please review your vehicle details and resubmit.") },
                 confirmButton = {
-                    Button(onClick = {
-                        showApplicationRejectedDialog = false
-                    }) { Text("Resubmit") }
-                }
+                    Button(
+                        onClick = { showApplicationRejectedDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("I'll fix it") }
+                },
+                shape = RoundedCornerShape(28.dp),
+                containerColor = Color.White
             )
         }
-
     }
 }

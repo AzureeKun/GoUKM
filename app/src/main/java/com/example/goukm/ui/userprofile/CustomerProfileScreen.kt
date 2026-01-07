@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
@@ -103,13 +104,12 @@ fun CustomerProfileScreen(
     val activeRole by authViewModel.activeRole.collectAsState()
     val isDriver = activeRole == "driver"
     val context = LocalContext.current
+    val surfaceColor = Color(0xFFF5F7FB)
+    val darkNavy = Color(0xFF1E293B)
 
     if (user == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = CBlue)
         }
         return
     }
@@ -117,197 +117,164 @@ fun CustomerProfileScreen(
     val applicationStatus by authViewModel.driverApplicationStatus.collectAsState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("My Profile", color = Color.White) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CBlue)
-            )
-        }
+        containerColor = surfaceColor
     ) { paddingValues ->
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F7FB)) // Standardized Background
-                .padding(paddingValues)
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
+            // Header Section
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    // Image
-                    user.profilePictureUrl?.let { url ->
-                        Image(
-                            painter = rememberAsyncImagePainter(url),
-                            contentDescription = "Profile Picture",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } ?: run {
-                        Icon(
-                            Icons.Default.AccountCircle,
-                            contentDescription = "Default Picture",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(CBlue)
-                                .padding(8.dp),
-                            tint = Color.White
-                        )
-                    }
-
-                    Spacer(Modifier.width(20.dp))
-                    Column {
-                        Text(user.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Text("@${user.matricNumber}", fontSize = 16.sp, color = Color.Black.copy(alpha = 0.7f))
-                        Text("Customer Account", fontSize = 14.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(20.dp)) }
-
-            item {
-                // Only show switch-to-driver when this account is approved as driver
-                if (user.role_driver) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                authViewModel.switchActiveRole("driver") // suspend call
-                                // Navigation is handled by AppNavGraph
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                Spacer(Modifier.height(48.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    // Profile Image with soft glow
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.size(120.dp)
                     ) {
-                        Text(
-                            text = "Switch to Driver Mode",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(20.dp)) }
-
-            item {
-                Button(
-                    onClick = { onEditProfile(user) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = CBlue)
-                ) {
-                    Text("Edit Profile", color = Color.White)
-                }
-            }
-
-            item { Spacer(Modifier.height(20.dp)) }
-
-            // ---------- All Other Cards Remain ----------
-
-            item {
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CBlue)) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text("Contact Information", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Email", value = user.email)
-                        Spacer(Modifier.height(12.dp))
-                        ReadOnlyField(label = "Phone Number", value = user.phoneNumber)
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(20.dp)) }
-
-            item {
-                // Show "Start Working" only if user is not currently a driver AND hasn't already applied
-                if (!isDriver && !user.role_driver) {
-                    val eligibilityResult = DriverEligibilityChecker.checkEligibility(user)
-                    
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = CBlue)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                if (applicationStatus == "under_review") "Application Pending" else "Start Working",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                        user.profilePictureUrl?.let { url ->
+                            Image(
+                                painter = rememberAsyncImagePainter(url),
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
-
-                            Spacer(Modifier.height(8.dp))
-
-                            Text(
-                                if (applicationStatus == "under_review") "Your application is currently being reviewed. Please wait for approval."
-                                else "Make side income by becoming our driver!",
-                                fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.9f),
-                                textAlign = TextAlign.Center
+                        } ?: run {
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = "Default Picture",
+                                modifier = Modifier.padding(24.dp),
+                                tint = CBlue.copy(alpha = 0.5f)
                             )
-
-                            if (applicationStatus == "under_review") {
-                                Spacer(Modifier.height(16.dp))
-                                Button(
-                                    onClick = { navController.navigate("driver_application_status") },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                                ) {
-                                    Text("Check Status", color = Color.Black)
-                                }
-                            } else {
-                                // Show eligibility status
-                                if (!eligibilityResult.isEligible) {
-                                    Spacer(Modifier.height(12.dp))
-                                    Text(
-                                        eligibilityResult.reason,
-                                        fontSize = 12.sp,
-                                        color = Color.Red,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
-                                    )
-                                }
-
-                                Spacer(Modifier.height(16.dp))
-
-                                Button(
-                                    onClick = {
-                                        if (eligibilityResult.isEligible) {
-                                            navController.navigate("driver_application")
-                                        } else {
-                                            Toast.makeText(
-                                                context,
-                                                "You must be in Year 2 and above to become a driver.",
-                                                Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                                ) {
-                                    Text(if (applicationStatus == "rejected") "Re-apply Now" else "Apply Here", color = Color.Black)
-                                }
-                            }
                         }
                     }
                 }
+
+                Spacer(Modifier.height(24.dp))
+                
+                Text(
+                    text = user.name,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = darkNavy
+                )
+                Text(
+                    text = "@${user.matricNumber}",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(Modifier.height(12.dp))
+                
+                // Account Type Pill
+                Surface(
+                    color = Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        "Customer Account",
+                        fontSize = 12.sp,
+                        color = Color(0xFF2E7D32),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                
+                Spacer(Modifier.height(32.dp))
             }
 
-            item { Spacer(Modifier.height(20.dp)) }
-
+            // Contact Info Card
             item {
-                Button(
+                ProfileCard(title = "Contact Info") {
+                    InfoRow(label = "Email", value = user.email)
+                    Spacer(Modifier.height(16.dp))
+                    InfoRow(label = "Phone", value = user.phoneNumber)
+                }
+            }
+
+            // Role Switching / Application Section
+            item {
+                Spacer(Modifier.height(16.dp))
+                ProfileCard(title = "Account Actions") {
+                    if (user.role_driver) {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    authViewModel.switchActiveRole("driver")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = CBlue)
+                        ) {
+                            Text("Switch to Driver Mode", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        val eligibilityResult = DriverEligibilityChecker.checkEligibility(user)
+                        val isPending = applicationStatus == "under_review"
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                if (isPending) "Application Pending" else "Join as Driver",
+                                fontWeight = FontWeight.Bold,
+                                color = darkNavy
+                            )
+                            Text(
+                                if (isPending) "Your application is under review" else "Earn by driving your peers",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    if (isPending) navController.navigate("driver_application_status")
+                                    else if (eligibilityResult.isEligible) navController.navigate("driver_application")
+                                    else Toast.makeText(context, eligibilityResult.reason, Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isPending) Color(0xFFFFA000) else CBlue
+                                )
+                            ) {
+                                Text(
+                                    if (isPending) "Check Status" else "Register as Driver",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(12.dp))
+                    
+                    OutlinedButton(
+                        onClick = { onEditProfile(user) },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp)
+                    ) {
+                        Text("Edit Profile Details", color = CBlue, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            // Logout Section
+            item {
+                Spacer(Modifier.height(24.dp))
+                TextButton(
                     onClick = onLogout,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                    modifier = Modifier.padding(horizontal = 32.dp)
                 ) {
-                    Text("Logout", color = Color.White)
+                    Text("Logout from GoUKM", color = Color.Red.copy(alpha = 0.7f), fontWeight = FontWeight.Medium)
                 }
             }
         }
     }
 }
+
