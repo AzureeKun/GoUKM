@@ -39,9 +39,21 @@ object UserProfileRepository {
             academicStatus = doc.getString("academicStatus") ?: "",
             batch = doc.getString("batch") ?: "",
             isAvailable = doc.getBoolean("isAvailable") ?: false,
-            onlineDays = doc.get("onlineDays") as? List<String> ?: emptyList()
-        ).let { user ->
-            // --- FIX/REPAIR LOGIC ---
+            onlineDays = doc.get("onlineDays") as? List<String> ?: emptyList(),
+            vehicles = (doc.get("vehicles") as? List<Map<String, Any>>)?.map {
+                Vehicle(
+                    id = (it["id"] as? String) ?: "",
+                    brand = (it["brand"] as? String) ?: "",
+                    color = (it["color"] as? String) ?: "",
+                    plateNumber = (it["plateNumber"] as? String) ?: "",
+                    licenseNumber = (it["licenseNumber"] as? String) ?: "",
+                    lastEditedAt = (it["lastEditedAt"] as? Long) ?: 0L
+                )
+            } ?: emptyList()
+        ).let { initialUser ->
+            var user = initialUser
+
+            // --- 1. FIX/REPAIR LOGIC (Existing) ---
             // If user is a driver but essential details are missing (common for old accounts),
             // proactively fetch from their application and sync it to the user profile.
             val missingInfo = user.role_driver && (
@@ -71,7 +83,7 @@ object UserProfileRepository {
                             db.collection("users").document(targetUid).update(updates)
                             
                             // Return the "repaired" user object for immediate UI update
-                            return@let user.copy(
+                            user = user.copy(
                                 carBrand = if (user.carBrand.isEmpty()) brand else user.carBrand,
                                 carColor = if (user.carColor.isEmpty()) color else user.carColor,
                                 licenseNumber = if (user.licenseNumber.isEmpty()) license else user.licenseNumber,
@@ -83,6 +95,39 @@ object UserProfileRepository {
                     e.printStackTrace()
                 }
             }
+
+            // --- 2. MIGRATE LEGACY VEHICLE TO LIST ---
+            // If vehicles list is empty but single-field data exists, migrate it to list.
+            if (user.role_driver && user.vehicles.isEmpty() && user.vehiclePlateNumber.isNotEmpty()) {
+                 val legacyVehicle = Vehicle(
+                    id = java.util.UUID.randomUUID().toString(),
+                    brand = user.carBrand.ifEmpty { "Unknown Brand" },
+                    color = user.carColor.ifEmpty { "Unknown Color" },
+                    plateNumber = user.vehiclePlateNumber,
+                    licenseNumber = user.licenseNumber
+                 )
+                 
+                 // Update local user object
+                 user = user.copy(vehicles = listOf(legacyVehicle))
+                 
+                 // Persist to Firestore
+                 val vehicleMap = mapOf(
+                    "id" to legacyVehicle.id,
+                    "brand" to legacyVehicle.brand,
+                    "color" to legacyVehicle.color,
+                    "plateNumber" to legacyVehicle.plateNumber,
+                    "licenseNumber" to legacyVehicle.licenseNumber,
+                    "lastEditedAt" to legacyVehicle.lastEditedAt
+                )
+                 try {
+                     db.collection("users").document(targetUid).update(
+                        "vehicles", com.google.firebase.firestore.FieldValue.arrayUnion(vehicleMap)
+                     )
+                 } catch (e: Exception) {
+                     e.printStackTrace()
+                 }
+            }
+
             user
         }
     }
@@ -116,7 +161,17 @@ object UserProfileRepository {
             "yearOfStudy" to user.yearOfStudy,
             "enrolmentLevel" to user.enrolmentLevel,
             "academicStatus" to user.academicStatus,
-            "batch" to user.batch
+            "batch" to user.batch,
+            "vehicles" to user.vehicles.map {
+                mapOf(
+                    "id" to it.id,
+                    "brand" to it.brand,
+                    "color" to it.color,
+                    "plateNumber" to it.plateNumber,
+                    "licenseNumber" to it.licenseNumber,
+                    "lastEditedAt" to it.lastEditedAt
+                )
+            }
         )
 
         return try {
@@ -212,4 +267,125 @@ object UserProfileRepository {
         }
     }
 
+    suspend fun switchVehicle(plateNumber: String): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return try {
+            val user = getUserProfile(uid) ?: return false
+            val vehicle = user.vehicles.find { it.plateNumber == plateNumber } ?: return false
+            
+            db.collection("users").document(uid).update(
+                mapOf(
+                    "carBrand" to vehicle.brand,
+                    "carColor" to vehicle.color,
+                    "vehiclePlateNumber" to vehicle.plateNumber,
+                    "licenseNumber" to vehicle.licenseNumber
+                )
+            ).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun addNewVehicle(vehicle: Vehicle): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return try {
+            val vehicleMap = mapOf(
+                "id" to vehicle.id,
+                "brand" to vehicle.brand,
+                "color" to vehicle.color,
+                "plateNumber" to vehicle.plateNumber,
+                "licenseNumber" to vehicle.licenseNumber,
+                "lastEditedAt" to vehicle.lastEditedAt
+            )
+            db.collection("users").document(uid).update(
+                "vehicles", com.google.firebase.firestore.FieldValue.arrayUnion(vehicleMap)
+            ).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+
+
+    suspend fun updateVehicle(updatedVehicle: Vehicle): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return try {
+            val user = getUserProfile(uid) ?: return false
+            
+            // Re-construct the entire list with the updated vehicle
+            val updatedVehiclesList = user.vehicles.map {
+                if (it.id == updatedVehicle.id) updatedVehicle else it
+            }.map { 
+                mapOf(
+                    "id" to it.id,
+                    "brand" to it.brand,
+                    "color" to it.color,
+                    "plateNumber" to it.plateNumber,
+                    "licenseNumber" to it.licenseNumber,
+                    "lastEditedAt" to it.lastEditedAt
+                )
+            }
+
+            db.collection("users").document(uid).update("vehicles", updatedVehiclesList).await()
+
+            // If updating currently active vehicle, update the profile top-level fields too
+            // NOTE: Do NOT update licenseNumber here. The driver's license ID is personal and should not change
+            // just because a vehicle is edited. It remains the one registered at onboarding.
+            if (user.vehiclePlateNumber == updatedVehicle.plateNumber || user.vehicles.find { it.id == updatedVehicle.id }?.plateNumber == user.vehiclePlateNumber) {
+                 db.collection("users").document(uid).update(
+                    mapOf(
+                        "carBrand" to updatedVehicle.brand,
+                        "carColor" to updatedVehicle.color,
+                        "vehiclePlateNumber" to updatedVehicle.plateNumber
+                    )
+                )
+            }
+            
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun deleteVehicle(vehicleId: String): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return try {
+            val user = getUserProfile(uid) ?: return false
+            val vehicleToDelete = user.vehicles.find { it.id == vehicleId } ?: return false
+
+            val vehicleMap = mapOf(
+                "id" to vehicleToDelete.id,
+                "brand" to vehicleToDelete.brand,
+                "color" to vehicleToDelete.color,
+                "plateNumber" to vehicleToDelete.plateNumber,
+                "licenseNumber" to vehicleToDelete.licenseNumber,
+                "lastEditedAt" to vehicleToDelete.lastEditedAt
+            )
+
+            // Remove from vehicles list
+            val batch = db.batch()
+            val userRef = db.collection("users").document(uid)
+            batch.update(userRef, "vehicles", com.google.firebase.firestore.FieldValue.arrayRemove(vehicleMap))
+
+            // If this was the active vehicle, clear the active vehicle fields
+            if (user.vehiclePlateNumber == vehicleToDelete.plateNumber) {
+                batch.update(userRef, mapOf(
+                    "vehiclePlateNumber" to "",
+                    "carBrand" to "",
+                    "carColor" to ""
+                ))
+            }
+            
+            batch.commit().await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

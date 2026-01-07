@@ -59,7 +59,7 @@ fun AppNavGraph(
     val applicationViewModel: DriverApplicationViewModel = viewModel()
 
     // 🚀 Auto redirect based on authState + activeRole
-    LaunchedEffect(authState, activeRole, driverApplicationStatus) {
+    LaunchedEffect(Unit, authState, activeRole, driverApplicationStatus) {
         if (authState == AuthState.LoggedIn) {
             when {
                 activeRole == "driver" -> navController.navigate(NavRoutes.DriverDashboard.route) {
@@ -79,7 +79,7 @@ fun AppNavGraph(
             }
         } else if (authState == AuthState.LoggedOut) {
             navController.navigate(NavRoutes.Register.route) {
-                popUpTo(navController.graph.id) { inclusive = true }
+                popUpTo(0) { inclusive = true }
                 launchSingleTop = true
             }
         }

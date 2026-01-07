@@ -33,6 +33,15 @@ import kotlinx.coroutines.launch
 
 
 
+data class Vehicle(
+    val id: String = "",
+    val brand: String = "",
+    val color: String = "",
+    val plateNumber: String = "",
+    val licenseNumber: String = "",
+    val lastEditedAt: Long = 0
+)
+
 data class UserProfile(
     val name: String = "",
     val matricNumber: String = "",
@@ -54,7 +63,8 @@ data class UserProfile(
     val academicStatus: String = "",
     val batch: String = "",
     val isAvailable: Boolean = false,
-    val onlineDays: List<String> = emptyList()
+    val onlineDays: List<String> = emptyList(),
+    val vehicles: List<Vehicle> = emptyList()
 )
 
 @Composable
@@ -189,9 +199,7 @@ fun CustomerProfileScreen(
                         onClick = {
                             scope.launch {
                                 authViewModel.switchActiveRole("driver") // suspend call
-                                navController.navigate("driver_dashboard") {
-                                    popUpTo("customer_dashboard") { inclusive = true }
-                                }
+                                // Navigation is handled by AppNavGraph
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),

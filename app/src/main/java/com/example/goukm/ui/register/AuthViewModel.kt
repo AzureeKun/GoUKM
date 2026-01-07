@@ -243,7 +243,9 @@ class AuthViewModel(
             _driverApplicationStatus.value = null
             applicationListener?.remove()
             userListener?.remove()
+            _activeRole.value = "customer" // Ensure role is reset
             _authState.value = AuthState.LoggedOut
+            isFirstLoad = true
         }
     }
 

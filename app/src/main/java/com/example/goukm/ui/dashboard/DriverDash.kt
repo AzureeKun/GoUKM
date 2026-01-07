@@ -7,11 +7,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +29,8 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,9 +38,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -67,6 +72,7 @@ import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.collectAsState
+import com.example.goukm.ui.userprofile.UserProfile
 
 private val PrimaryBlue = Color(0xFF6B87C0)
 private val DarkBlue = Color(0xFF4A6199)
@@ -83,8 +89,26 @@ fun DriverDashboard(
     selectedNavIndex: Int,
     onNavSelected: (Int) -> Unit
 ) {
+    // Access user profile
     val user by authViewModel.currentUser.collectAsState()
     val isOnline = user?.isAvailable ?: false
+
+    // Local state to handle switch toggle instantly (optimistic UI)
+    // Initialize with current state, but don't reset automatically on every recomposition unless explicitly needed
+    var switchState by remember { mutableStateOf(isOnline) }
+    
+    // Sync logic: Only update local state if backend state changes and we aren't in a "pending" optimistic state? 
+    // Actually, simplest fix for double-tap is: 
+    // 1. Initialize once.
+    // 2. On toggle, update local state immediately.
+    // 3. If backend confirms (same value), do nothing.
+    // 4. If backend changes to something else (e.g. forced offline), update local.
+    LaunchedEffect(isOnline) {
+        if (isOnline != switchState) {
+            switchState = isOnline
+        }
+    }
+
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -188,6 +212,10 @@ fun DriverDashboard(
         }
     }
 
+
+
+
+
     Scaffold(
         containerColor = SurfaceColor,
         bottomBar = {
@@ -214,17 +242,36 @@ fun DriverDashboard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = if (isOnline) "You are Online" else "You are Offline",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isOnline) OnlineGreen else Color.Gray,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (switchState) "You are Online" else "You are Offline",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (switchState) OnlineGreen else Color.Gray
+                        )
+                        user?.let { u ->
+                            if (u.vehiclePlateNumber.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(PrimaryBlue.copy(alpha=0.1f), RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "In Use: ${u.carBrand} • ${u.vehiclePlateNumber}",
+                                        fontSize = 13.sp,
+                                        color = PrimaryBlue,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
                     
                     Switch(
-                        checked = isOnline,
+                        checked = switchState,
                         onCheckedChange = {
+                            switchState = it
                             authViewModel.setDriverAvailability(it)
                         },
                         colors = SwitchDefaults.colors(
@@ -235,10 +282,12 @@ fun DriverDashboard(
                         ),
                         modifier = Modifier.scale(0.9f)
                     )
+
                 }
             }
-
-            if (isOnline) {
+            
+            
+            if (switchState) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 90.dp)
