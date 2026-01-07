@@ -7,6 +7,7 @@ import com.example.goukm.ui.booking.BookingRepository
 import com.example.goukm.ui.booking.BookingStatus
 import com.example.goukm.ui.booking.Journey
 import com.example.goukm.ui.booking.JourneyRepository
+import com.example.goukm.ui.userprofile.UserProfileRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -33,17 +34,21 @@ class DriverEarningViewModel(
     val graphGranularity: StateFlow<String> = _graphGranularity.asStateFlow()
 
     private val _journeys = MutableStateFlow<List<Journey>>(emptyList())
+    private val _onlineDurations = MutableStateFlow<Map<String, Long>>(emptyMap())
     
-    val uiState = combine(_journeys, _selectedPeriod, _currentDate, _graphGranularity) { journeys, period, date, granularity ->
+    val uiState = combine(_journeys, _selectedPeriod, _currentDate, _graphGranularity, _onlineDurations) { journeys, period, date, granularity, onlineDurations ->
         val filtered = filterJourneys(journeys, period, date)
         val aggregatedData = aggregateData(filtered, period, date, granularity)
         val totalEarnings = filtered.sumOf { it.offeredFare.toDoubleOrNull() ?: 0.0 }
         val rideCount = filtered.size
         
+        val totalOnlineMinutes = aggregateOnlineMinutes(onlineDurations, period, date)
+        
         EarningUiState(
             totalEarnings = totalEarnings,
             rideCount = rideCount,
             graphData = aggregatedData,
+            totalOnlineMinutes = totalOnlineMinutes,
             recentRide = filtered.maxByOrNull { it.timestamp }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EarningUiState())
@@ -55,6 +60,10 @@ class DriverEarningViewModel(
                 journeyRepository.getJourneysByDriver(currentUser.uid)
                     .collect { _journeys.value = it }
             }
+            viewModelScope.launch {
+                val profile = UserProfileRepository.getUserProfile(currentUser.uid)
+                _onlineDurations.value = profile?.onlineWorkDurations ?: emptyMap()
+            }
         }
     }
 
@@ -64,7 +73,7 @@ class DriverEarningViewModel(
         _graphGranularity.value = when (period) {
             "Day" -> "Hour"
             "Week" -> "Day"
-            "Month" -> "Day"
+            "Month" -> "Week"
             "Year" -> "Month"
             else -> "Day"
         }
@@ -152,6 +161,53 @@ class DriverEarningViewModel(
                         }
                         BarData(if (day % 5 == 0 || day == 1) "$day" else "", count.toFloat())
                     }
+                } else if (period == "Year") {
+                    // Show days of the year (simplified to 1-365/366 or grouped?)
+                    // The request says "display days for x-axis" for Year. 
+                    // Showing 365 bars is too many for a mobile chart unless it's scrollable.
+                    // Let's group by month and show ticks, or just show month starts.
+                    // For now, let's group by day and show sparse labels.
+                    val daysInYear = if (date.isLeapYear) 366 else 365
+                    (1..daysInYear).map { dayOfYear ->
+                        val count = journeys.count { b ->
+                           val bDate = b.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                           bDate.year == date.year && bDate.dayOfYear == dayOfYear
+                        }
+                        BarData(if (dayOfYear % 30 == 1) "Day $dayOfYear" else "", count.toFloat())
+                    }
+                } else emptyList()
+            }
+            "Week" -> {
+                if (period == "Month") {
+                    // Weeks in month
+                    val firstDay = date.withDayOfMonth(1)
+                    val lastDay = date.withDayOfMonth(date.lengthOfMonth())
+                    
+                    // Simple approach: Divide by 7
+                    val weeks = mutableListOf<BarData>()
+                    var currentStart = firstDay
+                    var weekNum = 1
+                    while (!currentStart.isAfter(lastDay)) {
+                        val currentEnd = currentStart.plusDays(6).let { if (it.isAfter(lastDay)) lastDay else it }
+                        val count = journeys.count { b ->
+                            val bDate = b.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                            !bDate.isBefore(currentStart) && !bDate.isAfter(currentEnd)
+                        }
+                        weeks.add(BarData("W$weekNum", count.toFloat()))
+                        currentStart = currentEnd.plusDays(1)
+                        weekNum++
+                    }
+                    weeks
+                } else if (period == "Year") {
+                    // Weeks in year
+                    (1..52).map { weekIndex ->
+                        val count = journeys.count { b ->
+                            val bDate = b.timestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                            val weekFields = java.time.temporal.WeekFields.of(Locale.getDefault())
+                            bDate.year == date.year && bDate.get(weekFields.weekOfYear()) == weekIndex
+                        }
+                        BarData(if (weekIndex % 4 == 1) "W$weekIndex" else "", count.toFloat())
+                    }
                 } else emptyList()
             }
             "Month" -> {
@@ -173,11 +229,49 @@ class DriverEarningViewModel(
         val num = label.substring(0, label.length - 2).toInt()
         return if (isPm && num != 12) num + 12 else if (!isPm && num == 12) 0 else num
     }
+
+    private fun aggregateOnlineMinutes(durations: Map<String, Long>, period: String, date: LocalDate): Long {
+        val start: LocalDate
+        val end: LocalDate
+
+        when (period) {
+            "Day" -> {
+                start = date
+                end = date
+            }
+            "Week" -> {
+                start = date.with(java.time.DayOfWeek.MONDAY)
+                end = date.with(java.time.DayOfWeek.SUNDAY)
+            }
+            "Month" -> {
+                start = date.withDayOfMonth(1)
+                end = date.withDayOfMonth(date.lengthOfMonth())
+            }
+            "Year" -> {
+                start = date.withDayOfYear(1)
+                end = date.withDayOfYear(date.lengthOfYear())
+            }
+            else -> return 0L
+        }
+
+        var total = 0L
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        
+        var current = start
+        while (!current.isAfter(end)) {
+            val key = current.format(formatter)
+            total += durations[key] ?: 0L
+            current = current.plusDays(1)
+        }
+        
+        return total
+    }
 }
 
 data class EarningUiState(
     val totalEarnings: Double = 0.0,
     val rideCount: Int = 0,
     val graphData: List<BarData> = emptyList(),
+    val totalOnlineMinutes: Long = 0,
     val recentRide: Journey? = null
 )

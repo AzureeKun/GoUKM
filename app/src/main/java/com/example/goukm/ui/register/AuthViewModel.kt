@@ -285,10 +285,24 @@ class AuthViewModel(
             // Update Firestore
             UserProfileRepository.updateDriverAvailability(isAvailable)
             
-            if (isAvailable) {
-                val uid = FirebaseAuth.getInstance().currentUser?.uid
-                if (uid != null) {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            if (uid != null) {
+                if (isAvailable) {
+                    // Start of session
+                    sessionManager.saveOnlineStartTime(System.currentTimeMillis())
                     UserProfileRepository.recordOnlineDay(uid)
+                } else {
+                    // End of session
+                    val startTime = sessionManager.fetchOnlineStartTime()
+                    if (startTime > 0) {
+                        val durationMs = System.currentTimeMillis() - startTime
+                        val durationMinutes = durationMs / (1000 * 60)
+                        if (durationMinutes > 0) {
+                            UserProfileRepository.updateOnlineDuration(uid, durationMinutes)
+                        }
+                    }
+                    // Reset start time in session
+                    sessionManager.saveOnlineStartTime(0L)
                 }
             }
         }

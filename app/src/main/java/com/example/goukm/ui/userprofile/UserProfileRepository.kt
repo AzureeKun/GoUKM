@@ -40,6 +40,7 @@ object UserProfileRepository {
             batch = doc.getString("batch") ?: "",
             isAvailable = doc.getBoolean("isAvailable") ?: false,
             onlineDays = doc.get("onlineDays") as? List<String> ?: emptyList(),
+            onlineWorkDurations = (doc.get("onlineWorkDurations") as? Map<String, Long>) ?: emptyMap(),
             vehicles = (doc.get("vehicles") as? List<Map<String, Any>>)?.map {
                 Vehicle(
                     id = (it["id"] as? String) ?: "",
@@ -162,6 +163,7 @@ object UserProfileRepository {
             "enrolmentLevel" to user.enrolmentLevel,
             "academicStatus" to user.academicStatus,
             "batch" to user.batch,
+            "onlineWorkDurations" to user.onlineWorkDurations,
             "vehicles" to user.vehicles.map {
                 mapOf(
                     "id" to it.id,
@@ -262,6 +264,22 @@ object UserProfileRepository {
             db.collection("users").document(uid)
                 .update("onlineDays", com.google.firebase.firestore.FieldValue.arrayUnion(today))
                 .await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateOnlineDuration(uid: String, durationMinutes: Long) {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        try {
+            val userRef = db.collection("users").document(uid)
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(userRef)
+                val currentDurations = (snapshot.get("onlineWorkDurations") as? Map<String, Long>)?.toMutableMap() ?: mutableMapOf()
+                val currentDayDuration = currentDurations[today] ?: 0L
+                currentDurations[today] = currentDayDuration + durationMinutes
+                transaction.update(userRef, "onlineWorkDurations", currentDurations)
+            }.await()
         } catch (e: Exception) {
             e.printStackTrace()
         }

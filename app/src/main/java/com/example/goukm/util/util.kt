@@ -14,6 +14,7 @@ class SessionManager(context: Context) {
         const val ACTIVE_ROLE = "user_role"
         const val USER_NAME = "user_name"
         const val USER_MATRIC = "user_matric"
+        const val ONLINE_START_TIME = "online_start_time"
         // Add other user details you want to save
     }
 
@@ -51,6 +52,14 @@ class SessionManager(context: Context) {
 
     fun fetchActiveRole(): String? {
         return prefs.getString("user_role", null)
+    }
+
+    fun saveOnlineStartTime(time: Long) {
+        prefs.edit().putLong(ONLINE_START_TIME, time).apply()
+    }
+
+    fun fetchOnlineStartTime(): Long {
+        return prefs.getLong(ONLINE_START_TIME, 0L)
     }
 
     /**

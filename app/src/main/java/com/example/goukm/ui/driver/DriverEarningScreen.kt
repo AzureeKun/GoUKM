@@ -154,11 +154,17 @@ fun DriverEarningScreen(
 
             // 2. Earnings Summary & Navigation Card
             item {
+                val formattedOnlineTime = remember(uiState.totalOnlineMinutes) {
+                    val hours = uiState.totalOnlineMinutes / 60
+                    val minutes = uiState.totalOnlineMinutes % 60
+                    "${hours}h ${minutes}m"
+                }
+
                 EarningsNavigationCard(
                     dateRangeText = dateRangeText,
                     earnings = uiState.totalEarnings,
                     rides = uiState.rideCount,
-                    hours = "107h 20m", // Placeholder for hours if not tracked
+                    hours = formattedOnlineTime,
                     description = "this ${selectedPeriod.lowercase()}",
                     onPrevClick = { viewModel.moveDate(-1) },
                     onNextClick = { viewModel.moveDate(1) },
@@ -300,7 +306,7 @@ fun SubPeriodSelector(
     onSelect: (String) -> Unit
 ) {
     val options = when(mainPeriod) {
-        "Month" -> listOf("Day", "Week")
+        "Month" -> listOf("Week", "Day") // Week first
         "Year" -> listOf("Month", "Week", "Day")
         else -> emptyList()
     }
@@ -437,20 +443,7 @@ fun BarChart(
     val yLabels = (0..yMax.toInt() step yStep).toList().reversed()
 
     Row(modifier = modifier) {
-        // Y-Axis Title (Rotated)
-        // Since rotating text in a Row is tricky with layout, we'll place it as a vertical text or just a label on top left.
-        // The image shows "Number of rides" rotated 90 deg. 
-        // For simplicity and stability, we'll put it outside or use a custom layout. 
-        // Let's use a standard Column with a Text for the title above or simply a narrow column for axis.
-        
-        // Actually, let's implement the layout as:
-        // Column {
-        //   Text("Number of rides", rotated...)
-        //   Row { Y-Axis Labels | Chart }
-        // }
-        // To rotate text: Modifier.rotate(-90f) but it needs size adjustment.
-        // Simplification: Just put "Number of rides" at the top-left of the chart area.
-        
+        // Y-Axis labels column remains the same...
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -458,10 +451,6 @@ fun BarChart(
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.End
         ) {
-            // We can't easily distribute text exactly matching grid lines with simple SpaceBetween if the height isn't fixed relative to data.
-            // Better approach: Canvas drawing for grid lines and labels, OR carefully sized Boxes.
-            // Let's stick to a simpler approximation for Y-axis labels.
-            
             yLabels.forEach { label ->
                Text(
                    text = label.toString(),
@@ -470,7 +459,6 @@ fun BarChart(
                    modifier = Modifier.padding(end = 4.dp)
                )
             }
-            // Add a spacer for the X-axis labels height
             Spacer(Modifier.height(20.dp)) 
         }
 
@@ -480,7 +468,7 @@ fun BarChart(
                 .weight(1f)
                 .fillMaxHeight()
         ) {
-            // Grid Lines
+            // Grid Lines and Bars logic...
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
@@ -489,18 +477,17 @@ fun BarChart(
                      HorizontalDivider(
                          color = Color.LightGray.copy(alpha = 0.5f),
                          thickness = 1.dp,
-                         modifier = Modifier.padding(bottom = (if (yLabels.indexOf(0) == yLabels.size -1) 20.dp else 0.dp)) // Adjust for X-label height? No, SpaceBetween handles it roughly.
-                         // Actually, SpaceBetween for N items creates N lines.
+                         modifier = Modifier.padding(bottom = (if (yLabels.indexOf(0) == yLabels.size -1) 20.dp else 0.dp))
                      )
                  }
-                 Spacer(Modifier.height(20.dp)) // Reserve space for X-axis labels
+                 Spacer(Modifier.height(20.dp))
             }
 
             // Bars
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 20.dp), // Space for X-axis labels
+                    .padding(bottom = 20.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
             ) {
@@ -512,25 +499,25 @@ fun BarChart(
                             .weight(1f)
                             .fillMaxHeight()
                     ) {
-                        // Fraction of the height the bar should take
                         val barFraction = (item.value / yMax).coerceIn(0f, 1f)
                         
-                        // Spacer for the top part
                         if (barFraction < 1f) {
                             Spacer(Modifier.weight(1f - barFraction))
                         }
                         
-                        // Bar
                         if (barFraction > 0f) {
+                            // Peak hour highlight logic
+                            val isPeak = item.value == maxVal && maxVal > 0
+                            val barColor = if (isPeak) Color(0xFFFFA000) else Color(0xFF4285F4)
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(0.6f)
                                     .weight(barFraction)
                                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                    .background(Color(0xFF4285F4))
+                                    .background(barColor)
                             )
                         } else {
-                            // Completely empty if zero
                             Spacer(Modifier.weight(0.0001f))
                         }
                     }
