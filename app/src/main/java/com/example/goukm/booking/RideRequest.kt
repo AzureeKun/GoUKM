@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PersonPinCircle
 import androidx.compose.material3.*
@@ -41,272 +42,265 @@ fun RideRequestCard(
     skipLabel: String = "Skip"
 ) {
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp), // Increased radius
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(20.dp),
-                spotColor = PrimaryBlue.copy(alpha = 0.15f)
+                elevation = 6.dp, // slightly softer elevation
+                shape = RoundedCornerShape(24.dp),
+                spotColor = Color.Black.copy(alpha = 0.08f) // soft shadow
             )
             .animateContentSize()
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            // TOP ROW: avatar + Name + Time
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            // TOP ROW: Avatar + Name + Payment
+            Row(verticalAlignment = Alignment.Top) {
+                // Avatar
                 Box(
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF0F4F8))
-                        .border(2.dp, Color.White, CircleShape),
+                        .size(56.dp)
+                         .clip(CircleShape)
+                         .background(Color(0xFFF0F4F8)),
                     contentAlignment = Alignment.Center
                  ) {
                      if (request.customerProfileUrl != null) {
                         Image(
                             painter = rememberAsyncImagePainter(request.customerProfileUrl),
                             contentDescription = "Customer",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
                      } else {
                         Image(
                             painter = painterResource(id = request.customerImageRes),
                             contentDescription = "Customer",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
                      }
                 }
                 
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(16.dp))
                 
+                // Name & Time
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = request.customerName,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color(0xFF2D3748)
+                        fontSize = 18.sp,
+                        color = Color(0xFF1E293B)
                     )
+                    Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = request.requestedTimeAgo,
-                            fontSize = 12.sp,
-                            color = Color(0xFF718096),
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(Modifier.width(8.dp))
+                         // Payment Pill
                         Box(
                             modifier = Modifier
                                 .background(
                                     color = if (request.paymentMethod == "CASH") Color(0xFFFFF9C4) else Color(0xFFE8F5E9),
-                                    shape = RoundedCornerShape(4.dp)
+                                    shape = RoundedCornerShape(50)
                                 )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = request.paymentMethod,
                                 fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = if (request.paymentMethod == "CASH") Color(0xFFF57F17) else Color(0xFF2E7D32)
                             )
                         }
+                        
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = request.requestedTimeAgo,
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
                     }
                 }
                 
-                // Display Offered Fare if present
+                // Fare Pill (if available)
                 if (request.offeredFare.isNotEmpty()) {
                      Box(
                          modifier = Modifier
                              .background(
-                                 color = Color(0xFFE3F2FD),
-                                 shape = RoundedCornerShape(8.dp)
+                                 color = Color(0xFFEEF2FF),
+                                 shape = RoundedCornerShape(12.dp)
                              )
-                             .padding(horizontal = 10.dp, vertical = 6.dp)
+                             .padding(horizontal = 12.dp, vertical = 8.dp)
                      ) {
                          Text(
-                            text = "RM ${request.offeredFare}",
+                            text = "RM${request.offeredFare}",
                             color = PrimaryBlue,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 16.sp
                          )
                      }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
             // Pickup / Dropoff Timeline
             Row(modifier = Modifier.fillMaxWidth()) {
-                // Timeline Line
+                // Modern Timeline
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(top = 4.dp, end = 12.dp)
+                    modifier = Modifier.padding(top = 2.dp, end = 16.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(12.dp)
-                            .background(PrimaryBlue, CircleShape)
-                            .border(2.dp, Color.White, CircleShape)
+                            .size(10.dp)
+                             .border(2.dp, PrimaryBlue, CircleShape)
+                             .background(Color.White, CircleShape)
                     )
                     Box(
                         modifier = Modifier
-                            .width(2.dp)
+                            .width(1.dp) // Thinner line
                             .height(30.dp)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(PrimaryBlue, Color(0xFFFF6B6B))
-                                )
-                            )
+                            .background(Color(0xFFE2E8F0)) // Very light gray line
                     )
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .background(Color(0xFFFF6B6B), CircleShape)
-                            .border(2.dp, Color.White, CircleShape)
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = Color(0xFFEF5350),
+                        modifier = Modifier.size(14.dp)
                     )
                 }
                 
-                // Addresses
+                // Address Text
                 Column(modifier = Modifier.weight(1f)) {
+                    // Pickup
                     Column {
                         Text(
-                            text = "Pickup",
-                            fontSize = 12.sp,
-                            color = Color(0xFF718096),
-                            fontWeight = FontWeight.Medium
+                            text = "PICKUP",
+                            fontSize = 10.sp,
+                            color = Color(0xFF94A3B8),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
                         )
+                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = request.pickupPoint,
-                            fontSize = 14.sp,
-                            color = Color(0xFF2D3748),
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF334155),
+                            fontWeight = FontWeight.Medium,
                             maxLines = 1,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            modifier = Modifier.padding(bottom = 16.dp)
                         )
                     }
                     
+                    // Dropoff
                     Column {
-                        Text(
-                            text = "Drop-off",
-                            fontSize = 12.sp,
-                            color = Color(0xFF718096),
-                            fontWeight = FontWeight.Medium
+                         Text(
+                            text = "DROPOFF",
+                            fontSize = 10.sp,
+                            color = Color(0xFF94A3B8),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
                         )
+                        Spacer(Modifier.height(2.dp))
                         Text(
                             text = request.dropOffPoint,
-                            fontSize = 14.sp,
-                            color = Color(0xFF2D3748),
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF334155),
+                            fontWeight = FontWeight.Medium,
                             maxLines = 1
                         )
                     }
                 }
                 
-                // Seats indicator
+                // Seats
                 Column(
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .align(Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.End
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
+                    Icon(
+                         imageVector = Icons.Default.DirectionsCar, 
+                         contentDescription = null,
+                         tint = Color(0xFFCBD5E1),
+                         modifier = Modifier.size(20.dp)
+                    )
+                     Text(
                         text = "${request.seats}",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color(0xFF4A5568)
-                    )
-                    Text(
-                        text = "seats",
-                        fontSize = 10.sp,
-                        color = Color(0xFF718096)
+                        fontSize = 16.sp,
+                        color = Color(0xFF64748B)
                     )
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
             // BOTTOM BUTTON ROW
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Chat button for Accepted bookings
+                 // Chat button
                 if (onChat != null) {
                     IconButton(
                         onClick = onChat,
                         modifier = Modifier
-                            .size(48.dp)
-                            .background(Color(0xFFE3F2FD), RoundedCornerShape(12.dp))
+                            .size(50.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape) // Circular button
                     ) {
                         Icon(
                             imageVector = Icons.Default.Chat,
                             contentDescription = "Chat",
                             tint = PrimaryBlue,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
                 
-                // Skip / Cancel
-                OutlinedButton(
+                // Skip Button
+                Button(
                     onClick = onSkip,
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF718096),
-                        containerColor = Color.Transparent
+                        .height(50.dp),
+                    shape = RoundedCornerShape(50), // Fully rounded
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF1F5F9), // Very light gray
+                        contentColor = Color(0xFF64748B)    // Slate gray text
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    elevation = ButtonDefaults.buttonElevation(0.dp)
                 ) {
                     Text(skipLabel, fontWeight = FontWeight.SemiBold)
                 }
                 
-                // Main Action (Offer or Arrive)
-                if (onOffer != null) {
-                    Button(
-                        onClick = onOffer,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFD93D),
-                            contentColor = Color.Black
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                    ) {
-                        Text("Offer", fontWeight = FontWeight.Bold)
+                // Action Button (Offer/Arrive)
+                if (onOffer != null || onArrive != null) {
+                    val isArriveMode = onArrive != null
+                    val btnColor = if (isArriveMode) {
+                        if (request.driverArrived) Color(0xFFCBD5E1) else Color(0xFF22C55E) // Green for Arrive
+                    } else {
+                        Color(0xFF3B82F6) // Blue for Offer (Aesthetic)
                     }
-                }
-                
-                if (onArrive != null) {
+                    val btnText = if (isArriveMode) {
+                         if (request.driverArrived) "Arrived" else "Arrive"
+                    } else "Make Offer"
+
                     Button(
-                        onClick = onArrive,
+                        onClick = {
+                            if (isArriveMode) onArrive?.invoke()
+                            else onOffer?.invoke()
+                        },
                         modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        enabled = !request.driverArrived,
-                        shape = RoundedCornerShape(12.dp),
+                            .weight(1.5f) // Slightly wider
+                            .height(50.dp),
+                        shape = RoundedCornerShape(50),
+                        enabled = if (isArriveMode) !request.driverArrived else true,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (request.driverArrived) Color.Gray else Color(0xFF4CAF50),
+                            containerColor = btnColor,
                             contentColor = Color.White
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                     ) {
-                        Text(
-                            if (request.driverArrived) "Arrived" else "Arrive", 
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(btnText, fontWeight = FontWeight.Bold)
                     }
                 }
             }

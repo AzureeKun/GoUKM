@@ -96,8 +96,6 @@ fun DriverDashboard(
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    // Removed local LaunchedEffect for profile/FCM as AuthViewModel handles it
-
     // Real-time Data
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
     var rideRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
@@ -175,24 +173,13 @@ fun DriverDashboard(
                             
                             when (status) {
                                 "ACCEPTED", "ONGOING" -> {
-                                    // STRICT CHECK: Only show if I am the assigned driver
-                                    if (driverId == currentUserId) {
-                                        acceptedList.add(model)
-                                    }
+                                    if (driverId == currentUserId) acceptedList.add(model)
                                 }
                                 "OFFERED" -> {
-                                    // If I have offered, show in Offered list
-                                    if (offeredDriverIds.contains(currentUserId)) {
-                                        offeredList.add(model)
-                                    } else {
-                                        // If I haven't offered yet, it's still a pending request for me
-                                        pendingList.add(model)
-                                    }
+                                    if (offeredDriverIds.contains(currentUserId)) offeredList.add(model)
+                                    else pendingList.add(model)
                                 }
-                                "PENDING" -> {
-                                    // Regular pending request
-                                    pendingList.add(model)
-                                }
+                                "PENDING" -> pendingList.add(model)
                             }
                         }
                         rideRequests = pendingList
@@ -209,12 +196,8 @@ fun DriverDashboard(
         }
     }
 
-
-
-
-
     Scaffold(
-        containerColor = SurfaceColor,
+        containerColor = Color(0xFFF8F9FA), // Lighter, clean background
         bottomBar = {
             BottomNavigationBarDriver(
                 selectedIndex = selectedNavIndex,
@@ -227,64 +210,75 @@ fun DriverDashboard(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Modern Header
+            // Modern Minimal Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(elevation = 8.dp, spotColor = Color.Black.copy(alpha = 0.1f))
                     .background(Color.White)
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 24.dp, vertical = 20.dp) 
+                    // No heavy shadow, just white cleanliness. Or maybe a very subtle 1dp border
+                    .shadow(elevation = 1.dp, spotColor = Color.Black.copy(alpha = 0.05f))
             ) {
-                // Left: Status & Vehicle Info
+                 // Left: Status
                 Column(
                     modifier = Modifier.align(Alignment.CenterStart)
                 ) {
+                    val statusColor = if(isOnline) Color(0xFF22C55E) else Color(0xFFEF5350) // Brighter green/red
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(8.dp).background(statusColor, CircleShape)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (isOnline) "ONLINE" else "OFFLINE",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp,
+                            color = statusColor
+                        )
+                    }
+                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = if (isOnline) "Online" else "Offline",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isOnline) OnlineGreen else OfflineRed
-                    )
-                    Text(
-                        text = "${user?.carBrand ?: "Unknown"} - ${user?.vehiclePlateNumber ?: "No Plate"}",
+                        text = "${user?.carBrand ?: "Unknown"} • ${user?.vehiclePlateNumber ?: "No Plate"}",
                         fontSize = 12.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF94A3B8),
                         fontWeight = FontWeight.Medium
-                        // modifier = Modifier.padding(top = 2.dp) 
                     )
                 }
 
-                // Center: Switch ONLY (No text)
+                // Center: Switch 
                 Box(
                     modifier = Modifier.align(Alignment.Center)
                 ) {
                     Switch(
                         checked = isOnline,
-                        onCheckedChange = {
-                            authViewModel.setDriverAvailability(it)
-                        },
+                        onCheckedChange = { authViewModel.setDriverAvailability(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = OnlineGreen,
+                            checkedTrackColor = Color(0xFF22C55E),
                             uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = OfflineRed
+                            uncheckedTrackColor = Color(0xFFE2E8F0),
+                            uncheckedBorderColor = Color.Transparent
                         ),
                         modifier = Modifier.scale(0.9f)
                     )
                 }
 
-                // Right: Settings Button
+                // Right: Settings
                 IconButton(
                     onClick = { 
                         navController.navigate(com.example.goukm.navigation.NavRoutes.DriverProfile.route) 
                     },
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .background(Color(0xFFF1F5F9), CircleShape) // Light gray bg for icon
+                        .size(40.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "Settings",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(28.dp)
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -293,13 +287,12 @@ fun DriverDashboard(
             if (isOnline) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 90.dp)
+                    contentPadding = PaddingValues(top = 24.dp, bottom = 100.dp),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
                 ) {
                     // ACCEPTED JOBS
                     if (acceptedRequests.isNotEmpty()) {
-                        item {
-                            SectionHeader("Current Job", OnlineGreen)
-                        }
+                        item { SectionHeader("CURRENT RIDE") }
                         items(acceptedRequests, key = { it.id }) { request ->
                              RideRequestCard(
                                 request = request,
@@ -329,9 +322,7 @@ fun DriverDashboard(
 
                     // OFFERED JOBS
                     if (offeredRequests.isNotEmpty() && acceptedRequests.isEmpty()) {
-                        item {
-                            SectionHeader("Awaiting Customer Response", Color(0xFFFFA000))
-                        }
+                        item { SectionHeader("Awaiting Response") }
                          items(offeredRequests, key = { it.id }) { request ->
                              RideRequestCard(
                                 request = request,
@@ -351,9 +342,7 @@ fun DriverDashboard(
 
                     // NEW REQUESTS
                      if (rideRequests.isNotEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
-                        item {
-                            SectionHeader("New Requests", PrimaryBlue)
-                        }
+                        item { SectionHeader("NEW REQUESTS") } // All caps for minimal look
                         items(rideRequests, key = { it.id }) { request ->
                             RideRequestCard(
                                 request = request,
@@ -380,14 +369,14 @@ fun DriverDashboard(
                      } else if (rideRequests.isEmpty() && acceptedRequests.isEmpty() && offeredRequests.isEmpty()) {
                          item {
                              EmptyStateView(
-                                 message = "No new requests right now",
-                                 subMessage = "Stay online to receive ride request"
+                                 message = "No requests nearby",
+                                 subMessage = "We'll notify you when a trip is available."
                              )
                          }
                      }
                 }
             } else {
-                // Offline State
+                // Offline State (Refreshed)
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -400,40 +389,41 @@ fun DriverDashboard(
                             painter = painterResource(id = R.drawable.carroad),
                             contentDescription = "Offline",
                             modifier = Modifier
-                                .size(240.dp)
-                                .clip(RoundedCornerShape(20.dp))
+                                .size(280.dp) // Larger
+                                .clip(RoundedCornerShape(32.dp))
+                                .shadow(12.dp, RoundedCornerShape(32.dp), spotColor = Color.Black.copy(0.1f)),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
                         
                         Text(
-                            "You are currently Offline",
+                            "You're currently Offline",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            color = Color(0xFF2D3748)
+                            fontSize = 24.sp,
+                            color = Color(0xFF1E293B)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Go online to start receiving ride requests",
+                            "Go online to start earning",
                             fontSize = 16.sp,
-                            color = Color(0xFF718096),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            color = Color(0xFF64748B)
                         )
-                        Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(40.dp))
                         
                         Button(
                             onClick = { authViewModel.setDriverAvailability(true) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = OnlineGreen),
-                            shape = RoundedCornerShape(12.dp)
+                                .height(56.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E)),
+                            shape = RoundedCornerShape(50) // Pill button
                         ) {
-                            Text("Go Online", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("GO ONLINE", fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        Button(
+                        TextButton(
                             onClick = {
                                 scope.launch {
                                     authViewModel.switchActiveRole("customer")
@@ -442,11 +432,8 @@ fun DriverDashboard(
                                     }
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
                         ) {
-                            Text("Switch to Customer Mode", fontSize = 16.sp)
+                            Text("Switch to Customer Mode", fontSize = 14.sp, color = Color(0xFF64748B))
                         }
                     }
                 }
@@ -456,26 +443,15 @@ fun DriverDashboard(
 }
 
 @Composable
-fun SectionHeader(title: String, color: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(4.dp, 24.dp)
-                .background(color, RoundedCornerShape(2.dp))
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF2D3748)
-        )
-    }
+fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Black,
+        color = Color(0xFF94A3B8),
+        letterSpacing = 1.2.sp,
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+    )
 }
 
 @Composable
@@ -483,21 +459,20 @@ fun EmptyStateView(message: String, subMessage: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 60.dp),
+            .padding(top = 80.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(120.dp)
-                .background(Color(0xFFE3F2FD), CircleShape)
-                .padding(20.dp),
+                .size(100.dp)
+                .background(Color(0xFFF1F5F9), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.Default.List,
+                Icons.Default.Notifications, // Or a better icon
                 contentDescription = null,
-                tint = PrimaryBlue,
-                modifier = Modifier.size(60.dp)
+                tint = Color(0xFF94A3B8),
+                modifier = Modifier.size(40.dp)
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -505,13 +480,14 @@ fun EmptyStateView(message: String, subMessage: String) {
             message,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF2D3748)
+            color = Color(0xFF1E293B)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             subMessage,
             fontSize = 14.sp,
-            color = Color(0xFF718096)
+            color = Color(0xFF64748B),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
 }
