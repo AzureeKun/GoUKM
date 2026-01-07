@@ -26,6 +26,7 @@ sealed class NavRoutes(val route: String) {
     object JourneySummaryScreen : NavRoutes("journey_summary")
     object CustomerBookingHistory : NavRoutes("cust_booking_history")
     object DriverRideHistory : NavRoutes("driver_ride_history")
+    object RideDetails : NavRoutes("ride_details/{bookingId}")
 
 
     object DriverProfile : NavRoutes("driver_profile")

@@ -21,14 +21,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.goukm.ui.booking.Booking
+import com.example.goukm.ui.booking.BookingRepository
+import com.example.goukm.ui.booking.BookingStatus
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import androidx.navigation.NavController
+import com.example.goukm.navigation.NavRoutes
 
 // --- DATA MODELS ---
 enum class RideStatus { COMPLETED, CANCELLED, IN_PROGRESS }
 
 data class RideHistory(
+    val id: String,
     val destination: String,
     val pickupPoint: String,
     val dateTime: String, // "7 May 2025, 1.34 PM"
@@ -36,51 +44,117 @@ data class RideHistory(
     val status: RideStatus
 )
 
-// Sample ride history
-val rideHistoryData = listOf(
-    RideHistory("Kolej Aminuddin Baki", "Kolej Keris", "7 May 2025, 1.34 PM", "RM 6.00", RideStatus.COMPLETED),
-    RideHistory("Kolej Ibrahim Yaakub", "Kolej Pendeta Zaba", "8 May 2025, 10.34 PM", "RM 5.00", RideStatus.IN_PROGRESS),
-    RideHistory("Kolej Aminuddin Baki", "Kolej Keris", "2 April 2025, 2.30 PM", "RM 6.00", RideStatus.COMPLETED),
-    RideHistory("Kolej Ibrahim Yaakub", "Kolej Pendeta Zaba", "1 May 2025, 10.00 PM", "RM 5.00", RideStatus.CANCELLED)
-)
+// Helper function to convert Booking to RideHistory
+private fun Booking.toRideHistory(): RideHistory {
+    val formatter = SimpleDateFormat("d MMM yyyy, h.mm a", Locale.ENGLISH)
+    val dateTimeString = formatter.format(timestamp)
+    
+    // Map BookingStatus to RideStatus
+    val rideStatus = when (status) {
+        BookingStatus.COMPLETED.name -> RideStatus.COMPLETED
+        BookingStatus.CANCELLED.name,
+        BookingStatus.CANCELLED_BY_DRIVER.name,
+        BookingStatus.CANCELLED_BY_CUSTOMER.name -> RideStatus.CANCELLED
+        BookingStatus.ONGOING.name,
+        BookingStatus.ACCEPTED.name -> RideStatus.IN_PROGRESS
+        else -> RideStatus.COMPLETED // Default for other statuses
+    }
+    
+    // Format price - use offeredFare if available, otherwise default
+    val priceString = if (offeredFare.isNotEmpty()) {
+        if (offeredFare.startsWith("RM")) offeredFare else "RM $offeredFare"
+    } else {
+        "RM 0.00"
+    }
+    
+    return RideHistory(
+        id = id,
+        destination = dropOff,
+        pickupPoint = pickup,
+        dateTime = dateTimeString,
+        price = priceString,
+        status = rideStatus
+    )
+}
+
 
 // --- UI ---
 @Composable
-fun CustomerBookingHistoryScreen() {
+fun CustomerBookingHistoryScreen(navController: NavController? = null) {
     var selectedStatus by remember { mutableStateOf("All") }
     var selectedPeriod by remember { mutableStateOf("All") }
     var showPeriodFilter by remember { mutableStateOf(false) }
-
+    
+    // State for bookings
+    var bookings by remember { mutableStateOf<List<Booking>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    val bookingRepository = remember { BookingRepository() }
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+    val scope = rememberCoroutineScope()
+    
     // Date formatter for parsing ride.dateTime
     val formatter = SimpleDateFormat("d MMM yyyy, h.mm a", Locale.ENGLISH)
     val now = Date()
-
-    // Filtered rides based on status + period
-    val filteredRides = rideHistoryData.filter { ride ->
-        // Status filter
-        val statusMatches = when (selectedStatus) {
-            "All" -> true
-            "Completed" -> ride.status == RideStatus.COMPLETED
-            "In Progress" -> ride.status == RideStatus.IN_PROGRESS
-            "Cancelled" -> ride.status == RideStatus.CANCELLED
-            else -> true
+    
+    // Fetch bookings from Firestore
+    LaunchedEffect(Unit) {
+        if (currentUser == null) {
+            errorMessage = "User not logged in"
+            isLoading = false
+            return@LaunchedEffect
         }
+        
+        isLoading = true
+        errorMessage = null
+        
+        val result = bookingRepository.getAllCustomerBookings(currentUser.uid)
+        result.onSuccess { bookingList ->
+            bookings = bookingList
+            isLoading = false
+        }.onFailure { exception ->
+            errorMessage = "Failed to load bookings: ${exception.message}"
+            isLoading = false
+        }
+    }
+    
+    // Filtered bookings based on status + period
+    val filteredRides = remember(bookings, selectedStatus, selectedPeriod) {
+        bookings.filter { booking ->
+            // Map BookingStatus to RideStatus for selection
+            val rideStatus = when (booking.status) {
+                BookingStatus.COMPLETED.name -> RideStatus.COMPLETED
+                BookingStatus.CANCELLED.name,
+                BookingStatus.CANCELLED_BY_DRIVER.name,
+                BookingStatus.CANCELLED_BY_CUSTOMER.name -> RideStatus.CANCELLED
+                BookingStatus.ONGOING.name,
+                BookingStatus.ACCEPTED.name -> RideStatus.IN_PROGRESS
+                else -> RideStatus.COMPLETED
+            }
 
-        // Period filter
-        val periodMatches = try {
-            val rideDate = formatter.parse(ride.dateTime)
-            when (selectedPeriod) {
+            // Status filter
+            val statusMatches = when (selectedStatus) {
                 "All" -> true
-                "1 Month" -> TimeUnit.MILLISECONDS.toDays(now.time - rideDate.time) <= 30
-                "3 Months" -> TimeUnit.MILLISECONDS.toDays(now.time - rideDate.time) <= 90
-                "6 Months" -> TimeUnit.MILLISECONDS.toDays(now.time - rideDate.time) <= 180
+                "Completed" -> rideStatus == RideStatus.COMPLETED
+                "In Progress" -> rideStatus == RideStatus.IN_PROGRESS
+                "Cancelled" -> rideStatus == RideStatus.CANCELLED
                 else -> true
             }
-        } catch (e: Exception) {
-            true
-        }
 
-        statusMatches && periodMatches
+            // Period filter
+            val daysSinceRide = TimeUnit.MILLISECONDS.toDays(now.time - booking.timestamp.time)
+            val periodMatches = when (selectedPeriod) {
+                "All" -> true
+                "1 Month" -> daysSinceRide <= 30
+                "3 Months" -> daysSinceRide <= 90
+                "6 Months" -> daysSinceRide <= 180
+                else -> true
+            }
+
+            statusMatches && periodMatches
+        }.map { it.toRideHistory() }
     }
 
     Column(
@@ -125,8 +199,11 @@ fun CustomerBookingHistoryScreen() {
                 onItemSelected = { selectedStatus = it }
             )
 
-            // Period Filter (Dropdown Icon)
-            Row(horizontalArrangement = Arrangement.End) {
+            // Period Filter (Dropdown Icon - Aligned to Right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
                 Box {
                     FilterIconButton(
                         icon = Icons.Default.DateRange,
@@ -136,8 +213,7 @@ fun CustomerBookingHistoryScreen() {
 
                     DropdownMenu(
                         expanded = showPeriodFilter,
-                        onDismissRequest = { showPeriodFilter = false },
-                        modifier = Modifier.align(Alignment.TopStart)
+                        onDismissRequest = { showPeriodFilter = false }
                     ) {
                         listOf("All", "1 Month", "3 Months", "6 Months").forEach { period ->
                             DropdownMenuItem(
@@ -153,15 +229,60 @@ fun CustomerBookingHistoryScreen() {
             }
         }
 
-        // Ride list
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            if (filteredRides.isEmpty()) {
-                item { EmptyHistoryState() }
-            } else {
-                items(filteredRides) { ride -> BookingHistoryListItem(ride) }
+        // Error message display
+        errorMessage?.let {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2))
+            ) {
+                Text(
+                    text = it,
+                    modifier = Modifier.padding(16.dp),
+                    color = Color(0xFF991B1B),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        // Loading indicator
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            // Ride list
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                if (filteredRides.isEmpty()) {
+                    item { 
+                        EmptyHistoryState(
+                            selectedStatus = selectedStatus,
+                            onBookRideClick = { 
+                                navController?.navigate(NavRoutes.CustomerDashboard.route) {
+                                    popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+                                }
+                            }
+                        ) 
+                    }
+                } else {
+                    items(filteredRides) { ride -> 
+                        BookingHistoryListItem(
+                            ride = ride,
+                            onClick = {
+                                navController?.navigate("ride_details/${ride.id}")
+                            }
+                        ) 
+                    }
+                }
             }
         }
     }
@@ -218,25 +339,28 @@ private fun FilterIconButton(icon: ImageVector, label: String, onClick: () -> Un
     Card(
         modifier = Modifier.clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .fillMaxWidth(),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(icon, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(20.dp))
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+            Icon(icon, contentDescription = null, tint = Color(0xFF3B82F6), modifier = Modifier.size(18.dp))
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF374151), fontWeight = FontWeight.SemiBold)
             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
         }
     }
 }
 
 @Composable
-private fun BookingHistoryListItem(ride: RideHistory) {
-    Column {
+private fun BookingHistoryListItem(ride: RideHistory, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -289,13 +413,6 @@ private fun BookingHistoryListItem(ride: RideHistory) {
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
-
-            IconButton(
-                onClick = { /* Ride menu */ },
-                modifier = Modifier.size(36.dp).background(Color(0xFFF9FAFB), RoundedCornerShape(20.dp))
-            ) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More ride options", tint = Color(0xFF6B7280), modifier = Modifier.size(20.dp))
-            }
         }
 
         Spacer(modifier = Modifier.height(2.dp))
@@ -303,16 +420,90 @@ private fun BookingHistoryListItem(ride: RideHistory) {
 }
 
 @Composable
-private fun EmptyHistoryState() {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 80.dp)) {
-        Icon(Icons.Default.HistoryToggleOff, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(72.dp))
+private fun EmptyHistoryState(selectedStatus: String, onBookRideClick: () -> Unit) {
+    // Define content based on the active tab
+    val (title, description, icon) = when (selectedStatus) {
+        "In Progress" -> Triple(
+            "No active rides",
+            "You don't have any rides in progress. Ready to start a new journey?",
+            Icons.Default.DirectionsCar
+        )
+        "Completed" -> Triple(
+            "No completed rides",
+            "Your completed trips will appear here. Take your first ride today!",
+            Icons.Default.History
+        )
+        "Cancelled" -> Triple(
+            "No cancelled rides",
+            "All your rides have been smooth so far! No cancellations found.",
+            Icons.Default.Cancel
+        )
+        else -> Triple(
+            "No records found",
+            "Book your first ride to see your journey history here.",
+            Icons.Default.HistoryToggleOff
+        )
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 80.dp, horizontal = 24.dp)
+    ) {
+        // Modern, subtle icon container
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(60.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier.size(60.dp)
+            )
+        }
+        
         Spacer(modifier = Modifier.height(24.dp))
-        Text("You have no booking history yet.", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium, color = Color(0xFF374151)), textAlign = TextAlign.Center)
+        
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
+            ),
+            textAlign = TextAlign.Center
+        )
+        
         Spacer(modifier = Modifier.height(12.dp))
-        Text("Book your first ride to see your journey here", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF6B7280), textAlign = TextAlign.Center)
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = { /* Navigate to booking */ }, modifier = Modifier.fillMaxWidth(0.6f).height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))) {
-            Text("Book a Ride", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+        
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF6B7280),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(40.dp))
+        
+        // Primary Action Button
+        Button(
+            onClick = onBookRideClick,
+            modifier = Modifier
+                .fillMaxWidth(0.7f)
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+            shape = RoundedCornerShape(16.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+        ) {
+            Text(
+                "Book a Ride",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
         }
     }
 }

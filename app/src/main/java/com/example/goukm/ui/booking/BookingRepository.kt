@@ -265,4 +265,48 @@ class BookingRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun getAllCustomerBookings(userId: String): Result<List<Booking>> {
+        return try {
+            // Fetch without orderBy to avoid requiring a composite index
+            // We'll sort in memory instead
+            val snapshot = bookingsCollection
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            
+            val bookings = snapshot.documents.mapNotNull { doc ->
+                try {
+                    Booking(
+                        id = doc.id,
+                        userId = doc.getString("userId") ?: "",
+                        pickup = doc.getString("pickup") ?: "",
+                        dropOff = doc.getString("dropOff") ?: "",
+                        seatType = doc.getString("seatType") ?: "",
+                        status = doc.getString("status") ?: "",
+                        offeredFare = doc.getString("offeredFare") ?: "",
+                        driverId = doc.getString("driverId") ?: "",
+                        timestamp = doc.getDate("timestamp") ?: Date(),
+                        pickupLat = doc.getDouble("pickupLat") ?: 0.0,
+                        pickupLng = doc.getDouble("pickupLng") ?: 0.0,
+                        dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
+                        dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
+                        driverArrived = doc.getBoolean("driverArrived") ?: false,
+                        paymentMethod = doc.getString("paymentMethod") ?: "CASH",
+                        paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
+                        offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList(),
+                        currentDriverLat = doc.getDouble("currentDriverLat") ?: 0.0,
+                        currentDriverLng = doc.getDouble("currentDriverLng") ?: 0.0
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            // Sort by timestamp in descending order (newest first)
+            val sortedBookings = bookings.sortedByDescending { it.timestamp }
+            Result.success(sortedBookings)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

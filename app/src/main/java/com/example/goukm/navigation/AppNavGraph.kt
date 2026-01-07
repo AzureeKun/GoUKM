@@ -137,12 +137,26 @@ fun AppNavGraph(
 
         // CUSTOMER BOOKING HISTORY
         composable(NavRoutes.CustomerBookingHistory.route) {
-            CustomerBookingHistoryScreen()
+            CustomerBookingHistoryScreen(navController = navController)
         }
 
         // DRIVER RIDE HISTORY
         composable(NavRoutes.DriverRideHistory.route) {
             DriverRideBookingHistoryScreen()
+        }
+
+        // RIDE DETAILS
+        composable(
+            route = NavRoutes.RideDetails.route,
+            arguments = listOf(
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            com.example.goukm.ui.history.RideDetailsScreen(
+                navController = navController,
+                bookingId = bookingId
+            )
         }
 
         // BOOKING REQUEST

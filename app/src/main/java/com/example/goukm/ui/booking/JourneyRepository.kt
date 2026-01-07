@@ -102,4 +102,19 @@ object JourneyRepository {
             }
         awaitClose { listener.remove() }
     }
+
+    suspend fun getJourney(journeyId: String): Result<Journey> {
+        return try {
+            val doc = journeysCollection.document(journeyId).get().await()
+            if (doc.exists()) {
+                val journey = doc.toObject(Journey::class.java)
+                if (journey != null) Result.success(journey)
+                else Result.failure(Exception("Failed to parse journey"))
+            } else {
+                Result.failure(Exception("Journey not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
