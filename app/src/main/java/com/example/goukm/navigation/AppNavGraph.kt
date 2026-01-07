@@ -50,6 +50,8 @@ import com.example.goukm.ui.journey.CustomerJourneyDetailsScreen
 import com.example.goukm.navigation.NavRoutes.CustomerJourneyDetailsScreen
 import com.example.goukm.ui.history.CustomerBookingHistoryScreen
 import com.example.goukm.ui.history.DriverRideBookingHistoryScreen
+import com.example.goukm.ui.history.RideDetailsScreen
+import com.example.goukm.ui.history.DriverRideDetailsScreen
 
 @Composable
 fun AppNavGraph(
@@ -245,7 +247,7 @@ fun AppNavGraph(
 
         // DRIVER RIDE HISTORY
         composable(NavRoutes.DriverRideHistory.route) {
-            DriverRideBookingHistoryScreen()
+            DriverRideBookingHistoryScreen(navController = navController)
         }
 
         // RIDE DETAILS
@@ -256,7 +258,21 @@ fun AppNavGraph(
             )
         ) { backStackEntry ->
             val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
-            com.example.goukm.ui.history.RideDetailsScreen(
+            RideDetailsScreen(
+                navController = navController,
+                bookingId = bookingId
+            )
+        }
+
+        // DRIVER RIDE DETAILS
+        composable(
+            route = NavRoutes.DriverRideDetails.route,
+            arguments = listOf(
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            DriverRideDetailsScreen(
                 navController = navController,
                 bookingId = bookingId
             )

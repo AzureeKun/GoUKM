@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,85 +35,81 @@ import androidx.compose.ui.unit.sp
 // -----------------------------
 @Composable
 fun DriverRideBookingHistoryScreen(
+    navController: androidx.navigation.NavController? = null,
     viewModel: DriverHistoryViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var selectedStatus by remember { mutableStateOf("All") }
+    var showFilterMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFFF8F9FA), Color.White)
+                )
+            )
             .padding(20.dp)
     ) {
-        // Header Row: Title + Filter Button
+        // Header
+        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            Text(
+                text = "Ride History",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.Black,
+                    fontSize = 32.sp
+                ),
+                color = Color(0xFF1A1A1A)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Your completed rides and earnings",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color(0xFF6B7280)
+            )
+        }
+
+        // Filter Section
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "Ride History",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Black,
-                        fontSize = 24.sp
-                    ),
-                    color = Color(0xFF1A1A1A)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Your completed rides and earnings",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF6B7280)
-                )
-            }
-
-            // Filter Icon Button on the same row
-            FilterIconButton(Icons.Default.FilterList, "All") { /* Filter action */ }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-
-        // Ride List
-        when (val state = uiState) {
-            is DriverHistoryUiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            is DriverHistoryUiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = state.message, color = Color.Red)
-                }
-            }
-            is DriverHistoryUiState.Success -> {
-                if (state.rides.isEmpty()) {
-                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "No ride history yet", color = Color.Gray)
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(state.rides) { ride ->
-                            Column {
-                                DriverRideListItem(ride = ride)
+            // Status Tabs (Simplified)
+            Surface(
+                color = Color.White,
+                shape = RoundedCornerShape(12.dp),
+                shadowElevation = 2.dp,
+                modifier = Modifier.height(44.dp).weight(1f)
+            ) {
+                Row {
+                    listOf("All", "Completed", "Cancelled").forEach { status ->
+                        val isSelected = selectedStatus == status
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clickable { selectedStatus = status },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = status,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp
+                                ),
+                                color = if (isSelected) Color(0xFF3B82F6) else Color(0xFF6B7280)
+                            )
+                            if (isSelected) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(1.dp)
-                                        .background(
-                                            Brush.horizontalGradient(
-                                                colors = listOf(
-                                                    Color(0xFFF3F4F6),
-                                                    Color(0xFFE5E7EB),
-                                                    Color(0xFFF3F4F6)
-                                                )
-                                            )
-                                        )
+                                        .align(Alignment.BottomCenter)
+                                        .height(3.dp)
+                                        .fillMaxWidth(0.6f)
+                                        .background(Color(0xFF3B82F6), RoundedCornerShape(2.dp))
                                 )
                             }
                         }
@@ -120,6 +118,71 @@ fun DriverRideBookingHistoryScreen(
             }
         }
 
+        // Ride List
+        Box(modifier = Modifier.weight(1f)) {
+            when (val state = uiState) {
+                is DriverHistoryUiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                is DriverHistoryUiState.Error -> {
+                    Text(
+                        text = state.message,
+                        color = Color.Red,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                is DriverHistoryUiState.Success -> {
+                    val filteredRides = state.rides.filter {
+                        when (selectedStatus) {
+                            "All" -> true
+                            "Completed" -> it.status == "COMPLETED"
+                            "Cancelled" -> it.status.contains("CANCELLED")
+                            else -> true
+                        }
+                    }
+
+                    if (filteredRides.isEmpty()) {
+                        EmptyHistoryState(selectedStatus)
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(filteredRides) { ride ->
+                                DriverRideListItem(
+                                    ride = ride,
+                                    onClick = {
+                                        navController?.navigate("driver_ride_details/${ride.id}")
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyHistoryState(status: String) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.History,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = Color(0xFFD1D5DB)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No $status rides found",
+            style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFF9CA3AF)
+        )
     }
 }
 
@@ -164,83 +227,84 @@ private fun FilterIconButton(
 
 
 @Composable
-private fun DriverRideListItem(ride: DriverRide) {
-    Row(
+private fun DriverRideListItem(ride: DriverRide, onClick: () -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable { onClick() }
     ) {
-        // Avatar
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
-            shape = CircleShape,
-            modifier = Modifier.size(48.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Brush.horizontalGradient(colors = listOf(Color(0xFFF3F4F6), Color(0xFFE5E7EB), Color(0xFFF3F4F6))))
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp, horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(Icons.Default.Person, contentDescription = "Customer", tint = Color(0xFF9CA3AF))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Ride for ${ride.customer}",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827)
+                    )
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "To ${ride.destination}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF6B7280)
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 16.dp)) {
+                Text(
+                    text = ride.dateTime,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = Color(0xFF6B7280),
+                    textAlign = TextAlign.End
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (ride.fare.startsWith("RM")) ride.fare else "RM ${ride.fare}",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black, color = Color(0xFF059669))
+                )
             }
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Ride Info
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = ride.customer,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
-                ),
-                maxLines = 1
-            )
-            Text(
-                text = "To ${ride.destination}",
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                color = Color(0xFF6B7280),
-                maxLines = 1
-            )
-             // Status Indicator
-            val statusColor = when (ride.status) {
-                "COMPLETED" -> Color(0xFF059669) // Green
-                "CANCELLED", "CANCELLED_BY_DRIVER", "CANCELLED_BY_CUSTOMER" -> Color(0xFFEF4444) // Red
-                else -> Color.Gray
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Surface(
+                color = when {
+                    ride.status == "COMPLETED" -> Color(0xFFDCFCE7)
+                    ride.status.contains("CANCELLED") -> Color(0xFFFEE2E2)
+                    else -> Color(0xFFFFF7ED)
+                },
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(
+                    text = when {
+                        ride.status == "COMPLETED" -> "Done"
+                        ride.status.contains("CANCELLED") -> "Cancelled"
+                        else -> ride.status.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+                    },
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = when {
+                        ride.status == "COMPLETED" -> Color(0xFF166534)
+                        ride.status.contains("CANCELLED") -> Color(0xFF991B1B)
+                        else -> Color(0xFF92400E)
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
-             Text(
-                text = ride.status.replace("_", " "),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = statusColor,
-                maxLines = 1,
-                modifier = Modifier.padding(top = 2.dp)
-            )
         }
-
-        // Date + Distance + Fare
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = ride.dateTime,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF6B7280),
-                textAlign = TextAlign.End
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = ride.distance,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF3B82F6) // blue accent
-                )
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = ride.fare,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFF059669),
-                    fontSize = 16.sp
-                )
-            )
-        }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -248,6 +312,7 @@ private fun DriverRideListItem(ride: DriverRide) {
 // Data
 // -----------------------------
 data class DriverRide(
+    val id: String,
     val customer: String,
     val destination: String,
     val dateTime: String,

@@ -52,19 +52,13 @@ class DriverHistoryViewModel : ViewModel() {
                     // For now, let's stick to the existing fields in DriverRide or update DriverRide
                     
                     DriverRide(
+                        id = booking.id,
                         customer = customerName,
                         destination = booking.dropOff,
                         dateTime = dateStr,
-                        distance = "0 km", // We might not have distance stored in booking yet, or need to calculate it. 
-                                           // Ideally distance should be in Booking. 
-                                           // Checking Booking model: it has lat/lng but not pre-calculated distance string.
-                                           // For now, placeholder or if we have it. 
-                                           // Actually, Journey has distance? 
-                                           // Let's check if we can get distance. 
-                                           // For now hardcode or calculate distance between pickup/dropoff latlng?
-                                           // Let's calculated simple straight line or just show "-" if unknown.
+                        distance = "0 km",
                         fare = booking.offeredFare,
-                        status = booking.status // Add this to DriverRide data class
+                        status = booking.status
                     )
                 }
                 _uiState.value = DriverHistoryUiState.Success(rides)

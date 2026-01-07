@@ -10,9 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,25 +24,22 @@ import com.example.goukm.ui.booking.Journey
 import com.example.goukm.ui.booking.JourneyRepository
 import com.example.goukm.ui.userprofile.UserProfile
 import com.example.goukm.ui.userprofile.UserProfileRepository
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RideDetailsScreen(
+fun DriverRideDetailsScreen(
     navController: NavController,
     bookingId: String
 ) {
-    val scope = rememberCoroutineScope()
     val bookingRepository = remember { BookingRepository() }
     val journeyRepository = JourneyRepository
     val userRepository = UserProfileRepository
     
     var booking by remember { mutableStateOf<Booking?>(null) }
     var journey by remember { mutableStateOf<Journey?>(null) }
-    var driver by remember { mutableStateOf<UserProfile?>(null) }
+    var customer by remember { mutableStateOf<UserProfile?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -59,15 +54,13 @@ fun RideDetailsScreen(
             // If completed, fetch journey details
             if (b.status == BookingStatus.COMPLETED.name) {
                 val journeyResult = journeyRepository.getJourney(bookingId)
-                journeyResult.onSuccess { j: Journey -> journey = j }
+                journeyResult.onSuccess { j -> journey = j }
             }
             
-            // Fetch driver details if there's a driverId
-            if (b.driverId.isNotEmpty()) {
-                val driverProfile = userRepository.getUserProfile(b.driverId)
-                if (driverProfile != null) {
-                    driver = driverProfile
-                }
+            // Fetch customer details
+            val customerProfile = userRepository.getUserProfile(b.userId)
+            if (customerProfile != null) {
+                customer = customerProfile
             }
             isLoading = false
         }.onFailure { e ->
@@ -85,9 +78,7 @@ fun RideDetailsScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
@@ -107,7 +98,7 @@ fun RideDetailsScreen(
                 ) {
                     Icon(Icons.Default.Error, contentDescription = null, tint = Color.Red, modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = error ?: "Unknown error", textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                    Text(text = error!!, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
                 }
             } else if (booking != null) {
                 val b = booking!!
@@ -141,13 +132,12 @@ fun RideDetailsScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Driver / Status Section
-                    if (isCompleted && driver != null) {
-                        DriverCard(driver!!)
+                    // Customer / Status Section
+                    if (isCompleted && customer != null) {
+                        CustomerCard(customer!!)
                     } else if (isCancelled) {
                         CancellationBanner()
                     } else {
-                        // For other statuses (e.g. In Progress)
                         StatusCard(b.status)
                     }
 
@@ -180,7 +170,7 @@ fun RideDetailsScreen(
 }
 
 @Composable
-fun DriverCard(driver: UserProfile) {
+fun CustomerCard(customer: UserProfile) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -192,14 +182,14 @@ fun DriverCard(driver: UserProfile) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                modifier = Modifier.size(60.dp),
+                modifier = Modifier.size(50.dp),
                 shape = CircleShape,
                 color = Color(0xFFE5E7EB)
             ) {
                 Icon(
                     Icons.Default.Person, 
                     contentDescription = null, 
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(10.dp),
                     tint = Color(0xFF9CA3AF)
                 )
             }
@@ -208,19 +198,14 @@ fun DriverCard(driver: UserProfile) {
             
             Column {
                 Text(
-                    text = driver.name,
+                    text = customer.name,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color(0xFF111827)
                 )
                 Text(
-                    text = "Driver • ${driver.carBrand} ${driver.carColor}",
+                    text = "Customer • ${customer.matricNumber}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF6B7280)
-                )
-                Text(
-                    text = driver.vehiclePlateNumber,
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFF3B82F6)
                 )
             }
         }
