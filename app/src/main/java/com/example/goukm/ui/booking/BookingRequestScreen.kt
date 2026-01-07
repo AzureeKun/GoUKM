@@ -503,8 +503,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                                 fare = offer.fareLabel.replace("RM ", "")
                                             )
                                             
-                                            bookingRepository.acceptOffer(bookingId, acceptedOffer)
-                                            
+                                            // 1. Create Chat Room FIRST to ensure it exists when driver gets the update
                                             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
                                             if (currentUser != null) {
                                                 val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
@@ -518,6 +517,9 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                                     driverPhone = offer.driverPhone
                                                 )
                                             }
+
+                                            // 2. Then Update Booking Status
+                                            bookingRepository.acceptOffer(bookingId, acceptedOffer)
                                         } catch (e: Exception) {
                                             e.printStackTrace()
                                             android.widget.Toast.makeText(context, "Acceptance error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
@@ -703,7 +705,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             onClick = {
                                 scope.launch {
                                     if (currentBookingId != null) {
-                                        val result = bookingRepository.updateStatus(currentBookingId!!, BookingStatus.CANCELLED)
+                                        val result = bookingRepository.updateStatus(currentBookingId!!, BookingStatus.CANCELLED_BY_CUSTOMER)
                                         result.onSuccess {
                                             android.widget.Toast.makeText(context, "Booking Cancelled", android.widget.Toast.LENGTH_SHORT).show()
                                         }

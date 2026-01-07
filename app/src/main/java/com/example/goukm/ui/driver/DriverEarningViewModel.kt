@@ -18,11 +18,20 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.*
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import com.example.goukm.util.SessionManager
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
 class DriverEarningViewModel(
-    private val bookingRepository: BookingRepository = BookingRepository(),
-    private val journeyRepository: JourneyRepository = JourneyRepository,
+    application: Application
+) : AndroidViewModel(application) {
+
+    private val bookingRepository: BookingRepository = BookingRepository()
+    private val journeyRepository: JourneyRepository = JourneyRepository
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-) : ViewModel() {
+    private val sessionManager = SessionManager(application)
 
     private val _selectedPeriod = MutableStateFlow("Day")
     val selectedPeriod: StateFlow<String> = _selectedPeriod.asStateFlow()
@@ -35,14 +44,38 @@ class DriverEarningViewModel(
 
     private val _journeys = MutableStateFlow<List<Journey>>(emptyList())
     private val _onlineDurations = MutableStateFlow<Map<String, Long>>(emptyMap())
+
+    // Tracks duration of the current active session in minutes
+    private val _currentSessionMinutes = MutableStateFlow(0L)
     
-    val uiState = combine(_journeys, _selectedPeriod, _currentDate, _graphGranularity, _onlineDurations) { journeys, period, date, granularity, onlineDurations ->
+    // Combine filter-related states first to reduce arity for the main combine
+    private val _filterState = combine(_selectedPeriod, _currentDate, _graphGranularity) { period, date, granularity ->
+        Triple(period, date, granularity)
+    }
+
+    val uiState = combine(_journeys, _onlineDurations, _currentSessionMinutes, _filterState) { journeys, onlineDurations, sessionMinutes, filterState ->
+        val (period, date, granularity) = filterState
+        
         val filtered = filterJourneys(journeys, period, date)
         val aggregatedData = aggregateData(filtered, period, date, granularity)
         val totalEarnings = filtered.sumOf { it.offeredFare.toDoubleOrNull() ?: 0.0 }
         val rideCount = filtered.size
         
-        val totalOnlineMinutes = aggregateOnlineMinutes(onlineDurations, period, date)
+        var totalOnlineMinutes = aggregateOnlineMinutes(onlineDurations, period, date)
+        
+        // Add current session minutes if the selected date includes "Today"
+        val today = LocalDate.now()
+        val isTodayIncluded = when(period) {
+            "Day" -> date == today
+            "Week" -> !today.isBefore(date.with(java.time.DayOfWeek.MONDAY)) && !today.isAfter(date.with(java.time.DayOfWeek.SUNDAY))
+            "Month" -> date.month == today.month && date.year == today.year
+            "Year" -> date.year == today.year
+            else -> false
+        }
+        
+        if (isTodayIncluded) {
+            totalOnlineMinutes += sessionMinutes
+        }
         
         EarningUiState(
             totalEarnings = totalEarnings,
@@ -63,6 +96,22 @@ class DriverEarningViewModel(
             viewModelScope.launch {
                 val profile = UserProfileRepository.getUserProfile(currentUser.uid)
                 _onlineDurations.value = profile?.onlineWorkDurations ?: emptyMap()
+            }
+        }
+        
+        // Start Real-time Session Timer
+        viewModelScope.launch {
+            while (isActive) {
+                val startTime = sessionManager.fetchOnlineStartTime()
+                if (startTime > 0) {
+                    val now = System.currentTimeMillis()
+                    val diff = now - startTime
+                    val minutes = diff / (1000 * 60)
+                    _currentSessionMinutes.value = minutes
+                } else {
+                    _currentSessionMinutes.value = 0L
+                }
+                delay(60000) // Update every minute
             }
         }
     }

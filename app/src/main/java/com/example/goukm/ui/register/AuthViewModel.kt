@@ -8,6 +8,7 @@ import com.example.goukm.util.SessionManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -118,6 +119,9 @@ class AuthViewModel(
         }
     }
 
+    // Flag to handle pending availability updates (prevent UI flicker)
+    private var pendingAvailability: Boolean? = null
+
     private var userListener: ListenerRegistration? = null
 
     private fun listenToUserDocument(uid: String) {
@@ -129,8 +133,15 @@ class AuthViewModel(
                 if (error != null) return@addSnapshotListener
                 val user = snapshot?.toObject(UserProfile::class.java)
                 if (user != null) {
+                    var finalUser = user
+                    
+                    // FORCE OVERRIDE if we have a pending local operation
+                    if (pendingAvailability != null) {
+                        finalUser = finalUser.copy(isAvailable = pendingAvailability!!)
+                    }
+
                     val oldRoleDriver = _currentUser.value?.role_driver
-                    _currentUser.value = user
+                    _currentUser.value = finalUser
                     
                     // If role_driver changed from false to true, we might want to react
                     if (oldRoleDriver == false && user.role_driver == true) {
@@ -278,15 +289,18 @@ class AuthViewModel(
 
     // Set driver availability locally and in Firestore
     fun setDriverAvailability(isAvailable: Boolean) {
+        // 1. Set Pending Flag & Optimistic Update
+        pendingAvailability = isAvailable
+        val optimiticUser = _currentUser.value?.copy(isAvailable = isAvailable)
+        _currentUser.value = optimiticUser
+
         viewModelScope.launch {
-            // Optimistic update locally
-            _currentUser.value = _currentUser.value?.copy(isAvailable = isAvailable)
             
-            // Update Firestore
-            UserProfileRepository.updateDriverAvailability(isAvailable)
+            // 2. Perform Network Request
+            val success = UserProfileRepository.updateDriverAvailability(isAvailable)
             
             val uid = FirebaseAuth.getInstance().currentUser?.uid
-            if (uid != null) {
+            if (uid != null && success) {
                 if (isAvailable) {
                     // Start of session
                     sessionManager.saveOnlineStartTime(System.currentTimeMillis())
@@ -305,6 +319,16 @@ class AuthViewModel(
                     sessionManager.saveOnlineStartTime(0L)
                 }
             }
+
+            // 3. Clear pending flag after a safety delay
+            // This ensures we ignore any "stale" snapshots that come in right after our write
+            delay(2000) 
+            
+            // Should verify if the actual current state matches intent, but essentially we are done forcing it.
+            pendingAvailability = null
+            
+             // Force a refresh from current value just in case we drifted
+             // (Optional, usually the listener would have caught up by now)
         }
     }
 

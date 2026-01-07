@@ -93,22 +93,6 @@ fun DriverDashboard(
     val user by authViewModel.currentUser.collectAsState()
     val isOnline = user?.isAvailable ?: false
 
-    // Local state to handle switch toggle instantly (optimistic UI)
-    // Initialize with current state, but don't reset automatically on every recomposition unless explicitly needed
-    var switchState by remember { mutableStateOf(isOnline) }
-    
-    // Sync logic: Only update local state if backend state changes and we aren't in a "pending" optimistic state? 
-    // Actually, simplest fix for double-tap is: 
-    // 1. Initialize once.
-    // 2. On toggle, update local state immediately.
-    // 3. If backend confirms (same value), do nothing.
-    // 4. If backend changes to something else (e.g. forced offline), update local.
-    LaunchedEffect(isOnline) {
-        if (isOnline != switchState) {
-            switchState = isOnline
-        }
-    }
-
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -183,19 +167,31 @@ fun DriverDashboard(
                         val acceptedList = mutableListOf<RideRequestModel>()
 
                         for (doc in snapshots.documents) {
-                            val status = doc.getString("status")
-                            val driverId = doc.getString("driverId")
+                            val status = doc.getString("status") ?: ""
+                            val driverId = doc.getString("driverId") ?: ""
                             val offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()
                             val model = mapToModel(doc) ?: continue
                             
-                            if (status == "PENDING" || status == "OFFERED") {
-                                if (offeredDriverIds.contains(currentUserId)) {
-                                    offeredList.add(model)
-                                } else {
+                            when (status) {
+                                "ACCEPTED", "ONGOING" -> {
+                                    // STRICT CHECK: Only show if I am the assigned driver
+                                    if (driverId == currentUserId) {
+                                        acceptedList.add(model)
+                                    }
+                                }
+                                "OFFERED" -> {
+                                    // If I have offered, show in Offered list
+                                    if (offeredDriverIds.contains(currentUserId)) {
+                                        offeredList.add(model)
+                                    } else {
+                                        // If I haven't offered yet, it's still a pending request for me
+                                        pendingList.add(model)
+                                    }
+                                }
+                                "PENDING" -> {
+                                    // Regular pending request
                                     pendingList.add(model)
                                 }
-                            } else if ((status == "ACCEPTED" || status == "ONGOING") && driverId == currentUserId) {
-                                acceptedList.add(model)
                             }
                         }
                         rideRequests = pendingList
@@ -244,10 +240,10 @@ fun DriverDashboard(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (switchState) "You are Online" else "You are Offline",
+                            text = if (isOnline) "You are Online" else "You are Offline",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (switchState) OnlineGreen else Color.Gray
+                            color = if (isOnline) OnlineGreen else Color.Gray
                         )
                         user?.let { u ->
                             if (u.vehiclePlateNumber.isNotEmpty()) {
@@ -269,9 +265,8 @@ fun DriverDashboard(
                     }
                     
                     Switch(
-                        checked = switchState,
+                        checked = isOnline,
                         onCheckedChange = {
-                            switchState = it
                             authViewModel.setDriverAvailability(it)
                         },
                         colors = SwitchDefaults.colors(
@@ -287,7 +282,7 @@ fun DriverDashboard(
             }
             
             
-            if (switchState) {
+            if (isOnline) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 90.dp)
@@ -297,7 +292,7 @@ fun DriverDashboard(
                         item {
                             SectionHeader("Current Job", OnlineGreen)
                         }
-                        items(acceptedRequests) { request ->
+                        items(acceptedRequests, key = { it.id }) { request ->
                              RideRequestCard(
                                 request = request,
                                 onSkip = { 
@@ -319,7 +314,7 @@ fun DriverDashboard(
                                         navController.navigate("driver_chat/${request.chatRoom.id}/$encodedName/$encodedPhone")
                                     }
                                 } else null,
-                                onArrive = null // Removed "Arrived" button, handled by Navigation screen now
+                                onArrive = null 
                              )
                         }
                     }
@@ -329,12 +324,12 @@ fun DriverDashboard(
                         item {
                             SectionHeader("Awaiting Customer Response", Color(0xFFFFA000))
                         }
-                         items(offeredRequests) { request ->
+                         items(offeredRequests, key = { it.id }) { request ->
                              RideRequestCard(
                                 request = request,
                                 onSkip = {
                                     scope.launch {
-                                         bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED)
+                                         bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
                                             .onSuccess {
                                                 android.widget.Toast.makeText(context, "Offer Cancelled", android.widget.Toast.LENGTH_SHORT).show()
                                             }
@@ -351,12 +346,12 @@ fun DriverDashboard(
                         item {
                             SectionHeader("New Requests", PrimaryBlue)
                         }
-                        items(rideRequests) { request ->
+                        items(rideRequests, key = { it.id }) { request ->
                             RideRequestCard(
                                 request = request,
                                 onSkip = {
                                     scope.launch {
-                                        bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED)
+                                        bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
                                             .onSuccess {
                                                 android.widget.Toast.makeText(context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
                                             }

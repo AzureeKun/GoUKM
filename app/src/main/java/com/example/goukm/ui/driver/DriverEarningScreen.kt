@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -390,7 +391,7 @@ fun EarningsNavigationCard(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                      Icon(
-                         Icons.Default.AttachMoney, 
+                         Icons.Default.Schedule, 
                          contentDescription = null, tint = Color.Black 
                      )
                      Spacer(Modifier.width(8.dp))

@@ -14,7 +14,9 @@ enum class BookingStatus {
     ACCEPTED,
     ONGOING,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    CANCELLED_BY_DRIVER,
+    CANCELLED_BY_CUSTOMER
 }
 
 data class Booking(

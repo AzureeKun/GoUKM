@@ -349,8 +349,9 @@ fun AppNavGraph(
                 oncashConfirmation = {
                      scope.launch {
                          bookingRepository.updatePaymentStatus(bookingId, "PAID")
-                         navController.navigate("ride_done/$bookingId") {
-                             popUpTo("confirm_pay/{paymentMethod}/{bookingId}") { inclusive = true }
+                         navController.navigate("cust_journey_details/${bookingId}/CASH?paymentStatus=PAID") {
+                             popUpTo("confirm_pay/CASH/${bookingId}") { inclusive = true }
+                             popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
                          }
                      }
                 },
@@ -450,8 +451,9 @@ fun AppNavGraph(
                 onPaymentCompleted = {
                     scope.launch {
                         bookingRepository.updatePaymentStatus(bookingId, "PAID")
-                        navController.navigate("ride_done/$bookingId") {
-                             popUpTo("payment_qr/{amount}/{bookingId}") { inclusive = true }
+                        navController.navigate("cust_journey_details/${bookingId}/QR?paymentStatus=PAID") {
+                            popUpTo("payment_qr/${amount}/${bookingId}") { inclusive = true }
+                            popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
                         }
                     }
                 }

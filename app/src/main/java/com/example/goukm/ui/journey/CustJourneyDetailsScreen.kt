@@ -82,7 +82,9 @@ fun CustomerJourneyDetailsScreen(
 
     var paymentStatus by remember { mutableStateOf(initialPaymentStatus) }
     var showArrivedAlert by remember { mutableStateOf(false) }
+    var showDriverCancelledAlert by remember { mutableStateOf(false) }
     var isDriverArrived by remember { mutableStateOf(false) }
+    var isTripCompleted by remember { mutableStateOf(false) }
     var driverLatLng by remember { mutableStateOf<LatLng?>(null) }
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
 
@@ -119,19 +121,25 @@ fun CustomerJourneyDetailsScreen(
 
                 paymentStatus = pStatus
                 isDriverArrived = arrived
+                isTripCompleted = status == "COMPLETED"
+
+                // Auto-Navigate to Rating Screen if Completed AND Paid
+                if (status == "COMPLETED" && pStatus == "PAID") {
+                     navController.navigate("ride_done/$bookingId") {
+                        popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
+                     }
+                }
 
                 if (dLat != 0.0 && dLng != 0.0) {
                     driverLatLng = LatLng(dLat, dLng)
                 }
 
                 if (status == "COMPLETED") {
-                    if (pStatus == "PAID") {
-                        navController.navigate("ride_done/$bookingId") {
-                            popUpTo("cust_journey_details/$bookingId") { inclusive = true }
-                        }
-                    } else {
+                    if (pStatus != "PAID") {
                         showArrivedAlert = true
                     }
+                } else if (status == com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER.name) {
+                    showDriverCancelledAlert = true
                 }
             }
         }
@@ -277,6 +285,10 @@ fun CustomerJourneyDetailsScreen(
                             color = Color.White
                         )
                     }
+                    
+                    // Show "Back to Home" if the trip is completed -> REMOVED as per request to auto-navigate
+                    // No manual back button here anymore.
+
                 } else { 
                     // --- NEW: Proceed to Payment Button ---
                     Button(
@@ -414,6 +426,30 @@ fun CustomerJourneyDetailsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
                     Text("Pay Now", color = Color.White)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Driver Cancelled Alert
+    if (showDriverCancelledAlert) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { /* Force action */ },
+            title = { Text("Ride Cancelled", fontWeight = FontWeight.Bold, color = Color.Red) },
+            text = { Text("We're sorry, but the driver has cancelled your ride request. You can try booking another ride.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDriverCancelledAlert = false
+                        navController.navigate(NavRoutes.BookingRequest.route) {
+                            popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B87C0))
+                ) {
+                    Text("Book Again", color = Color.White)
                 }
             },
             containerColor = Color.White,

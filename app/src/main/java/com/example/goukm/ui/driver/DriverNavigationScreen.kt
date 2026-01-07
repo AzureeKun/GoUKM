@@ -25,7 +25,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -84,6 +86,7 @@ fun DriverNavigationScreen(
     var destinationLocation by remember { mutableStateOf(LatLng(pickupLat, pickupLng)) }
     var destinationAddress by remember { mutableStateOf(pickupAddress) }
     var showPaymentPendingAlert by remember { mutableStateOf(false) }
+    var showCancelRideDialog by remember { mutableStateOf(false) }
 
     // Monitor Booking Details in Real-Time
     LaunchedEffect(bookingId) {
@@ -374,6 +377,19 @@ fun DriverNavigationScreen(
                     ) {
                         Text("I Have Arrived", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
+
+                    // Cancel Ride Button (Only shown during TO_PICKUP)
+                    OutlinedButton(
+                        onClick = { showCancelRideDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
+                    ) {
+                        Text("Cancel Ride", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
                 } else {
                     Button(
                         onClick = {
@@ -412,6 +428,36 @@ fun DriverNavigationScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = CBlue)
                     ) {
                         Text("Okay", color = Color.White)
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+
+        // Cancel Ride Confirmation Alert
+        if (showCancelRideDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showCancelRideDialog = false },
+                title = { Text("Cancel Ride?", fontWeight = FontWeight.Bold) },
+                text = { Text("Are you sure you want to cancel this ride? This may affect your rating.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
+                                showCancelRideDialog = false
+                                navController.popBackStack()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Yes, Cancel", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCancelRideDialog = false }) {
+                        Text("No, Stay")
                     }
                 },
                 containerColor = Color.White,
