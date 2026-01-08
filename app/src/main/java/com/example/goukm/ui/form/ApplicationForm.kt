@@ -3,6 +3,7 @@ package com.example.goukm.ui.form
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -76,6 +77,7 @@ fun DriverApplicationFormScreen(
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(paddingValues)
+                .imePadding()
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
