@@ -45,6 +45,8 @@ import com.example.goukm.ui.booking.Booking
 import com.example.goukm.ui.booking.Journey
 import java.time.ZoneId
 import java.util.Date
+import com.example.goukm.util.MockDataSeeder
+import kotlinx.coroutines.launch
 
 val LightGreen = Color(0xFF4CAF50)
 
@@ -67,6 +69,14 @@ fun DriverEarningScreen(
     val graphGranularity by viewModel.graphGranularity.collectAsState()
     val currentDate by viewModel.currentDate.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        // Trigger seeding once silently for demonstration
+        scope.launch {
+            MockDataSeeder.seedMockData()
+        }
+    }
 
     var showDatePicker by remember { mutableStateOf(false) }
 
