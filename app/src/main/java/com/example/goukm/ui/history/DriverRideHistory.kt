@@ -26,13 +26,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.goukm.ui.theme.CBlue
 
 // -----------------------------
 // Screen
 // -----------------------------
-// -----------------------------
-// Screen
-// -----------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriverRideBookingHistoryScreen(
     navController: androidx.navigation.NavController? = null,
@@ -42,119 +41,135 @@ fun DriverRideBookingHistoryScreen(
     var selectedStatus by remember { mutableStateOf("All") }
     var showFilterMenu by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFFF8F9FA), Color.White)
-                )
-            )
-            .padding(20.dp)
-    ) {
-        // Header
-        Column(modifier = Modifier.padding(bottom = 24.dp)) {
-            Text(
-                text = "Ride History",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Black,
-                    fontSize = 32.sp
-                ),
-                color = Color(0xFF1A1A1A)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Your completed rides and earnings",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF6B7280)
-            )
-        }
-
-        // Filter Section
-        Row(
+    Scaffold(
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFFF8F9FA), Color.White)
+                    )
+                )
+                .padding(20.dp)
         ) {
-            // Status Tabs (Simplified)
-            Surface(
-                color = Color.White,
-                shape = RoundedCornerShape(12.dp),
-                shadowElevation = 2.dp,
-                modifier = Modifier.height(44.dp).weight(1f)
+            // Back Button
+            IconButton(
+                onClick = { navController?.popBackStack() },
+                modifier = Modifier.offset(x = (-12).dp) // Align flush with padding
             ) {
-                Row {
-                    listOf("All", "Completed", "Cancelled").forEach { status ->
-                        val isSelected = selectedStatus == status
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clickable { selectedStatus = status },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = status,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 14.sp
-                                ),
-                                color = if (isSelected) Color(0xFF3B82F6) else Color(0xFF6B7280)
-                            )
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .height(3.dp)
-                                        .fillMaxWidth(0.6f)
-                                        .background(Color(0xFF3B82F6), RoundedCornerShape(2.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF1A1A1A)
+                )
+            }
+
+            // Header
+            Column(modifier = Modifier.padding(bottom = 24.dp)) {
+                Text(
+                    text = "Ride History",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Black,
+                        fontSize = 32.sp
+                    ),
+                    color = Color(0xFF1A1A1A)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Your completed rides and earnings",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF6B7280)
+                )
+            }
+
+            // Filter Section
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Status Tabs (Simplified)
+                Surface(
+                    color = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 2.dp,
+                    modifier = Modifier.height(44.dp).weight(1f)
+                ) {
+                    Row {
+                        listOf("All", "Completed", "Cancelled").forEach { status ->
+                            val isSelected = selectedStatus == status
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable { selectedStatus = status },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = status,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 14.sp
+                                    ),
+                                    color = if (isSelected) Color(0xFF3B82F6) else Color(0xFF6B7280)
                                 )
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .height(3.dp)
+                                            .fillMaxWidth(0.6f)
+                                            .background(Color(0xFF3B82F6), RoundedCornerShape(2.dp))
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Ride List
-        Box(modifier = Modifier.weight(1f)) {
-            when (val state = uiState) {
-                is DriverHistoryUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                is DriverHistoryUiState.Error -> {
-                    Text(
-                        text = state.message,
-                        color = Color.Red,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                is DriverHistoryUiState.Success -> {
-                    val filteredRides = state.rides.filter {
-                        when (selectedStatus) {
-                            "All" -> true
-                            "Completed" -> it.status == "COMPLETED"
-                            "Cancelled" -> it.status.contains("CANCELLED")
-                            else -> true
-                        }
+            // Ride List
+            Box(modifier = Modifier.weight(1f)) {
+                when (val state = uiState) {
+                    is DriverHistoryUiState.Loading -> {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                     }
+                    is DriverHistoryUiState.Error -> {
+                        Text(
+                            text = state.message,
+                            color = Color.Red,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    is DriverHistoryUiState.Success -> {
+                        val filteredRides = state.rides.filter {
+                            when (selectedStatus) {
+                                "All" -> true
+                                "Completed" -> it.status == "COMPLETED"
+                                "Cancelled" -> it.status.contains("CANCELLED")
+                                else -> true
+                            }
+                        }
 
-                    if (filteredRides.isEmpty()) {
-                        EmptyHistoryState(selectedStatus)
-                    } else {
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(filteredRides) { ride ->
-                                DriverRideListItem(
-                                    ride = ride,
-                                    onClick = {
-                                        navController?.navigate("driver_ride_details/${ride.id}")
-                                    }
-                                )
+                        if (filteredRides.isEmpty()) {
+                            EmptyHistoryState(selectedStatus)
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(filteredRides) { ride ->
+                                    DriverRideListItem(
+                                        ride = ride,
+                                        onClick = {
+                                            navController?.navigate("driver_ride_details/${ride.id}")
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -186,8 +201,6 @@ private fun EmptyHistoryState(status: String) {
     }
 }
 
-
-
 @Composable
 private fun FilterIconButton(
     icon: ImageVector,
@@ -197,34 +210,33 @@ private fun FilterIconButton(
     Card(
         modifier = Modifier
             .clickable { onClick() }
-            .height(36.dp), // smaller height
+            .height(36.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(10.dp) // slightly smaller rounding
+        shape = RoundedCornerShape(10.dp)
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 6.dp), // less padding
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp) // tighter spacing
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = Color(0xFF6B7280),
-                modifier = Modifier.size(16.dp) // smaller icon
+                modifier = Modifier.size(16.dp)
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp // smaller font
+                    fontSize = 12.sp
                 ),
                 color = Color(0xFF374151)
             )
         }
     }
 }
-
 
 @Composable
 private fun DriverRideListItem(ride: DriverRide, onClick: () -> Unit) {

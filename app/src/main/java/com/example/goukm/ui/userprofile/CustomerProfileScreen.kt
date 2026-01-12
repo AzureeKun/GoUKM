@@ -66,7 +66,8 @@ data class UserProfile(
     val isAvailable: Boolean = false,
     val onlineDays: List<String> = emptyList(),
     val onlineWorkDurations: Map<String, Long> = emptyMap(), // date -> minutes
-    val vehicles: List<Vehicle> = emptyList()
+    val vehicles: List<Vehicle> = emptyList(),
+    val preferredPaymentMethod: String = "CASH"
 )
 
 @Composable

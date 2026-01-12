@@ -202,7 +202,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
 
                 if (status == "ACCEPTED" || status == "ONGOING") {
                     scope.launch {
-                        navController.navigate("cust_journey_details/${bookingId}/${selectedPaymentMethod?.name ?: "CASH"}") {
+                        navController.navigate("cust_journey_details/${bookingId}/${selectedPaymentMethod?.name ?: "CASH"}?paymentStatus=PENDING") {
                             popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
                         }
                     }
@@ -252,6 +252,17 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
         if (effectiveBookingId.isNullOrEmpty()) {
             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
+                // Task 5: Fetch preferred payment method
+                scope.launch {
+                    val profile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
+                    if (profile != null) {
+                        selectedPaymentMethod = when (profile.preferredPaymentMethod) {
+                            "QR_DUITNOW" -> PaymentMethod.QR_DUITNOW
+                            else -> PaymentMethod.CASH
+                        }
+                    }
+                }
+
                 val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 db.collection("bookings")
                     .whereEqualTo("userId", currentUser.uid)
@@ -485,14 +496,24 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                 title = "DuitNow",
                                 icon = Icons.Default.QrCode,
                                 isSelected = selectedPaymentMethod == PaymentMethod.QR_DUITNOW,
-                                onClick = { selectedPaymentMethod = PaymentMethod.QR_DUITNOW },
+                                onClick = { 
+                                    selectedPaymentMethod = PaymentMethod.QR_DUITNOW 
+                                    scope.launch {
+                                        com.example.goukm.ui.userprofile.UserProfileRepository.updatePreferredPaymentMethod("QR_DUITNOW")
+                                    }
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                             PaymentMethodCard(
                                 title = "Cash",
                                 icon = Icons.Default.AttachMoney,
                                 isSelected = selectedPaymentMethod == PaymentMethod.CASH,
-                                onClick = { selectedPaymentMethod = PaymentMethod.CASH },
+                                onClick = { 
+                                    selectedPaymentMethod = PaymentMethod.CASH 
+                                    scope.launch {
+                                        com.example.goukm.ui.userprofile.UserProfileRepository.updatePreferredPaymentMethod("CASH")
+                                    }
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                         }

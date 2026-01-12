@@ -58,7 +58,8 @@ object UserProfileRepository {
             isAvailable = doc.getBoolean("isAvailable") ?: false,
             onlineDays = doc.get("onlineDays") as? List<String> ?: emptyList(),
             onlineWorkDurations = (doc.get("onlineWorkDurations") as? Map<String, Long>) ?: emptyMap(),
-            vehicles = uniqueVehicles
+            vehicles = uniqueVehicles,
+            preferredPaymentMethod = doc.getString("preferredPaymentMethod") ?: "CASH"
         ).let { initialUser ->
             var user = initialUser
 
@@ -178,6 +179,7 @@ object UserProfileRepository {
             "academicStatus" to user.academicStatus,
             "batch" to user.batch,
             "onlineWorkDurations" to user.onlineWorkDurations,
+            "preferredPaymentMethod" to user.preferredPaymentMethod,
             "vehicles" to user.vehicles.map {
                 mapOf(
                     "id" to it.id,
@@ -469,6 +471,17 @@ object UserProfileRepository {
             )
             // Use plateNumber as document ID to avoid duplicate overlapping applications for same car
             db.collection("newVehicleApplications").document(vehicle.plateNumber).set(applicationMap).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun updatePreferredPaymentMethod(method: String): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return try {
+            db.collection("users").document(uid).update("preferredPaymentMethod", method).await()
             true
         } catch (e: Exception) {
             e.printStackTrace()

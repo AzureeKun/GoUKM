@@ -49,16 +49,29 @@ fun CustomerChatScreen(
     val listState = rememberLazyListState()
     var isLoading by remember { mutableStateOf(true) }
     var userName by remember { mutableStateOf("Customer") }
+    var actualContactName by remember { mutableStateOf(contactName) }
 
-    // Get current user's name
-    LaunchedEffect(Unit) {
-        val userDoc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(currentUserId)
-            .get()
-        userDoc.addOnSuccessListener { doc ->
-            userName = doc.getString("name") ?: "Customer"
-        }
+    // Get current user's name and contact's actual name
+    LaunchedEffect(currentUserId, chatId) {
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        
+        // Fetch current user name
+        db.collection("users").document(currentUserId).get()
+            .addOnSuccessListener { doc ->
+                userName = doc.getString("name") ?: "Customer"
+            }
+
+        // Fetch contact name (Driver) - find the driverId for this chat
+        db.collection("chatRooms").document(chatId).get()
+            .addOnSuccessListener { doc ->
+                val driverId = doc.getString("driverId")
+                if (driverId != null) {
+                    db.collection("users").document(driverId).get()
+                        .addOnSuccessListener { userDoc ->
+                            actualContactName = userDoc.getString("name") ?: contactName
+                        }
+                }
+            }
     }
 
     // Listen to messages in real-time
@@ -90,7 +103,7 @@ fun CustomerChatScreen(
                 title = {
                     Column {
                         Text(
-                            contactName,
+                            actualContactName,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp

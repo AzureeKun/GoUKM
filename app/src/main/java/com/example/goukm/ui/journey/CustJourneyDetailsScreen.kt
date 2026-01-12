@@ -63,6 +63,9 @@ import com.google.maps.android.compose.Polyline
 import androidx.navigation.NavHostController
 import com.example.goukm.ui.booking.PlacesRepository
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 
 
 
@@ -103,10 +106,18 @@ fun CustomerJourneyDetailsScreen(
     var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
     var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
     var driverRating by remember { mutableStateOf("New") }
+    var isLoading by remember { mutableStateOf(false) }
 
     val currentPaymentStatus = navController.currentBackStackEntry?.savedStateHandle
         ?.getStateFlow("paymentStatus", initialPaymentStatus)
         ?.collectAsState()?.value ?: initialPaymentStatus
+
+    // --- NAVIGATION FIX (Task 6) ---
+    BackHandler {
+        navController.navigate(NavRoutes.CustomerDashboard.route) {
+            popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+        }
+    }
 
     // MONITOR BOOKING STATUS FOR COMPLETION
     LaunchedEffect(bookingId) {
@@ -170,47 +181,57 @@ fun CustomerJourneyDetailsScreen(
 
     LaunchedEffect(bookingId) {
         if (bookingId.isNotEmpty()) {
-            val result = bookingRepository.getBooking(bookingId)
-            val booking = result.getOrNull()
-            if (booking != null) {
-                pickupAddress = booking.pickup
-                dropOffAddress = booking.dropOff
-                fareAmount = "RM ${booking.offeredFare}"
-                pickupLatLng = LatLng(booking.pickupLat, booking.pickupLng)
-                dropOffLatLng = LatLng(booking.dropOffLat, booking.dropOffLng)
+            isLoading = true
+            scope.launch {
+                // Fetch booking data first as it provides driverId
+                val result = bookingRepository.getBooking(bookingId)
+                val booking = result.getOrNull()
+                
+                if (booking != null) {
+                    pickupAddress = booking.pickup
+                    dropOffAddress = booking.dropOff
+                    fareAmount = "RM ${booking.offeredFare}"
+                    pickupLatLng = LatLng(booking.pickupLat, booking.pickupLng)
+                    dropOffLatLng = LatLng(booking.dropOffLat, booking.dropOffLng)
 
-                val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId)
-                if (customerProfile != null) {
-                    passengerName = customerProfile.name
-                    passengerProfileUrl = customerProfile.profilePictureUrl ?: ""
-                }
+                    // Parallelize subsequent fetches (Task 4)
+                    val customerProfileJob = async { com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId) }
+                    
+                    val driverDataJob = if (!booking.driverId.isNullOrEmpty()) {
+                        async {
+                            val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
+                            val stats = com.example.goukm.ui.booking.RatingRepository.getDriverStats(booking.driverId)
+                            val chatRoomResult = com.example.goukm.ui.chat.ChatRepository.getChatRoomByBookingId(bookingId)
+                            Triple(userProfile, stats, chatRoomResult)
+                        }
+                    } else null
 
-                if (!booking.driverId.isNullOrEmpty()) {
-                    val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
-                    if (userProfile != null) {
-                        driverName = userProfile.name
-                        driverPhone = userProfile.phoneNumber
-                        carModel = userProfile.vehicleType
-                        carPlate = userProfile.vehiclePlateNumber
-                        driverProfileUrl = userProfile.profilePictureUrl ?: ""
+                    // Handle Customer Profile
+                    customerProfileJob.await()?.let { profile ->
+                        passengerName = profile.name
+                        passengerProfileUrl = profile.profilePictureUrl ?: ""
                     }
 
-                    // Fetch Driver Stats (Rating)
-                    val stats = com.example.goukm.ui.booking.RatingRepository.getDriverStats(booking.driverId)
-                    driverRating = if (stats.totalReviews > 0) {
-                        String.format("%.1f", stats.averageRating)
-                    } else {
-                        "New"
-                    }
-
-                    // Fetch Chat Room ID
-                    val chatRoomResult = com.example.goukm.ui.chat.ChatRepository.getChatRoomByBookingId(bookingId)
-                    chatRoomResult.onSuccess { room ->
-                        if (room != null) {
-                            chatRoomId = room.id
+                    // Handle Driver Data
+                    driverDataJob?.await()?.let { (profile, stats, chatRoomResult) ->
+                        profile?.let {
+                            driverName = it.name
+                            driverPhone = it.phoneNumber
+                            carModel = it.vehicleType // Task 2: Ensure this is correctly fetched
+                            carPlate = it.vehiclePlateNumber
+                            driverProfileUrl = it.profilePictureUrl ?: ""
+                        }
+                        
+                        driverRating = if (stats.totalReviews > 0) {
+                            String.format("%.1f", stats.averageRating)
+                        } else "New"
+                        
+                        chatRoomResult.onSuccess { room ->
+                            if (room != null) chatRoomId = room.id
                         }
                     }
                 }
+                isLoading = false
             }
         }
     }

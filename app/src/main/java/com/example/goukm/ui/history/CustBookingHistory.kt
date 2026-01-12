@@ -31,6 +31,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import androidx.navigation.NavController
 import com.example.goukm.navigation.NavRoutes
+import com.example.goukm.ui.theme.CBlue
 
 // --- DATA MODELS ---
 enum class RideStatus { COMPLETED, CANCELLED, IN_PROGRESS }
@@ -39,7 +40,7 @@ data class RideHistory(
     val id: String,
     val destination: String,
     val pickupPoint: String,
-    val dateTime: String, // "7 May 2025, 1.34 PM"
+    val dateTime: String,
     val price: String,
     val status: RideStatus
 )
@@ -49,7 +50,6 @@ private fun Booking.toRideHistory(): RideHistory {
     val formatter = SimpleDateFormat("d MMM yyyy, h.mm a", Locale.ENGLISH)
     val dateTimeString = formatter.format(timestamp)
     
-    // Map BookingStatus to RideStatus
     val rideStatus = when (status) {
         BookingStatus.COMPLETED.name -> RideStatus.COMPLETED
         BookingStatus.CANCELLED.name,
@@ -57,10 +57,9 @@ private fun Booking.toRideHistory(): RideHistory {
         BookingStatus.CANCELLED_BY_CUSTOMER.name -> RideStatus.CANCELLED
         BookingStatus.ONGOING.name,
         BookingStatus.ACCEPTED.name -> RideStatus.IN_PROGRESS
-        else -> RideStatus.COMPLETED // Default for other statuses
+        else -> RideStatus.COMPLETED
     }
     
-    // Format price - use offeredFare if available, otherwise default
     val priceString = if (offeredFare.isNotEmpty()) {
         if (offeredFare.startsWith("RM")) offeredFare else "RM $offeredFare"
     } else {
@@ -77,15 +76,14 @@ private fun Booking.toRideHistory(): RideHistory {
     )
 }
 
-
 // --- UI ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerBookingHistoryScreen(navController: NavController? = null) {
     var selectedStatus by remember { mutableStateOf("All") }
     var selectedPeriod by remember { mutableStateOf("All") }
     var showPeriodFilter by remember { mutableStateOf(false) }
     
-    // State for bookings
     var bookings by remember { mutableStateOf<List<Booking>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -95,11 +93,8 @@ fun CustomerBookingHistoryScreen(navController: NavController? = null) {
     val currentUser = auth.currentUser
     val scope = rememberCoroutineScope()
     
-    // Date formatter for parsing ride.dateTime
-    val formatter = SimpleDateFormat("d MMM yyyy, h.mm a", Locale.ENGLISH)
     val now = Date()
     
-    // Fetch bookings from Firestore
     LaunchedEffect(Unit) {
         if (currentUser == null) {
             errorMessage = "User not logged in"
@@ -120,10 +115,8 @@ fun CustomerBookingHistoryScreen(navController: NavController? = null) {
         }
     }
     
-    // Filtered bookings based on status + period
     val filteredRides = remember(bookings, selectedStatus, selectedPeriod) {
         bookings.filter { booking ->
-            // Map BookingStatus to RideStatus for selection
             val rideStatus = when (booking.status) {
                 BookingStatus.COMPLETED.name -> RideStatus.COMPLETED
                 BookingStatus.CANCELLED.name,
@@ -134,7 +127,6 @@ fun CustomerBookingHistoryScreen(navController: NavController? = null) {
                 else -> RideStatus.COMPLETED
             }
 
-            // Status filter
             val statusMatches = when (selectedStatus) {
                 "All" -> true
                 "Completed" -> rideStatus == RideStatus.COMPLETED
@@ -143,7 +135,6 @@ fun CustomerBookingHistoryScreen(navController: NavController? = null) {
                 else -> true
             }
 
-            // Period filter
             val daysSinceRide = TimeUnit.MILLISECONDS.toDays(now.time - booking.timestamp.time)
             val periodMatches = when (selectedPeriod) {
                 "All" -> true
@@ -157,130 +148,141 @@ fun CustomerBookingHistoryScreen(navController: NavController? = null) {
         }.map { it.toRideHistory() }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFFF8F9FA), Color.White)
-                )
-            )
-            .padding(20.dp)
-    ) {
-        // Header
-        Column(modifier = Modifier.padding(bottom = 24.dp)) {
-            Text(
-                text = "Booking History",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Black,
-                    fontSize = 32.sp
-                ),
-                color = Color(0xFF1A1A1A)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Your ride history at a glance",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF6B7280)
-            )
-        }
-
-        // Filter Section
+    Scaffold(
+    ) { paddingValues ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Status Filter (Segmented)
-            FilterSegmentControl(
-                items = listOf("All", "Completed", "Cancelled", "In Progress"),
-                selectedItem = selectedStatus,
-                onItemSelected = { selectedStatus = it }
-            )
-
-            // Period Filter (Dropdown Icon - Aligned to Right)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Box {
-                    FilterIconButton(
-                        icon = Icons.Default.DateRange,
-                        label = selectedPeriod,
-                        onClick = { showPeriodFilter = true }
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFFF8F9FA), Color.White)
                     )
+                )
+                .padding(20.dp)
+        ) {
+            // Back Button
+            IconButton(
+                onClick = { navController?.popBackStack() },
+                modifier = Modifier.offset(x = (-12).dp) // Align flush with padding
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF1A1A1A)
+                )
+            }
+            
+            // Header
+            Column(modifier = Modifier.padding(bottom = 24.dp)) {
+                Text(
+                    text = "Booking History",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Black,
+                        fontSize = 32.sp
+                    ),
+                    color = Color(0xFF1A1A1A)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Your ride history at a glance",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF6B7280)
+                )
+            }
 
-                    DropdownMenu(
-                        expanded = showPeriodFilter,
-                        onDismissRequest = { showPeriodFilter = false }
-                    ) {
-                        listOf("All", "1 Month", "3 Months", "6 Months").forEach { period ->
-                            DropdownMenuItem(
-                                text = { Text(period) },
-                                onClick = {
-                                    selectedPeriod = period
-                                    showPeriodFilter = false
-                                }
-                            )
+            // Filter Section
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                FilterSegmentControl(
+                    items = listOf("All", "Completed", "Cancelled", "In Progress"),
+                    selectedItem = selectedStatus,
+                    onItemSelected = { selectedStatus = it }
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box {
+                        FilterIconButton(
+                            icon = Icons.Default.DateRange,
+                            label = selectedPeriod,
+                            onClick = { showPeriodFilter = true }
+                        )
+
+                        DropdownMenu(
+                            expanded = showPeriodFilter,
+                            onDismissRequest = { showPeriodFilter = false }
+                        ) {
+                            listOf("All", "1 Month", "3 Months", "6 Months").forEach { period ->
+                                DropdownMenuItem(
+                                    text = { Text(period) },
+                                    onClick = {
+                                        selectedPeriod = period
+                                        showPeriodFilter = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // Error message display
-        errorMessage?.let {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2))
-            ) {
-                Text(
-                    text = it,
-                    modifier = Modifier.padding(16.dp),
-                    color = Color(0xFF991B1B),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+            // Error message display
+            errorMessage?.let {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2))
+                ) {
+                    Text(
+                        text = it,
+                        modifier = Modifier.padding(16.dp),
+                        color = Color(0xFF991B1B),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
-        }
 
-        // Loading indicator
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            // Ride list
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                if (filteredRides.isEmpty()) {
-                    item { 
-                        EmptyHistoryState(
-                            selectedStatus = selectedStatus,
-                            onBookRideClick = { 
-                                navController?.navigate(NavRoutes.CustomerDashboard.route) {
-                                    popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+            // Loading indicator or List
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (filteredRides.isEmpty()) {
+                        item { 
+                            EmptyHistoryState(
+                                selectedStatus = selectedStatus,
+                                onBookRideClick = { 
+                                    navController?.navigate(NavRoutes.CustomerDashboard.route) {
+                                        popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+                                    }
                                 }
-                            }
-                        ) 
-                    }
-                } else {
-                    items(filteredRides) { ride -> 
-                        BookingHistoryListItem(
-                            ride = ride,
-                            onClick = {
-                                navController?.navigate("ride_details/${ride.id}")
-                            }
-                        ) 
+                            ) 
+                        }
+                    } else {
+                        items(filteredRides) { ride -> 
+                            BookingHistoryListItem(
+                                ride = ride,
+                                onClick = {
+                                    navController?.navigate("ride_details/${ride.id}")
+                                }
+                            ) 
+                        }
                     }
                 }
             }
@@ -414,14 +416,12 @@ private fun BookingHistoryListItem(ride: RideHistory, onClick: () -> Unit) {
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
 @Composable
 private fun EmptyHistoryState(selectedStatus: String, onBookRideClick: () -> Unit) {
-    // Define content based on the active tab
     val (title, description, icon) = when (selectedStatus) {
         "In Progress" -> Triple(
             "No active rides",
@@ -452,11 +452,10 @@ private fun EmptyHistoryState(selectedStatus: String, onBookRideClick: () -> Uni
             .fillMaxWidth()
             .padding(vertical = 80.dp, horizontal = 24.dp)
     ) {
-        // Modern, subtle icon container
         Box(
             modifier = Modifier
                 .size(120.dp)
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(60.dp)),
+                .background(Color(0xFFF3F4F6), androidx.compose.foundation.shape.CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -490,7 +489,6 @@ private fun EmptyHistoryState(selectedStatus: String, onBookRideClick: () -> Uni
         
         Spacer(modifier = Modifier.height(40.dp))
         
-        // Primary Action Button
         Button(
             onClick = onBookRideClick,
             modifier = Modifier
@@ -500,16 +498,7 @@ private fun EmptyHistoryState(selectedStatus: String, onBookRideClick: () -> Uni
             shape = RoundedCornerShape(16.dp),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
-            Text(
-                "Book a Ride",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-            )
+            Text("Book a Ride", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewHistory() {
-    MaterialTheme { CustomerBookingHistoryScreen() }
 }

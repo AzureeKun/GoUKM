@@ -149,7 +149,9 @@ fun CustomerDashboard(
                             status = doc.getString("status") ?: "",
                             offeredFare = doc.getString("offeredFare") ?: "",
                             driverId = doc.getString("driverId") ?: "",
-                            driverArrived = doc.getBoolean("driverArrived") ?: false
+                            driverArrived = doc.getBoolean("driverArrived") ?: false,
+                            paymentMethod = doc.getString("paymentMethod") ?: "CASH",
+                            paymentStatus = doc.getString("paymentStatus") ?: "PENDING"
                          )
                      } else {
                          activeBooking = null
@@ -275,14 +277,22 @@ fun CustomerDashboard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    val isRideActive = activeBooking != null && (activeBooking?.status == "PENDING" || activeBooking?.status == "OFFERED" || activeBooking?.status == "ACCEPTED" || activeBooking?.status == "ONGOING")
+                    
                     ModernFeatureCard(
-                        title = "Book a Ride",
-                        subtitle = "Find your driver",
+                        title = if (isRideActive) "In-Progress Ride" else "Book a Ride",
+                        subtitle = if (isRideActive) "View ride details" else "Find your driver",
                         icon = Icons.Outlined.DirectionsCar,
                         gradientColors = listOf(Color(0xFFFF9A9E), Color(0xFFFECFEF)),
                         onClick = { 
-                            if (activeBooking != null && (activeBooking?.status == "PENDING" || activeBooking?.status == "OFFERED" || activeBooking?.status == "ACCEPTED")) {
-                                navController.navigate("booking_request?bookingId=${activeBooking?.id}")
+                            if (isRideActive) {
+                                // If already ongoing or accepted, go to track screen
+                                if (activeBooking?.status == "ACCEPTED" || activeBooking?.status == "ONGOING") {
+                                    val booking = activeBooking!!
+                                    navController.navigate("cust_journey_details/${booking.id}/${booking.paymentMethod}?paymentStatus=${booking.paymentStatus}")
+                                } else {
+                                    navController.navigate("booking_request?bookingId=${activeBooking?.id}")
+                                }
                             } else {
                                 navController.navigate("booking_request") 
                             }
