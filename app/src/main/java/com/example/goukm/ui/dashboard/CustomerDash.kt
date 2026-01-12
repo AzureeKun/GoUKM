@@ -330,7 +330,11 @@ fun CustomerDashboard(
                                 RecentPlaceRow(
                                     text = place.name,
                                     onClick = { 
-                                        navController.navigate("booking_request")
+                                        if (activeBooking != null && (activeBooking?.status == "PENDING" || activeBooking?.status == "OFFERED" || activeBooking?.status == "ACCEPTED")) {
+                                            navController.navigate("booking_request?bookingId=${activeBooking?.id}")
+                                        } else {
+                                            navController.navigate("booking_request")
+                                        }
                                     }
                                 )
                             }
@@ -369,7 +373,7 @@ private fun ActiveBookingCard(
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         onClick = {
-            if (isOffered) {
+            if (activeBooking.status == "PENDING" || isOffered) {
                 navController.navigate("booking_request?bookingId=${activeBooking.id}")
             }
         }

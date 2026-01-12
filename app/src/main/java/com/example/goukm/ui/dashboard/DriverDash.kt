@@ -107,6 +107,7 @@ fun DriverDashboard(
     var rideRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
     var offeredRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
     var acceptedRequests by remember { mutableStateOf<List<RideRequestModel>>(emptyList()) }
+    var skippedBookingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     DisposableEffect(isOnline) {
         if (isOnline) {
@@ -120,6 +121,9 @@ fun DriverDashboard(
 
                     scope.launch {
                         suspend fun mapToModel(doc: com.google.firebase.firestore.DocumentSnapshot): RideRequestModel? {
+                            // ... existing mapToModel logic ...
+                            if (skippedBookingIds.contains(doc.id)) return null
+                            
                             val pickup = doc.getString("pickup") ?: ""
                             val dropOff = doc.getString("dropOff") ?: ""
                             val seatType = doc.getString("seatType") ?: "4"
@@ -172,6 +176,8 @@ fun DriverDashboard(
                         val acceptedList = mutableListOf<RideRequestModel>()
 
                         for (doc in snapshots.documents) {
+                            if (skippedBookingIds.contains(doc.id)) continue
+                            
                             val status = doc.getString("status") ?: ""
                             val driverId = doc.getString("driverId") ?: ""
                             val offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()
@@ -200,6 +206,19 @@ fun DriverDashboard(
             acceptedRequests = emptyList()
             onDispose { }
         }
+    }
+
+    // Secondary effect to refresh lists when skippedBookingIds changes
+    LaunchedEffect(skippedBookingIds) {
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val currentUserId = auth.currentUser?.uid ?: ""
+        // Force refresh lists by filtering current state (simple approach) or rely on the SnapshotListener above which will be re-triggered if states change?
+        // Actually, the SnapshotListener is inside a DisposableEffect(isOnline). 
+        // We might want to move it or use a separate refresh logic.
+        // Let's just update the lists manually here for snappy UI.
+        rideRequests = rideRequests.filter { !skippedBookingIds.contains(it.id) }
+        offeredRequests = offeredRequests.filter { !skippedBookingIds.contains(it.id) }
+        acceptedRequests = acceptedRequests.filter { !skippedBookingIds.contains(it.id) }
     }
 
     Scaffold(
@@ -335,12 +354,9 @@ fun DriverDashboard(
                                  RideRequestCard(
                                     request = request,
                                     onSkip = {
-                                        scope.launch {
-                                             bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
-                                                .onSuccess {
-                                                    android.widget.Toast.makeText(context, "Offer Cancelled", android.widget.Toast.LENGTH_SHORT).show()
-                                                }
-                                        }
+                                        skippedBookingIds = skippedBookingIds + request.id
+                                        android.widget.Toast.makeText(context, "Offer Cancelled Locally", android.widget.Toast.LENGTH_SHORT).show()
+                                        // Optional: Actually delete the offer from Firestore here if needed
                                     },
                                     onOffer = null,
                                     skipLabel = "Cancel Offer"
@@ -355,22 +371,13 @@ fun DriverDashboard(
                                 RideRequestCard(
                                     request = request,
                                     onSkip = {
-                                        scope.launch {
-                                            bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER)
-                                                .onSuccess {
-                                                    android.widget.Toast.makeText(context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
-                                                }
-                                        }
+                                        skippedBookingIds = skippedBookingIds + request.id
+                                        android.widget.Toast.makeText(context, "Booking Skipped", android.widget.Toast.LENGTH_SHORT).show()
                                     },
                                     onOffer = {
-                                        scope.launch {
-                                            bookingRepository.updateStatus(request.id, com.example.goukm.ui.booking.BookingStatus.OFFERED)
-                                                .onSuccess {
-                                                    navController.navigate(
-                                                        "fare_offer/${request.customerName}/${request.pickupPoint}/${request.dropOffPoint}/${request.seats}/${request.id}"
-                                                    )
-                                                }
-                                        }
+                                        navController.navigate(
+                                            "fare_offer/${request.customerName}/${request.pickupPoint}/${request.dropOffPoint}/${request.seats}/${request.id}"
+                                        )
                                     }
                                 )
                             }

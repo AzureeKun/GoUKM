@@ -129,6 +129,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
 
     var isSearching by remember { mutableStateOf(false) }
+    var bookingStatus by remember { mutableStateOf("PENDING") }
     var showCancelDialog by remember { mutableStateOf(false) }
     var isSelectingPickupOnMap by remember { mutableStateOf(false) }
 
@@ -169,6 +170,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     
     LaunchedEffect(effectiveBookingId) {
         if (!effectiveBookingId.isNullOrEmpty()) {
+            rideOffers = emptyList() // Reset stale offers
             val bookingId = effectiveBookingId!!
             // Initial fetch
             val result = bookingRepository.getBooking(bookingId)
@@ -195,6 +197,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                 if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
                 
                 val status = snapshot.getString("status")
+                android.util.Log.d("BookingDebug", "Booking Status updated: $status")
+                if (status != null) bookingStatus = status
 
                 if (status == "ACCEPTED" || status == "ONGOING") {
                     scope.launch {
@@ -210,6 +214,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
             val offersRegistration = offersRef.addSnapshotListener { offersSnapshot, offersError ->
                 if (offersError != null || offersSnapshot == null) return@addSnapshotListener
                 
+                android.util.Log.d("BookingDebug", "Offers sub-collection changed. Count: ${offersSnapshot.documents.size}")
                 val offers = offersSnapshot.documents.mapNotNull { doc ->
                     val driverId = doc.getString("driverId") ?: ""
                     val driverName = doc.getString("driverName") ?: ""
@@ -242,6 +247,26 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
         recentPlaces = RecentPlaceRepository.getRecentPlaces()
+        
+        // Auto-restore active booking if none provided in navigation
+        if (effectiveBookingId.isNullOrEmpty()) {
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            if (currentUser != null) {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                db.collection("bookings")
+                    .whereEqualTo("userId", currentUser.uid)
+                    .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED", "ONGOING"))
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener { snapshot ->
+                        if (snapshot != null && !snapshot.isEmpty) {
+                            val doc = snapshot.documents.first()
+                            currentBookingId = doc.id
+                            isSearching = true
+                        }
+                    }
+            }
+        }
     }
 
     // Automatically fetch location and geocode when permission is granted
@@ -321,7 +346,16 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("We're finding you a driver", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        val bannerText = if (rideOffers.isEmpty() || bookingStatus == "PENDING") {
+                             "We're finding you a driver"
+                        } else {
+                             "Driver offer(s) found!"
+                        }
+                        Text(
+                            bannerText,
+                            color = Color.White, 
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
 
@@ -576,18 +610,22 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                     android.widget.Toast.makeText(context, "Pickup and Drop-off cannot be the same", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                                 else -> {
-                                    // All Valid
-                                    scope.launch {
-                                        val result = bookingRepository.createBooking(
-                                            pickup = pickupLocation.address,
-                                            dropOff = dropOffLocation.address,
-                                            seatType = selectedSeat,
-                                            pickupLat = pickupLocation.latLng!!.latitude,
-                                            pickupLng = pickupLocation.latLng!!.longitude,
-                                            dropOffLat = dropOffLocation.latLng!!.latitude,
-                                            dropOffLng = dropOffLocation.latLng!!.longitude,
-                                            paymentMethod = selectedPaymentMethod?.name ?: "CASH"
-                                        )
+                                    // Safety check to prevent double booking
+                                    if (isSearching || currentBookingId != null) {
+                                        android.widget.Toast.makeText(context, "You already have an active request", android.widget.Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        // All Valid
+                                        scope.launch {
+                                            val result = bookingRepository.createBooking(
+                                                pickup = pickupLocation.address,
+                                                dropOff = dropOffLocation.address,
+                                                seatType = selectedSeat,
+                                                pickupLat = pickupLocation.latLng!!.latitude,
+                                                pickupLng = pickupLocation.latLng!!.longitude,
+                                                dropOffLat = dropOffLocation.latLng!!.latitude,
+                                                dropOffLng = dropOffLocation.latLng!!.longitude,
+                                                paymentMethod = selectedPaymentMethod?.name ?: "CASH"
+                                            )
 
                                         result.onSuccess { bookingId ->
                                              currentBookingId = bookingId
@@ -598,6 +636,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                         }
                                     }
                                 }
+                            }
                             }
                         }
                     },
