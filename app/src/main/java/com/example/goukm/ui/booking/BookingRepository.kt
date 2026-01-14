@@ -45,6 +45,8 @@ data class Offer(
     val id: String = "",
     val driverId: String = "",
     val driverName: String = "",
+    val carBrand: String = "",
+    val carColor: String = "",
     val vehicleType: String = "",
     val vehiclePlateNumber: String = "",
     val phoneNumber: String = "",
@@ -120,13 +122,26 @@ class BookingRepository {
         }
     }
 
-    suspend fun submitOffer(bookingId: String, fare: String, driverId: String, driverName: String, vehicleType: String, vehiclePlateNumber: String, phoneNumber: String, driverProfileUrl: String): Result<Unit> {
+    suspend fun submitOffer(
+        bookingId: String, 
+        fare: String, 
+        driverId: String, 
+        driverName: String, 
+        carBrand: String,
+        carColor: String,
+        vehicleType: String, 
+        vehiclePlateNumber: String, 
+        phoneNumber: String, 
+        driverProfileUrl: String
+    ): Result<Unit> {
         return try {
             val offerId = bookingsCollection.document(bookingId).collection("offers").document().id
             val offer = Offer(
                 id = offerId,
                 driverId = driverId,
                 driverName = driverName,
+                carBrand = carBrand,
+                carColor = carColor,
                 vehicleType = vehicleType,
                 vehiclePlateNumber = vehiclePlateNumber,
                 phoneNumber = phoneNumber,

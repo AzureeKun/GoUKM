@@ -95,7 +95,9 @@ fun CustomerJourneyDetailsScreen(
     var driverName by remember { mutableStateOf("Driver") }
     var driverPhone by remember { mutableStateOf("") }
     var chatRoomId by remember { mutableStateOf("") }
-    var carModel by remember { mutableStateOf("Car Model") }
+    var carBrand by remember { mutableStateOf("Brand") }
+    var carModel by remember { mutableStateOf("Model") }
+    var carColor by remember { mutableStateOf("Color") }
     var carPlate by remember { mutableStateOf("Plate") }
     var driverProfileUrl by remember { mutableStateOf("") }
     var pickupAddress by remember { mutableStateOf("Loading...") }
@@ -217,7 +219,9 @@ fun CustomerJourneyDetailsScreen(
                         profile?.let {
                             driverName = it.name
                             driverPhone = it.phoneNumber
-                            carModel = it.vehicleType // Task 2: Ensure this is correctly fetched
+                            carBrand = it.carBrand
+                            carModel = it.vehicleType
+                            carColor = it.carColor
                             carPlate = it.vehiclePlateNumber
                             driverProfileUrl = it.profilePictureUrl ?: ""
                         }
@@ -284,7 +288,9 @@ fun CustomerJourneyDetailsScreen(
                     },
                     driverName = driverName,
                     driverPhone = driverPhone,
+                    carBrand = carBrand,
                     carModel = carModel,
+                    carColor = carColor,
                     carPlate = carPlate,
                     driverRating = driverRating,
                     driverProfileUrl = driverProfileUrl,
@@ -492,7 +498,9 @@ fun DriverInfoCard(
     onChatClick: () -> Unit,
     driverName: String,
     driverPhone: String,
+    carBrand: String,
     carModel: String,
+    carColor: String,
     carPlate: String,
     driverRating: String,
     driverProfileUrl: String = "",
@@ -563,7 +571,17 @@ fun DriverInfoCard(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = carModel,
+                        text = buildString {
+                            if (carBrand.isNotEmpty()) append(carBrand)
+                            if (carModel.isNotEmpty()) {
+                                if (isNotEmpty()) append(" ")
+                                append(carModel)
+                            }
+                            if (carColor.isNotEmpty()) {
+                                append(" ($carColor)")
+                            }
+                            if (isEmpty()) append("Car Details")
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )

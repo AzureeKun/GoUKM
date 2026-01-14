@@ -335,6 +335,8 @@ fun FareOfferScreen(
                                             fare = fareAmount,
                                             driverId = driverId,
                                             driverName = driverProfile!!.name,
+                                            carBrand = driverProfile!!.carBrand,
+                                            carColor = driverProfile!!.carColor,
                                             vehicleType = driverProfile!!.vehicleType,
                                             vehiclePlateNumber = driverProfile!!.vehiclePlateNumber,
                                             phoneNumber = driverProfile!!.phoneNumber,

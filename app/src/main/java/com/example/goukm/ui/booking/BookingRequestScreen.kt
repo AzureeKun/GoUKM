@@ -124,6 +124,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
     var rideOffers by remember { mutableStateOf<List<DriverOffer>>(emptyList()) }
     var recentPlaces by remember { mutableStateOf<List<RecentPlace>>(emptyList()) }
+    // Prevent accidental double submissions while the network call is in-flight
+    var isCreatingBooking by remember { mutableStateOf(false) }
 
     var pickupPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
     var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
@@ -223,13 +225,15 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                     val vehiclePlateNumber = doc.getString("vehiclePlateNumber") ?: ""
                     val phoneNumber = doc.getString("phoneNumber") ?: ""
                     val driverProfileUrl = doc.getString("driverProfileUrl") ?: ""
+                    val carBrand = doc.getString("carBrand") ?: ""
+                    val carColor = doc.getString("carColor") ?: ""
 
                     DriverOffer(
                         name = driverName,
                         fareLabel = "RM $fare",
-                        carBrand = vehicleType,
-                        carName = "",
-                        carColor = "",
+                        carBrand = carBrand,
+                        carName = vehicleType,
+                        carColor = carColor,
                         plate = vehiclePlateNumber,
                         driverId = driverId,
                         driverPhone = phoneNumber,
@@ -612,6 +616,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
 
                 Button(
                     onClick = {
+                        if (isCreatingBooking) return@Button
                         if (isSearching) {
                             // Show confirmation dialog
                             showCancelDialog = true
@@ -637,6 +642,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                     } else {
                                         // All Valid
                                         scope.launch {
+                                        isCreatingBooking = true
                                             val result = bookingRepository.createBooking(
                                                 pickup = pickupLocation.address,
                                                 dropOff = dropOffLocation.address,
@@ -649,12 +655,13 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                             )
 
                                         result.onSuccess { bookingId ->
-                                             currentBookingId = bookingId
-                                             isSearching = true
-                                             android.widget.Toast.makeText(context, "Booking Request Sent!", android.widget.Toast.LENGTH_SHORT).show()
+                                            currentBookingId = bookingId
+                                            isSearching = true
+                                            android.widget.Toast.makeText(context, "Booking Request Sent!", android.widget.Toast.LENGTH_SHORT).show()
                                         }.onFailure { e ->
-                                             android.widget.Toast.makeText(context, "Failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                            android.widget.Toast.makeText(context, "Failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
                                         }
+                                        isCreatingBooking = false
                                     }
                                 }
                             }
@@ -666,7 +673,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         .height(54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = accentYellow),
                     shape = RoundedCornerShape(12.dp),
-                    enabled = isSearching || selectedPaymentMethod != null // Disable if no payment method selected when not searching
+                    enabled = (isSearching || selectedPaymentMethod != null) && !isCreatingBooking // Disable if no payment method selected when not searching or while submitting
                 ) {
                     Text(
                         if (isSearching) "Cancel Booking" else "Booking Ride",
