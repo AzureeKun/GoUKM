@@ -42,6 +42,7 @@ data class Booking(
     val dropOffLat: Double = 0.0,
     val dropOffLng: Double = 0.0,
     val driverArrived: Boolean = false,
+    val arrivedAtDropOff: Boolean = false,
     val paymentMethod: String = "CASH", // Default to CASH
     val paymentStatus: String = "PENDING",
     val offeredDriverIds: List<String> = emptyList(),
@@ -105,6 +106,7 @@ class BookingRepository {
                 dropOffLat = dropOffLat,
                 dropOffLng = dropOffLng,
                 driverArrived = false,
+                arrivedAtDropOff = false,
                 paymentMethod = paymentMethod
             )
 
@@ -213,6 +215,15 @@ class BookingRepository {
         }
     }
 
+    suspend fun updateArrivedAtDropOff(bookingId: String): Result<Unit> {
+        return try {
+            bookingsCollection.document(bookingId).update("arrivedAtDropOff", true).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getBooking(bookingId: String): Result<Booking> {
         return try {
             val doc = bookingsCollection.document(bookingId).get().await()
@@ -239,6 +250,7 @@ class BookingRepository {
                     dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
                     dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
                     driverArrived = doc.getBoolean("driverArrived") ?: false,
+                    arrivedAtDropOff = doc.getBoolean("arrivedAtDropOff") ?: false,
                     paymentMethod = doc.getString("paymentMethod") ?: "CASH",
                     paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
                     offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()
@@ -295,6 +307,7 @@ class BookingRepository {
                             dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
                             dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
                             driverArrived = doc.getBoolean("driverArrived") ?: false,
+                            arrivedAtDropOff = doc.getBoolean("arrivedAtDropOff") ?: false,
                             paymentMethod = doc.getString("paymentMethod") ?: "CASH",
                             paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
                             offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()
@@ -357,6 +370,7 @@ class BookingRepository {
                         dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
                         dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
                         driverArrived = doc.getBoolean("driverArrived") ?: false,
+                        arrivedAtDropOff = doc.getBoolean("arrivedAtDropOff") ?: false,
                         paymentMethod = doc.getString("paymentMethod") ?: "CASH",
                         paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
                         offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList(),
@@ -420,6 +434,7 @@ class BookingRepository {
                             dropOffLat = doc.getDouble("dropOffLat") ?: 0.0,
                             dropOffLng = doc.getDouble("dropOffLng") ?: 0.0,
                             driverArrived = doc.getBoolean("driverArrived") ?: false,
+                            arrivedAtDropOff = doc.getBoolean("arrivedAtDropOff") ?: false,
                             paymentMethod = doc.getString("paymentMethod") ?: "CASH",
                             paymentStatus = doc.getString("paymentStatus") ?: "PENDING",
                             offeredDriverIds = doc.get("offeredDriverIds") as? List<String> ?: emptyList()

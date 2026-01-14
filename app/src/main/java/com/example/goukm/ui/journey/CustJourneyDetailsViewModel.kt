@@ -32,6 +32,9 @@ class CustJourneyDetailsViewModel(application: Application) : AndroidViewModel(a
 
     private val _tripStatus = MutableStateFlow("")
     val tripStatus: StateFlow<String> = _tripStatus.asStateFlow()
+
+    private val _arrivedAtDropOff = MutableStateFlow(false)
+    val arrivedAtDropOff: StateFlow<Boolean> = _arrivedAtDropOff.asStateFlow()
     
     private val _driverLatLng = MutableStateFlow<LatLng?>(null)
     val driverLatLng: StateFlow<LatLng?> = _driverLatLng.asStateFlow()
@@ -189,6 +192,7 @@ class CustJourneyDetailsViewModel(application: Application) : AndroidViewModel(a
             val status = snapshot.getString("status") ?: ""
             val pStatus = snapshot.getString("paymentStatus") ?: "PENDING"
             val arrived = snapshot.getBoolean("driverArrived") ?: false
+            val arrivedDropOff = snapshot.getBoolean("arrivedAtDropOff") ?: false
             val dLat = snapshot.getDouble("currentDriverLat") ?: 0.0
             val dLng = snapshot.getDouble("currentDriverLng") ?: 0.0
             val dId = snapshot.getString("driverId") ?: ""
@@ -196,6 +200,7 @@ class CustJourneyDetailsViewModel(application: Application) : AndroidViewModel(a
             _tripStatus.value = status
             _paymentStatus.value = pStatus 
             _driverArrived.value = arrived
+            _arrivedAtDropOff.value = arrivedDropOff
             
             if (dId.isNotEmpty()) {
                 fetchDriverDataDeep(dId)
@@ -212,9 +217,9 @@ class CustJourneyDetailsViewModel(application: Application) : AndroidViewModel(a
             if (status == "COMPLETED") {
                 if (pStatus == "PAID") {
                     _navToRating.value = true
-                } else {
-                    _showArrivedAlert.value = true
                 }
+            } else if (arrivedDropOff && pStatus != "PAID") {
+                _showArrivedAlert.value = true
             } else if (status == com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER.name) {
                 _showDriverCancelledAlert.value = true
             }

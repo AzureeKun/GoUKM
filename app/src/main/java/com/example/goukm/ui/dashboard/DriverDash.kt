@@ -133,6 +133,8 @@ fun DriverDashboard(
                             val offeredFare = doc.getString("offeredFare") ?: ""
                             val pickupLat = doc.getDouble("pickupLat") ?: 0.0
                             val pickupLng = doc.getDouble("pickupLng") ?: 0.0
+                            val dropOffLat = doc.getDouble("dropOffLat") ?: 0.0
+                            val dropOffLng = doc.getDouble("dropOffLng") ?: 0.0
                             val paymentMethod = doc.getString("paymentMethod") ?: "CASH"
                             
                             val timeAgo = if (timestamp != null) {
@@ -163,6 +165,8 @@ fun DriverDashboard(
                                 offeredFare = offeredFare,
                                 pickupLat = pickupLat,
                                 pickupLng = pickupLng,
+                                dropOffLat = dropOffLat,
+                                dropOffLng = dropOffLng,
                                 chatRoom = chatRoom,
                                 driverArrived = driverArrived,
                                 customerProfileUrl = userProfile?.profilePictureUrl,
@@ -325,10 +329,11 @@ fun DriverDashboard(
                                     request = request,
                                     onSkip = { 
                                         scope.launch {
-                                             val encodedAddress = android.net.Uri.encode(request.pickupPoint)
                                              if (request.status == "ONGOING") {
-                                                 navController.navigate("driver_journey_summary/${request.id}")
+                                                 val encodedAddress = android.net.Uri.encode(request.dropOffPoint)
+                                                 navController.navigate("driver_navigation_screen/${request.dropOffLat}/${request.dropOffLng}/$encodedAddress/${request.id}")
                                              } else {
+                                                 val encodedAddress = android.net.Uri.encode(request.pickupPoint)
                                                  navController.navigate("driver_navigation_screen/${request.pickupLat}/${request.pickupLng}/$encodedAddress/${request.id}")
                                              }
                                         }

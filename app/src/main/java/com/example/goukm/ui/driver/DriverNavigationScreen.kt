@@ -391,26 +391,47 @@ fun DriverNavigationScreen(
                         Text("Cancel Ride", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    Button(
-                        onClick = {
-                            if (booking?.paymentStatus == "PAID") {
-                                scope.launch {
-                                    bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
-                                    navController.navigate("driver_journey_summary/$bookingId") {
-                                        popUpTo("driver_navigation_screen") { inclusive = true }
+                    // Current Destination is Drop-off
+                    if (booking?.arrivedAtDropOff == true) {
+                        // Already arrived at destination, now complete the trip
+                        Button(
+                            onClick = {
+                                if (booking?.paymentStatus == "PAID") {
+                                    scope.launch {
+                                        bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
+                                        navController.navigate("driver_journey_summary/$bookingId") {
+                                            popUpTo("driver_navigation_screen") { inclusive = true }
+                                        }
                                     }
+                                } else {
+                                    showPaymentPendingAlert = true
                                 }
-                            } else {
-                                showPaymentPendingAlert = true
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = CBlue),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Complete Trip", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = CBlue),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = booking?.paymentStatus == "PAID" // Visual hint, though we show alert too
+                        ) {
+                            Text("Complete Journey", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        // Not yet arrived at destination
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    bookingRepository.updateArrivedAtDropOff(bookingId)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("I Have Arrived (Destination)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

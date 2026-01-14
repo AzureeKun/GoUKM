@@ -198,19 +198,11 @@ fun JourneySummaryScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Complete Journey Button
+                // Back to Dashboard / Finish Button
                 Button(
                     onClick = {
-                         scope.launch {
-                              bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
-                                  .onSuccess {
-                                      navController.navigate("driver_dashboard") {
-                                          popUpTo("driver_dashboard") { inclusive = true }
-                                      }
-                                  }
-                                  .onFailure {
-                                      android.widget.Toast.makeText(navController.context, "Failed to complete journey: ${it.message}", android.widget.Toast.LENGTH_LONG).show()
-                                  }
+                         navController.navigate("driver_dashboard") {
+                             popUpTo("driver_dashboard") { inclusive = true }
                          }
                     },
                     modifier = Modifier
