@@ -133,7 +133,7 @@ fun DriverRideBookingHistoryScreen(
             }
 
             // Ride List
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when (val state = uiState) {
                     is DriverHistoryUiState.Loading -> {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))

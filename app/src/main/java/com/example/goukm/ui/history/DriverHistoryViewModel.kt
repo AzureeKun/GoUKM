@@ -25,6 +25,9 @@ class DriverHistoryViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<DriverHistoryUiState>(DriverHistoryUiState.Loading)
     val uiState: StateFlow<DriverHistoryUiState> = _uiState.asStateFlow()
 
+    private val nameCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val dateFormat = SimpleDateFormat("dd/MM/yyyy - h:mm a", Locale.getDefault())
+
     init {
         fetchHistory()
     }
@@ -38,30 +41,45 @@ class DriverHistoryViewModel : ViewModel() {
 
         viewModelScope.launch {
             bookingRepository.getDriverHistory(currentUserId).collect { bookings ->
-                val rides = bookings.map { booking ->
-                    // Fetch customer name
-                    val userProfile = UserProfileRepository.getUserProfile(booking.userId)
-                    val customerName = userProfile?.name ?: "Unknown Customer"
-                    
-                    // Format Date
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy - h:mm a", Locale.getDefault())
-                    val dateStr = dateFormat.format(booking.timestamp)
+                // 1. Initial Mapping: Show everything immediately with available names or "Student" placeholder
+                fun createRidesList() = bookings.map { booking ->
+                    val customerName = when {
+                        booking.userName.isNotEmpty() -> booking.userName
+                        nameCache.containsKey(booking.userId) -> nameCache[booking.userId]!!
+                        else -> "Student" // Faster placeholder than "Loading..."
+                    }
 
-                    // Format Status (if needed, or just map status to color/text in UI)
-                    // We can reuse DriverRide data class, maybe add status field if needed
-                    // For now, let's stick to the existing fields in DriverRide or update DriverRide
-                    
                     DriverRide(
                         id = booking.id,
                         customer = customerName,
                         destination = booking.dropOff,
-                        dateTime = dateStr,
+                        dateTime = dateFormat.format(booking.timestamp),
                         distance = "0 km",
                         fare = booking.offeredFare,
                         status = booking.status
                     )
                 }
-                _uiState.value = DriverHistoryUiState.Success(rides)
+
+                // Show the list immediately! No spinner.
+                _uiState.value = DriverHistoryUiState.Success(createRidesList())
+
+                // 2. Background Fetching: Fetch missing names one by one and update UI as they arrive
+                bookings.filter { it.userName.isEmpty() && !nameCache.containsKey(it.userId) }
+                        .map { it.userId }
+                        .distinct()
+                        .forEach { uid ->
+                            launch {
+                                try {
+                                    val profile = UserProfileRepository.getUserProfile(uid)
+                                    val name = profile?.name ?: "Unknown student"
+                                    nameCache[uid] = name
+                                    // Re-emit the list with the newly found name
+                                    _uiState.value = DriverHistoryUiState.Success(createRidesList())
+                                } catch (e: Exception) {
+                                    // Silent fail for background name fetch
+                                }
+                            }
+                        }
             }
         }
     }

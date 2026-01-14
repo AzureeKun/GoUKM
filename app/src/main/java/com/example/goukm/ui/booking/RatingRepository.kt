@@ -25,7 +25,13 @@ object RatingRepository {
 
     suspend fun submitRating(rating: Rating): Result<Unit> {
         return try {
-            val docRef = ratingsCollection.document()
+            // Check if rating for this booking already exists
+            val existing = ratingsCollection.document(rating.bookingId).get().await()
+            if (existing.exists()) {
+                return Result.failure(Exception("Rating for this ride already exists"))
+            }
+
+            val docRef = ratingsCollection.document(rating.bookingId)
             val finalRating = rating.copy(id = docRef.id, timestamp = System.currentTimeMillis())
             docRef.set(finalRating).await()
             
@@ -35,6 +41,15 @@ object RatingRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun hasUserRated(bookingId: String): Boolean {
+        return try {
+            val doc = ratingsCollection.document(bookingId).get().await()
+            doc.exists()
+        } catch (e: Exception) {
+            false
         }
     }
 

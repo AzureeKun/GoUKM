@@ -22,6 +22,7 @@ enum class BookingStatus {
 data class Booking(
     val id: String = "",
     val userId: String = "",
+    val userName: String = "", // Added to cache customer name
     val pickup: String = "",
     val dropOff: String = "",
     val seatType: String = "",
@@ -67,6 +68,10 @@ class BookingRepository {
     private val auth = FirebaseAuth.getInstance()
     private val bookingsCollection = firestore.collection("bookings")
 
+    companion object {
+        private val driverHistoryCache = java.util.concurrent.ConcurrentHashMap<String, List<Booking>>()
+    }
+
     suspend fun createBooking(
         pickup: String, 
         dropOff: String, 
@@ -80,10 +85,14 @@ class BookingRepository {
         val currentUser = auth.currentUser ?: return Result.failure(Exception("User not logged in"))
 
         return try {
+            val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
+            val userName = userProfile?.name ?: "Customer"
+            
             val bookingId = bookingsCollection.document().id
             val booking = Booking(
                 id = bookingId,
                 userId = currentUser.uid,
+                userName = userName,
                 pickup = pickup,
                 dropOff = dropOff,
                 seatType = seatType,
@@ -328,6 +337,7 @@ class BookingRepository {
                     Booking(
                         id = doc.id,
                         userId = doc.getString("userId") ?: "",
+                        userName = doc.getString("userName") ?: "",
                         pickup = doc.getString("pickup") ?: "",
                         dropOff = doc.getString("dropOff") ?: "",
                         seatType = doc.getString("seatType") ?: "",
@@ -366,6 +376,11 @@ class BookingRepository {
     }
 
     fun getDriverHistory(driverId: String): Flow<List<Booking>> = callbackFlow {
+        // 1. Emit cached data immediately if available
+        if (driverHistoryCache.containsKey(driverId)) {
+            trySend(driverHistoryCache[driverId]!!)
+        }
+
         val listener = bookingsCollection
             .whereEqualTo("driverId", driverId)
             .whereIn("status", listOf(
@@ -385,6 +400,7 @@ class BookingRepository {
                         Booking(
                             id = doc.id,
                             userId = doc.getString("userId") ?: "",
+                            userName = doc.getString("userName") ?: "",
                             pickup = doc.getString("pickup") ?: "",
                             dropOff = doc.getString("dropOff") ?: "",
                             seatType = doc.getString("seatType") ?: "",
@@ -413,6 +429,9 @@ class BookingRepository {
                     }
                 }?.sortedByDescending { it.timestamp } ?: emptyList() // Client-side sort if composite index is missing
 
+                // 2. Update cache
+                driverHistoryCache[driverId] = bookings
+                
                 trySend(bookings)
             }
         awaitClose { listener.remove() }

@@ -42,33 +42,45 @@ fun RideDoneScreen(
     var customerId by remember { mutableStateOf("") }
     var pickupPoint by remember { mutableStateOf("") }
     var dropOffPoint by remember { mutableStateOf("") }
+    var hasRated by remember { mutableStateOf(false) }
+    var isCheckingRating by remember { mutableStateOf(true) }
 
     val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
 
     LaunchedEffect(bookingId) {
-        if (bookingId.isNotEmpty()) {
-            val result = bookingRepository.getBooking(bookingId)
-            result.onSuccess { booking ->
-                fareValue = "RM ${booking.offeredFare}"
-                driverId = booking.driverId ?: ""
-                customerId = booking.userId
+        if (bookingId.isEmpty()) return@LaunchedEffect
+        
+        val result = bookingRepository.getBooking(bookingId)
+        val booking = result.getOrNull()
+        
+        if (booking != null) {
+            fareValue = "RM ${booking.offeredFare}"
+            driverId = booking.driverId ?: ""
+            customerId = booking.userId
+            pickupPoint = booking.pickup
+            dropOffPoint = booking.dropOff
 
-                // Fetch Driver and Customer Names
-                val driverProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
-                if (driverProfile != null) {
-                    driverNameText = driverProfile.name
-                    carModel = driverProfile.vehicleType
-                    carPlate = driverProfile.vehiclePlateNumber
-                }
-
-                val custProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId)
-                if (custProfile != null) {
-                    customerName = custProfile.name
-                }
-                
-                pickupPoint = booking.pickup
-                dropOffPoint = booking.dropOff
+            // Fetch Driver and Customer Names in parallel or sequence (suspend OK here)
+            val driverProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
+            if (driverProfile != null) {
+                driverNameText = driverProfile.name
+                carModel = driverProfile.vehicleType
+                carPlate = driverProfile.vehiclePlateNumber
             }
+
+            val custProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId)
+            if (custProfile != null) {
+                customerName = custProfile.name
+            }
+            
+            // Allow rating only if status is COMPLETED
+            if (booking.status == "COMPLETED") {
+                hasRated = RatingRepository.hasUserRated(bookingId)
+            } else {
+                // If ride isn't completed yet (e.g. cancelled), we might want to disable rating
+                hasRated = true // Or handle differently; user specifically asked for status=completed
+            }
+            isCheckingRating = false
         }
     }
 
@@ -224,6 +236,7 @@ fun RideDoneScreen(
 
             Button(
                 onClick = {
+                    if (hasRated) return@Button
                     val finalRating = Rating(
                         bookingId = bookingId,
                         customerId = customerId,
@@ -235,18 +248,26 @@ fun RideDoneScreen(
                         comment = feedbackComment
                     )
                     scope.launch {
-                        RatingRepository.submitRating(finalRating)
-                        onFeedbackSubmitted(rating, feedbackComment)
+                        val result = RatingRepository.submitRating(finalRating)
+                        if (result.isSuccess) {
+                            hasRated = true
+                            onFeedbackSubmitted(rating, feedbackComment)
+                        } else {
+                            // Show error if needed
+                        }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B87C0))
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (hasRated) Color.Gray else Color(0xFF6B87C0)
+                ),
+                enabled = !hasRated && !isCheckingRating
             ) {
                 Text(
-                    text = "Submit Feedback",
+                    text = if (hasRated) "Already Rated" else "Submit Feedback",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

@@ -330,17 +330,26 @@ fun FareOfferScreen(
                                 val driverId = auth.currentUser?.uid
                                 if (driverId != null && driverProfile != null) {
                                     scope.launch {
+                                        // Fallback logic: If flat fields are empty, check the vehicles list
+                                        val validProfile = driverProfile!!
+                                        val primaryVehicle = validProfile.vehicles.firstOrNull()
+                                        
+                                        val brandToSend = validProfile.carBrand.ifEmpty { primaryVehicle?.brand ?: "" }
+                                        val colorToSend = validProfile.carColor.ifEmpty { primaryVehicle?.color ?: "" }
+                                        val typeToSend = validProfile.vehicleType.ifEmpty { "Car" }
+                                        val plateToSend = validProfile.vehiclePlateNumber.ifEmpty { primaryVehicle?.plateNumber ?: "" }
+
                                         bookingRepository.submitOffer(
                                             bookingId = bookingId,
                                             fare = fareAmount,
                                             driverId = driverId,
-                                            driverName = driverProfile!!.name,
-                                            carBrand = driverProfile!!.carBrand,
-                                            carColor = driverProfile!!.carColor,
-                                            vehicleType = driverProfile!!.vehicleType,
-                                            vehiclePlateNumber = driverProfile!!.vehiclePlateNumber,
-                                            phoneNumber = driverProfile!!.phoneNumber,
-                                            driverProfileUrl = driverProfile!!.profilePictureUrl ?: ""
+                                            driverName = validProfile.name,
+                                            carBrand = brandToSend,
+                                            carColor = colorToSend,
+                                            vehicleType = typeToSend,
+                                            vehiclePlateNumber = plateToSend,
+                                            phoneNumber = validProfile.phoneNumber,
+                                            driverProfileUrl = validProfile.profilePictureUrl ?: ""
                                         )
                                         // Redirect to dashboard immediately after submitting offer
                                         navController.navigate(com.example.goukm.navigation.NavRoutes.DriverDashboard.route) {
