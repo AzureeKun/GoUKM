@@ -2,6 +2,8 @@ package com.example.goukm.ui.booking
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.PropertyName
 
@@ -67,12 +69,21 @@ object RatingRepository {
         }
     }
 
-    suspend fun getDriverStats(driverId: String): DriverStats {
-        return try {
-            val ratingsSnapshot = ratingsCollection
-                .whereEqualTo("driverId", driverId)
-                .get()
-                .await()
+    suspend fun getDriverStats(driverId: String): DriverStats = coroutineScope {
+        try {
+            val ratingsDeferred = async {
+                ratingsCollection.whereEqualTo("driverId", driverId).get().await()
+            }
+            val journeysDeferred = async {
+                db.collection("journeys").whereEqualTo("driverId", driverId).get().await()
+            }
+            val profileDeferred = async {
+                com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(driverId)
+            }
+
+            val ratingsSnapshot = ratingsDeferred.await()
+            val completedJobsSnapshot = journeysDeferred.await()
+            val userProfile = profileDeferred.await()
             
             val ratings = ratingsSnapshot.toObjects(Rating::class.java)
             val averageRating = if (ratings.isNotEmpty()) {
@@ -81,16 +92,8 @@ object RatingRepository {
                 0f
             }
 
-            val journeysCollection = db.collection("journeys")
-            val completedJobsSnapshot = journeysCollection
-                .whereEqualTo("driverId", driverId)
-                .get()
-                .await()
-            
             val completedJobsCount = completedJobsSnapshot.size()
-
-            val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(driverId)
-            val daysWorked = userProfile?.onlineDays?.size ?: 1 // Default to 1 to avoid division by zero
+            val daysWorked = userProfile?.onlineDays?.size ?: 1
 
             DriverStats(
                 averageRating = averageRating,

@@ -48,6 +48,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.example.goukm.ui.booking.RatingRepository
 import com.example.goukm.ui.booking.Rating
 import com.example.goukm.ui.booking.DriverStats
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -62,13 +64,12 @@ fun DriverScoreScreen(navController: NavHostController) {
     LaunchedEffect(currentUserId) {
         if (currentUserId.isNotEmpty()) {
             isLoading = true
-            // Fetch Stats
-            driverStats = RatingRepository.getDriverStats(currentUserId)
-            
-            // Fetch Reviews
-            val result = RatingRepository.getRatingsForDriver(currentUserId)
-            result.onSuccess { 
-                reviews = it 
+            coroutineScope {
+                val statsDeferred = async { RatingRepository.getDriverStats(currentUserId) }
+                val reviewsDeferred = async { RatingRepository.getRatingsForDriver(currentUserId) }
+                
+                driverStats = statsDeferred.await()
+                reviewsDeferred.await().onSuccess { reviews = it }
             }
             isLoading = false
         }

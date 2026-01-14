@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -28,6 +31,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -323,114 +329,184 @@ fun DriverNavigationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Navigate External Button
-                Button(
-                    onClick = {
-                        val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${destinationLocation.latitude},${destinationLocation.longitude}")
-                        val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
-                        mapIntent.setPackage("com.google.android.apps.maps")
-                        try {
-                             context.startActivity(mapIntent)
-                        } catch (e: Exception) {
-                            android.widget.Toast.makeText(context, "Google Maps not found", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
+                // Passenger Info
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                     Icon(Icons.Default.Navigation, contentDescription = null, tint = Color.White)
-                     Spacer(modifier = Modifier.padding(4.dp))
-                     Text("Navigate (Maps)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-
-                // Help/GPS Status
-                if (driverLocation == null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Acquiring GPS...", color = Color.Gray)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(48.dp),
+                            shape = CircleShape,
+                            color = Color(0xFFE0E0E0)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = null,
+                                modifier = Modifier.padding(10.dp),
+                                tint = Color.Gray
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Passenger: ${booking?.userName ?: "Syafiq Farhan Bin Yusuf"}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
                     }
                 }
 
-                // Primary Action Button
-                if (navMode == NavMode.TO_PICKUP) {
+                // Pickup Point
+                Column {
+                    Text(
+                        text = "Pickup Point",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = booking?.pickup ?: "Hentian bas Kolej Pendeta Za'ba, 43600 Bangi, Selangor, Malaysia",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Divider (Subtle)
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+
+                // Drop-off
+                Column {
+                    Text(
+                        text = "Drop-off",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = booking?.dropOff ?: destinationAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Action Buttons
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Navigate External Button
                     Button(
                         onClick = {
-                            scope.launch {
-                                bookingRepository.updateDriverArrived(bookingId)
-                                bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.ONGOING)
-                                navMode = NavMode.TO_DROPOFF
-                                routePoints = emptyList() // Trigger recalculation
+                            val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${destinationLocation.latitude},${destinationLocation.longitude}")
+                            val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
+                            mapIntent.setPackage("com.google.android.apps.maps")
+                            try {
+                                context.startActivity(mapIntent)
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Google Maps not found", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
+                            .height(45.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("I Have Arrived", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Navigation, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Navigate (Maps)", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
 
-                    // Cancel Ride Button (Only shown during TO_PICKUP)
-                    OutlinedButton(
-                        onClick = { showCancelRideDialog = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
-                    ) {
-                        Text("Cancel Ride", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                } else {
-                    // Current Destination is Drop-off
-                    if (booking?.arrivedAtDropOff == true) {
-                        // Already arrived at destination, now complete the trip
-                        Button(
-                            onClick = {
-                                if (booking?.paymentStatus == "PAID") {
-                                    scope.launch {
-                                        bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
-                                        navController.navigate("driver_journey_summary/$bookingId") {
-                                            popUpTo("driver_navigation_screen") { inclusive = true }
-                                        }
-                                    }
-                                } else {
-                                    showPaymentPendingAlert = true
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = CBlue),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            enabled = booking?.paymentStatus == "PAID" // Visual hint, though we show alert too
-                        ) {
-                            Text("Complete Journey", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    // Help/GPS Status
+                    if (driverLocation == null) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                            Text("Acquiring GPS...", color = Color.Gray, fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                         }
-                    } else {
-                        // Not yet arrived at destination
+                    }
+
+                    // Primary Action Button
+                    if (navMode == NavMode.TO_PICKUP) {
                         Button(
                             onClick = {
                                 scope.launch {
-                                    bookingRepository.updateArrivedAtDropOff(bookingId)
+                                    bookingRepository.updateDriverArrived(bookingId)
+                                    bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.ONGOING)
+                                    navMode = NavMode.TO_DROPOFF
+                                    routePoints = emptyList() // Trigger recalculation
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp),
+                                .height(56.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("I Have Arrived (Destination)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("I Have Arrived", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Cancel Ride Button (Only shown during TO_PICKUP)
+                        TextButton(
+                            onClick = { showCancelRideDialog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cancel Ride", color = Color.Red, fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        // Current Destination is Drop-off
+                        if (booking?.arrivedAtDropOff == true) {
+                            // Already arrived at destination, now complete the trip
+                            Button(
+                                onClick = {
+                                    if (booking?.paymentStatus == "PAID") {
+                                        scope.launch {
+                                            bookingRepository.updateStatus(bookingId, com.example.goukm.ui.booking.BookingStatus.COMPLETED)
+                                            navController.navigate("driver_journey_summary/$bookingId") {
+                                                popUpTo("driver_navigation_screen") { inclusive = true }
+                                            }
+                                        }
+                                    } else {
+                                        showPaymentPendingAlert = true
+                                    }
+                                },
+                                // Yellow Button as per mockup: Color(0xFFFFD60A)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFFD60A),
+                                    contentColor = Color.Black
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(72.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                enabled = true // Always enabled to allow showing the alert if not paid
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Complete Journey", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    Text("RM ${booking?.offeredFare ?: "0"}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0038FF))
+                                }
+                            }
+                        } else {
+                            // Not yet arrived at destination
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        bookingRepository.updateArrivedAtDropOff(bookingId)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("I Have Arrived (Destination)", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -439,7 +515,7 @@ fun DriverNavigationScreen(
 
         // Payment Pending Alert
         if (showPaymentPendingAlert) {
-            androidx.compose.material3.AlertDialog(
+            AlertDialog(
                 onDismissRequest = { showPaymentPendingAlert = false },
                 title = { Text("Payment Pending", fontWeight = FontWeight.Bold) },
                 text = { Text("Customer has not paid yet. Please wait for the passenger to complete the payment.") },
@@ -458,7 +534,7 @@ fun DriverNavigationScreen(
 
         // Cancel Ride Confirmation Alert
         if (showCancelRideDialog) {
-            androidx.compose.material3.AlertDialog(
+            AlertDialog(
                 onDismissRequest = { showCancelRideDialog = false },
                 title = { Text("Cancel Ride?", fontWeight = FontWeight.Bold) },
                 text = { Text("Are you sure you want to cancel this ride? This may affect your rating.") },
