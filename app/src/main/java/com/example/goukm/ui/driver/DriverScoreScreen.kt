@@ -50,6 +50,7 @@ import com.example.goukm.ui.booking.Rating
 import com.example.goukm.ui.booking.DriverStats
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -64,14 +65,20 @@ fun DriverScoreScreen(navController: NavHostController) {
     LaunchedEffect(currentUserId) {
         if (currentUserId.isNotEmpty()) {
             isLoading = true
-            coroutineScope {
-                val statsDeferred = async { RatingRepository.getDriverStats(currentUserId) }
-                val reviewsDeferred = async { RatingRepository.getRatingsForDriver(currentUserId) }
-                
-                driverStats = statsDeferred.await()
-                reviewsDeferred.await().onSuccess { reviews = it }
+            try {
+                supervisorScope {
+                    val statsDeferred = async { RatingRepository.getDriverStats(currentUserId) }
+                    val reviewsDeferred = async { RatingRepository.getRatingsForDriver(currentUserId) }
+                    
+                    driverStats = statsDeferred.await()
+                    reviewsDeferred.await().onSuccess { reviews = it }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Optionally show a toast or error message
+            } finally {
+                isLoading = false
             }
-            isLoading = false
         }
     }
 
@@ -360,8 +367,8 @@ fun StatsSummaryCard(stats: DriverStats) {
 @Composable
 fun ReviewItemCard(review: com.example.goukm.ui.booking.Rating) {
     val dateStr = remember(review.timestamp) {
-        val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-        sdf.format(Date(review.timestamp))
+        val sdf = java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
+        sdf.format(java.util.Date(review.timestamp))
     }
     
     val ratingEmoji = when(review.rating.toInt()) {

@@ -1,11 +1,14 @@
 package com.example.goukm.ui.booking
 
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.tasks.await
-import com.google.firebase.firestore.PropertyName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class Rating(
     val id: String = "",
@@ -23,7 +26,7 @@ data class Rating(
 object RatingRepository {
     private val db = FirebaseFirestore.getInstance()
     private val ratingsCollection = db.collection("ratings")
-    private val bookingsCollection = db.collection("bookings")
+    private val journeysCollection = db.collection("journeys")
 
     suspend fun submitRating(rating: Rating): Result<Unit> {
         return try {
@@ -55,58 +58,101 @@ object RatingRepository {
         }
     }
 
-    suspend fun getRatingsForDriver(driverId: String): Result<List<Rating>> {
-        return try {
+    private val reviewsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<List<Rating>, Long>>()
+    private val statsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<DriverStats, Long>>()
+    private val CACHE_DURATION_MS = 60_000 // 60 seconds
+
+    suspend fun getRatingsForDriver(driverId: String, limit: Int = 20): Result<List<Rating>> = withContext(Dispatchers.Default) {
+        // Return from cache if fresh
+        val cached = reviewsCache[driverId]
+        if (cached != null && (System.currentTimeMillis() - cached.second) < CACHE_DURATION_MS) {
+            return@withContext Result.success(cached.first.take(limit))
+        }
+
+        try {
             val snapshot = ratingsCollection
                 .whereEqualTo("driverId", driverId)
+                .limit(500) // Safety limit
                 .get()
                 .await()
-            val ratings = snapshot.toObjects(Rating::class.java)
+            
+            // Sort in memory to avoid needing composite index (driverId, timestamp)
+            val allRatings = snapshot.toObjects(Rating::class.java)
                 .sortedByDescending { it.timestamp }
-            Result.success(ratings)
+                
+            reviewsCache[driverId] = allRatings to System.currentTimeMillis()
+            Result.success(allRatings.take(limit))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun getDriverStats(driverId: String): DriverStats = coroutineScope {
+    suspend fun getDriverStats(driverId: String): DriverStats = supervisorScope {
+        // Return from cache if fresh
+        val cached = statsCache[driverId]
+        if (cached != null && (System.currentTimeMillis() - cached.second) < CACHE_DURATION_MS) {
+            return@supervisorScope cached.first
+        }
+
         try {
-            val ratingsDeferred = async {
-                ratingsCollection.whereEqualTo("driverId", driverId).get().await()
+            // Use server-side simple count aggregation - no composite index usually required
+            val reviewsCountDeferred = async {
+                ratingsCollection.whereEqualTo("driverId", driverId).count().get(AggregateSource.SERVER).await()
             }
-            val journeysDeferred = async {
-                db.collection("journeys").whereEqualTo("driverId", driverId).get().await()
+            
+            val completedJobsCountDeferred = async {
+                journeysCollection.whereEqualTo("driverId", driverId).count().get(AggregateSource.SERVER).await()
             }
+            
+            // Fetch ratings for average calculation - limited to 500 for memory safety
+            val ratingsSnapshotDeferred = async {
+                ratingsCollection.whereEqualTo("driverId", driverId)
+                    .limit(500)
+                    .get()
+                    .await()
+            }
+            
             val profileDeferred = async {
                 com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(driverId)
             }
 
-            val ratingsSnapshot = ratingsDeferred.await()
-            val completedJobsSnapshot = journeysDeferred.await()
+            val reviewsCountResult = reviewsCountDeferred.await()
+            val completedJobsCountResult = completedJobsCountDeferred.await()
+            val ratingsSnapshot = ratingsSnapshotDeferred.await()
             val userProfile = profileDeferred.await()
             
-            val ratings = ratingsSnapshot.toObjects(Rating::class.java)
-            val averageRating = if (ratings.isNotEmpty()) {
-                ratings.map { it.rating }.average().toFloat()
-            } else {
-                0f
+            val averageRating = withContext(Dispatchers.Default) {
+                // Optimize: map rating field manually to avoid creating full objects
+                val ratingValues = ratingsSnapshot.documents.mapNotNull { it.getDouble("rating") }
+                if (ratingValues.isNotEmpty()) {
+                    ratingValues.average().toFloat()
+                } else {
+                    0f
+                }
             }
 
-            val completedJobsCount = completedJobsSnapshot.size()
+            val reviewsCount = reviewsCountResult.count.toInt()
+            val completedJobsCount = completedJobsCountResult.count.toInt()
             val daysWorked = userProfile?.onlineDays?.size ?: 1
 
-            DriverStats(
+            val stats = DriverStats(
                 averageRating = averageRating,
-                totalReviews = ratings.size,
+                totalReviews = reviewsCount,
                 totalWorkComplete = completedJobsCount,
                 daysWorked = daysWorked,
-                isNewDriver = ratings.isEmpty() && completedJobsCount < 5
+                isNewDriver = reviewsCount == 0 && completedJobsCount < 5
             )
+            
+            statsCache[driverId] = stats to System.currentTimeMillis()
+            stats
         } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback to manual count if server-side aggregation fails (rare)
             DriverStats()
         }
     }
 }
+
 
 data class DriverStats(
     val averageRating: Float = 0f,

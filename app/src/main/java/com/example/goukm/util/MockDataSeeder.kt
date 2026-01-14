@@ -38,8 +38,14 @@ object MockDataSeeder {
         val currentUser = auth.currentUser ?: return
         val driverId = currentUser.uid
 
-        // Clear existing journeys for this driver to avoid duplicates if re-run
-        // Optional: deleteExistingJourneys(driverId)
+        // Guard: only seed if no journeys exist for this driver
+        val existingJourneys = db.collection("journeys")
+            .whereEqualTo("driverId", driverId)
+            .limit(1)
+            .get()
+            .await()
+        
+        if (!existingJourneys.isEmpty) return
 
         val totalJourneys = mutableListOf<Journey>()
         val onlineWorkDurations = mutableMapOf<String, Long>()

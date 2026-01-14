@@ -78,6 +78,7 @@ object JourneyRepository {
     fun getJourneysByDriver(driverId: String): Flow<List<Journey>> = callbackFlow {
         val listener = journeysCollection
             .whereEqualTo("driverId", driverId)
+            .limit(1000) // Safety limit for memory
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)

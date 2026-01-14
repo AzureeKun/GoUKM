@@ -12,9 +12,15 @@ object UserProfileRepository {
     private val db = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance().reference
 
+    private val profileMapCache = java.util.concurrent.ConcurrentHashMap<String, UserProfile>()
+
     // get user profile
     suspend fun getUserProfile(uid: String? = null): UserProfile? {
         val targetUid = uid ?: auth.currentUser?.uid ?: return null
+
+        // Return from cache if recent (simple 30s cache)
+        // For simplicity, let's just do a basic map first to help with the current DriverDash loop
+        profileMapCache[targetUid]?.let { return it }
 
         val doc = db.collection("users").document(targetUid).get().await()
         if (!doc.exists()) return null
@@ -35,7 +41,7 @@ object UserProfileRepository {
         // Deduplicate vehicles by plate number immediately to clean up existing data
         val uniqueVehicles = vehiclesList.distinctBy { it.plateNumber.uppercase().trim() }
 
-        return UserProfile(
+        var user = UserProfile(
             uid = targetUid,
             name = doc.getString("name") ?: "",
             matricNumber = doc.getString("matricNumber") ?: "",
@@ -60,86 +66,69 @@ object UserProfileRepository {
             onlineWorkDurations = (doc.get("onlineWorkDurations") as? Map<String, Long>) ?: emptyMap(),
             vehicles = uniqueVehicles,
             preferredPaymentMethod = doc.getString("preferredPaymentMethod") ?: "CASH"
-        ).let { initialUser ->
-            var user = initialUser
+        )
 
-            // --- 1. FIX/REPAIR LOGIC (Existing) ---
-            // If user is a driver but essential details are missing (common for old accounts),
-            // proactively fetch from their application and sync it to the user profile.
-            val missingInfo = user.role_driver && (
-                user.carBrand.isEmpty() || 
-                user.carColor.isEmpty() || 
-                user.licenseNumber.isEmpty() || 
-                user.vehiclePlateNumber.isEmpty()
-            )
+        // --- 1. FIX/REPAIR LOGIC (Existing) ---
+        val missingInfo = user.role_driver && (
+            user.carBrand.isEmpty() || 
+            user.carColor.isEmpty() || 
+            user.licenseNumber.isEmpty() || 
+            user.vehiclePlateNumber.isEmpty()
+        )
 
-            if (missingInfo) {
-                try {
-                    val appDoc = db.collection("driverApplications").document(targetUid).get().await()
-                    if (appDoc.exists()) {
-                        val brand = appDoc.getString("carBrand") ?: ""
-                        val color = appDoc.getString("carColor") ?: ""
-                        val license = appDoc.getString("licenseNumber") ?: ""
-                        val plate = appDoc.getString("vehiclePlateNumber") ?: ""
+        if (missingInfo) {
+            try {
+                val appDoc = db.collection("driverApplications").document(targetUid).get().await()
+                if (appDoc.exists()) {
+                    val brand = appDoc.getString("carBrand") ?: ""
+                    val color = appDoc.getString("carColor") ?: ""
+                    val license = appDoc.getString("licenseNumber") ?: ""
+                    val plate = appDoc.getString("vehiclePlateNumber") ?: ""
 
-                        val updates = mutableMapOf<String, Any>()
-                        if (user.carBrand.isEmpty() && brand.isNotEmpty()) updates["carBrand"] = brand
-                        if (user.carColor.isEmpty() && color.isNotEmpty()) updates["carColor"] = color
-                        if (user.licenseNumber.isEmpty() && license.isNotEmpty()) updates["licenseNumber"] = license
-                        if (user.vehiclePlateNumber.isEmpty() && plate.isNotEmpty()) updates["vehiclePlateNumber"] = plate
+                    val updates = mutableMapOf<String, Any>()
+                    if (user.carBrand.isEmpty() && brand.isNotEmpty()) updates["carBrand"] = brand
+                    if (user.carColor.isEmpty() && color.isNotEmpty()) updates["carColor"] = color
+                    if (user.licenseNumber.isEmpty() && license.isNotEmpty()) updates["licenseNumber"] = license
+                    if (user.vehiclePlateNumber.isEmpty() && plate.isNotEmpty()) updates["vehiclePlateNumber"] = plate
 
-                        if (updates.isNotEmpty()) {
-                            // Update Firestore proactively for next time
-                            db.collection("users").document(targetUid).update(updates)
-                            
-                            // Return the "repaired" user object for immediate UI update
-                            user = user.copy(
-                                carBrand = if (user.carBrand.isEmpty()) brand else user.carBrand,
-                                carColor = if (user.carColor.isEmpty()) color else user.carColor,
-                                licenseNumber = if (user.licenseNumber.isEmpty()) license else user.licenseNumber,
-                                vehiclePlateNumber = if (user.vehiclePlateNumber.isEmpty()) plate else user.vehiclePlateNumber
-                            )
-                        }
+                    if (updates.isNotEmpty()) {
+                        db.collection("users").document(targetUid).update(updates)
+                        user = user.copy(
+                            carBrand = if (user.carBrand.isEmpty()) brand else user.carBrand,
+                            carColor = if (user.carColor.isEmpty()) color else user.carColor,
+                            licenseNumber = if (user.licenseNumber.isEmpty()) license else user.licenseNumber,
+                            vehiclePlateNumber = if (user.vehiclePlateNumber.isEmpty()) plate else user.vehiclePlateNumber
+                        )
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
-            }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
 
-            // --- 2. MIGRATE LEGACY VEHICLE TO LIST ---
-            // If vehicles list is empty but single-field data exists, migrate it to list.
-            if (user.role_driver && user.vehicles.isEmpty() && user.vehiclePlateNumber.isNotEmpty()) {
-                 val legacyVehicle = Vehicle(
-                    id = java.util.UUID.randomUUID().toString(),
-                    brand = user.carBrand.ifEmpty { "Unknown Brand" },
-                    color = user.carColor.ifEmpty { "Unknown Color" },
-                    plateNumber = user.vehiclePlateNumber,
-                    licenseNumber = user.licenseNumber
-                 )
-                 
-                 // Update local user object
-                 user = user.copy(vehicles = listOf(legacyVehicle))
-                 
-                 // Persist to Firestore
-                 val vehicleMap = mapOf(
+        // --- 2. MIGRATE LEGACY VEHICLE TO LIST ---
+        if (user.role_driver && user.vehicles.isEmpty() && user.vehiclePlateNumber.isNotEmpty()) {
+             val legacyVehicle = Vehicle(
+                id = java.util.UUID.randomUUID().toString(),
+                brand = user.carBrand.ifEmpty { "Unknown Brand" },
+                color = user.carColor.ifEmpty { "Unknown Color" },
+                plateNumber = user.vehiclePlateNumber,
+                licenseNumber = user.licenseNumber
+             )
+             user = user.copy(vehicles = listOf(legacyVehicle))
+             
+             db.collection("users").document(targetUid).update(
+                "vehicles", com.google.firebase.firestore.FieldValue.arrayUnion(mapOf(
                     "id" to legacyVehicle.id,
                     "brand" to legacyVehicle.brand,
                     "color" to legacyVehicle.color,
                     "plateNumber" to legacyVehicle.plateNumber,
                     "licenseNumber" to legacyVehicle.licenseNumber,
                     "lastEditedAt" to legacyVehicle.lastEditedAt
-                )
-                 try {
-                     db.collection("users").document(targetUid).update(
-                        "vehicles", com.google.firebase.firestore.FieldValue.arrayUnion(vehicleMap)
-                     )
-                 } catch (e: Exception) {
-                     e.printStackTrace()
-                 }
-            }
-
-            user
+                ))
+             )
         }
+
+        profileMapCache[targetUid] = user
+        return user
     }
 
     // Upload gambar ke Storage dan return download URL

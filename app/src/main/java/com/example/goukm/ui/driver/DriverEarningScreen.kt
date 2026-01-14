@@ -71,13 +71,6 @@ fun DriverEarningScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        // Trigger seeding once silently for demonstration
-        scope.launch {
-            MockDataSeeder.seedMockData()
-        }
-    }
-
     var showDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
@@ -128,125 +121,139 @@ fun DriverEarningScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF8FAFC)) // Standardized Background
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
-        ) {
-            
-            // 1. Main Period Selector (Day, Week, Month, Year)
-            item {
-                PeriodSelector(
-                    periods = listOf("Day", "Week", "Month", "Year"),
-                    selectedPeriod = selectedPeriod,
-                    onPeriodSelected = { viewModel.setPeriod(it) }
-                )
-            }
-
-            // 2. Earnings Summary & Navigation Card
-            item {
-                val formattedOnlineTime = remember(uiState.totalOnlineMinutes) {
-                    val hours = uiState.totalOnlineMinutes / 60
-                    val minutes = uiState.totalOnlineMinutes % 60
-                    "${hours}h ${minutes}m"
-                }
-
-                EarningsNavigationCard(
-                    dateRangeText = dateRangeText,
-                    earnings = uiState.totalEarnings,
-                    rides = uiState.rideCount,
-                    hours = formattedOnlineTime,
-                    description = "this ${selectedPeriod.lowercase()}",
-                    onPrevClick = { viewModel.moveDate(-1) },
-                    onNextClick = { viewModel.moveDate(1) },
-                    onDateClick = { showDatePicker = true }
-                )
-            }
-
-            // 3. Graph Section
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(2.dp)
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            text = dateRangeText, 
-                            fontSize = 14.sp, 
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable { showDatePicker = true }
-                        )
-                        Spacer(Modifier.height(8.dp))
-
-                        // Sub-selector (if applicable)
-                        if (selectedPeriod == "Month" || selectedPeriod == "Year") {
-                           SubPeriodSelector(
-                               mainPeriod = selectedPeriod,
-                               selectedSubPeriod = graphGranularity,
-                               onSelect = { viewModel.setGranularity(it) }
-                           )
-                           Spacer(Modifier.height(12.dp))
-                        }
-                        
-                        Text(
-                            "Number of rides",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        // Bar Chart
-                        BarChart(
-                            data = uiState.graphData,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp)
-                        )
-                    }
-                }
-            }
-
-            // 4. Recent Ride Header & Transaction
-            if (uiState.recentRide != null) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF8FAFC)) // Standardized Background
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                
+                // 1. Main Period Selector (Day, Week, Month, Year)
                 item {
-                    Text(
-                        "Recent Ride",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    PeriodSelector(
+                        periods = listOf("Day", "Week", "Month", "Year"),
+                        selectedPeriod = selectedPeriod,
+                        onPeriodSelected = { viewModel.setPeriod(it) }
                     )
                 }
+
+                // 2. Earnings Summary & Navigation Card
                 item {
-                     RecentRideCard(uiState.recentRide!!)
+                    val formattedOnlineTime = remember(uiState.totalOnlineMinutes) {
+                        val hours = uiState.totalOnlineMinutes / 60
+                        val minutes = uiState.totalOnlineMinutes % 60
+                        "${hours}h ${minutes}m"
+                    }
+
+                    EarningsNavigationCard(
+                        dateRangeText = dateRangeText,
+                        earnings = uiState.totalEarnings,
+                        rides = uiState.rideCount,
+                        hours = formattedOnlineTime,
+                        description = "this ${selectedPeriod.lowercase()}",
+                        onPrevClick = { viewModel.moveDate(-1) },
+                        onNextClick = { viewModel.moveDate(1) },
+                        onDateClick = { showDatePicker = true }
+                    )
                 }
-            } else {
+
+                // 3. Graph Section
                 item {
-                    EmptyStateCard(message = "No rides found for this period")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                text = dateRangeText, 
+                                fontSize = 14.sp, 
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable { showDatePicker = true }
+                            )
+                            Spacer(Modifier.height(8.dp))
+
+                            // Sub-selector (if applicable)
+                            if (selectedPeriod == "Month" || selectedPeriod == "Year") {
+                               SubPeriodSelector(
+                                   mainPeriod = selectedPeriod,
+                                   selectedSubPeriod = graphGranularity,
+                                   onSelect = { viewModel.setGranularity(it) }
+                               )
+                               Spacer(Modifier.height(12.dp))
+                            }
+                            
+                            Text(
+                                "Number of rides",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            // Bar Chart
+                            BarChart(
+                                data = uiState.graphData,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                            )
+                        }
+                    }
+                }
+
+                // 4. Recent Ride Header & Transaction
+                if (uiState.recentRide != null) {
+                    item {
+                        Text(
+                            "Recent Ride",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
+                    }
+                    item {
+                         RecentRideCard(uiState.recentRide!!)
+                    }
+                } else if (!uiState.isLoading) {
+                    item {
+                        EmptyStateCard(message = "No rides found for this period")
+                    }
+                }
+                
+                item {
+                    Button(
+                        onClick = { navController.navigate(NavRoutes.DriverRideHistory.route) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        elevation = ButtonDefaults.buttonElevation(2.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("View Ride History", color = Color.Gray, fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Default.ArrowForwardIos, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
             }
-            
-            item {
-                Button(
-                    onClick = { navController.navigate(NavRoutes.DriverRideHistory.route) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                    elevation = ButtonDefaults.buttonElevation(2.dp),
-                    shape = RoundedCornerShape(12.dp)
+
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(Color.White.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("View Ride History", color = Color.Gray, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ArrowForwardIos, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-                    }
+                    CircularProgressIndicator(color = CBlue)
                 }
             }
         }
