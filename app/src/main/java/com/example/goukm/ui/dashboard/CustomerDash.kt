@@ -5,6 +5,7 @@ import com.example.goukm.ui.theme.CBlue
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -90,23 +91,13 @@ fun CustomerDashboard(
     navController: NavHostController,
     userImageUrl: String? = null
 ) {
-    val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
-    val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance() }
-    var activeBooking by remember { mutableStateOf<com.example.goukm.ui.booking.Booking?>(null) }
-    var chatRoom by remember { mutableStateOf<ChatRoom?>(null) }
-    var recentPlaces by remember { mutableStateOf<List<RecentPlace>>(emptyList()) }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val viewModel: CustomerDashViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val activeBooking by viewModel.activeBooking.collectAsState()
+    val chatRoom by viewModel.chatRoom.collectAsState()
+    val recentPlaces by viewModel.recentPlaces.collectAsState()
+    
     val context = androidx.compose.ui.platform.LocalContext.current
-
-    // Get time-based greeting
-    val greeting = remember {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when {
-            hour < 12 -> "Good Morning"
-            hour < 17 -> "Good Afternoon"
-            else -> "Good Evening"
-        }
-    }
+    val greeting = remember { viewModel.greeting }
 
     LaunchedEffect(activeBooking?.driverArrived) {
         if (activeBooking?.driverArrived == true) {
@@ -115,52 +106,7 @@ fun CustomerDashboard(
     }
 
     LaunchedEffect(Unit) {
-        recentPlaces = RecentPlaceRepository.getRecentPlaces()
-    }
-
-    LaunchedEffect(activeBooking) {
-        if (activeBooking != null && (activeBooking!!.status == "ACCEPTED" || activeBooking!!.status == "ONGOING")) {
-            val result = ChatRepository.getChatRoomByBookingId(activeBooking!!.id)
-            chatRoom = result.getOrNull()
-        } else {
-            chatRoom = null
-        }
-    }
-
-    DisposableEffect(Unit) {
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            val listener = db.collection("bookings")
-                .whereEqualTo("userId", currentUser.uid)
-                .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED", "ONGOING"))
-                .addSnapshotListener { snapshot, e ->
-                     if (e != null || snapshot == null || snapshot.isEmpty) {
-                         activeBooking = null
-                         return@addSnapshotListener
-                     }
-                     val doc = snapshot.documents.firstOrNull()
-                     if (doc != null) {
-                         activeBooking = com.example.goukm.ui.booking.Booking(
-                            id = doc.id,
-                            userId = doc.getString("userId") ?: "",
-                            pickup = doc.getString("pickup") ?: "",
-                            dropOff = doc.getString("dropOff") ?: "",
-                            seatType = doc.getString("seatType") ?: "",
-                            status = doc.getString("status") ?: "",
-                            offeredFare = doc.getString("offeredFare") ?: "",
-                            driverId = doc.getString("driverId") ?: "",
-                            driverArrived = doc.getBoolean("driverArrived") ?: false,
-                            paymentMethod = doc.getString("paymentMethod") ?: "CASH",
-                            paymentStatus = doc.getString("paymentStatus") ?: "PENDING"
-                         )
-                     } else {
-                         activeBooking = null
-                     }
-                }
-            onDispose { listener.remove() }
-        } else {
-            onDispose { }
-        }
+        viewModel.fetchRecentPlaces()
     }
 
     Scaffold(

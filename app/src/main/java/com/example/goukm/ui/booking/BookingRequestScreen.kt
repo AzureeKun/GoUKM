@@ -58,6 +58,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -101,50 +103,40 @@ import com.example.goukm.ui.booking.RecentPlaceRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookingRequestScreen(navController: NavHostController, activeBookingId: String? = null) {
+fun BookingRequestScreen(
+    navController: NavHostController,
+    activeBookingId: String? = null,
+    viewModel: BookingRequestViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
     var selectedSeat by remember { mutableStateOf("4-Seat") }
-    // Payment Method State
-    var selectedPaymentMethod by remember { mutableStateOf<PaymentMethod?>(null) }
 
-    // Hoisted State and Dependencies
-    val context = LocalContext.current
-    val placesRepository = remember { PlacesRepository(context) }
-    val scope = rememberCoroutineScope()
-    val bookingRepository = remember { BookingRepository() }
-    var currentBookingId by remember { mutableStateOf<String?>(null) }
+    // Observers
+    val pickupLocation by viewModel.pickupLocation.collectAsState()
+    val dropOffLocation by viewModel.dropOffLocation.collectAsState()
+    val routePoints by viewModel.routePoints.collectAsState()
+    val rideOffers by viewModel.rideOffers.collectAsState()
+    val isSearching by viewModel.isSearching.collectAsState()
+    val bookingStatus by viewModel.bookingStatus.collectAsState()
+    val selectedPaymentMethod by viewModel.selectedPaymentMethod.collectAsState()
+    val pickupPredictions by viewModel.pickupPredictions.collectAsState()
+    val dropOffPredictions by viewModel.dropOffPredictions.collectAsState()
+    val navToJourney by viewModel.navToJourney.collectAsState()
+    val currentBookingId by viewModel.currentBookingId.collectAsState()
+    val isCreatingBooking by viewModel.isCreatingBooking.collectAsState()
 
-    data class LocationInfo(
-        val address: String = "",
-        val latLng: LatLng? = null,
-        val placeId: String? = null
-    )
-
-    var pickupLocation by remember { mutableStateOf(LocationInfo()) }
-    var dropOffLocation by remember { mutableStateOf(LocationInfo()) }
-    var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
-    var rideOffers by remember { mutableStateOf<List<DriverOffer>>(emptyList()) }
-    var recentPlaces by remember { mutableStateOf<List<RecentPlace>>(emptyList()) }
-    // Prevent accidental double submissions while the network call is in-flight
-    var isCreatingBooking by remember { mutableStateOf(false) }
-
-    var pickupPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
-    var dropOffPredictions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
-
-    var isSearching by remember { mutableStateOf(false) }
-    var bookingStatus by remember { mutableStateOf("PENDING") }
+    // UI State (only for non-business logic)
     var showCancelDialog by remember { mutableStateOf(false) }
     var isSelectingPickupOnMap by remember { mutableStateOf(false) }
+    var recentPlaces by remember { mutableStateOf<List<RecentPlace>>(emptyList()) }
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Permissions
     var hasLocationPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         )
     }
 
@@ -154,134 +146,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
         hasLocationPermission = isGranted
     }
 
-    LaunchedEffect(pickupLocation.latLng, dropOffLocation.latLng) {
-        if (pickupLocation.latLng != null && dropOffLocation.latLng != null) {
-            val result = placesRepository.getRoute(pickupLocation.latLng!!, dropOffLocation.latLng!!)
-            result.onSuccess {
-                routePoints = it.polyline
-            }.onFailure {
-                routePoints = listOf(pickupLocation.latLng!!, dropOffLocation.latLng!!)
-            }
-        } else {
-            routePoints = emptyList()
-        }
-    }
-
-    // Restore State + Watch for Updates
-    val effectiveBookingId = if (!activeBookingId.isNullOrEmpty()) activeBookingId else currentBookingId
-    
-    LaunchedEffect(effectiveBookingId) {
-        if (!effectiveBookingId.isNullOrEmpty()) {
-            rideOffers = emptyList() // Reset stale offers
-            val bookingId = effectiveBookingId!!
-            // Initial fetch
-            val result = bookingRepository.getBooking(bookingId)
-            result.onSuccess { booking ->
-                currentBookingId = booking.id
-                pickupLocation = LocationInfo(
-                    address = booking.pickup,
-                    latLng = LatLng(booking.pickupLat, booking.pickupLng),
-                    placeId = "restored"
-                )
-                dropOffLocation = LocationInfo(
-                    address = booking.dropOff,
-                    latLng = LatLng(booking.dropOffLat, booking.dropOffLng),
-                    placeId = "restored"
-                )
-                selectedSeat = if (booking.seatType.startsWith("4")) "4-Seat" else "6-Seat"
-                isSearching = true
-            }
-
-            // Real-time status listener
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            val docRef = db.collection("bookings").document(bookingId)
-            val registration = docRef.addSnapshotListener { snapshot, e ->
-                if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
-                
-                val status = snapshot.getString("status")
-                android.util.Log.d("BookingDebug", "Booking Status updated: $status")
-                if (status != null) bookingStatus = status
-
-                if (status == "ACCEPTED" || status == "ONGOING") {
-                    scope.launch {
-                        navController.navigate("cust_journey_details/${bookingId}/${selectedPaymentMethod?.name ?: "CASH"}?paymentStatus=PENDING") {
-                            popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
-                        }
-                    }
-                }
-            }
-
-            // Real-time offers listener
-            val offersRef = docRef.collection("offers")
-            val offersRegistration = offersRef.addSnapshotListener { offersSnapshot, offersError ->
-                if (offersError != null || offersSnapshot == null) return@addSnapshotListener
-                
-                android.util.Log.d("BookingDebug", "Offers sub-collection changed. Count: ${offersSnapshot.documents.size}")
-                val offers = offersSnapshot.documents.mapNotNull { doc ->
-                    val driverId = doc.getString("driverId") ?: ""
-                    val driverName = doc.getString("driverName") ?: ""
-                    val fare = doc.getString("fare") ?: ""
-                    val vehicleType = doc.getString("vehicleType") ?: ""
-                    val vehiclePlateNumber = doc.getString("vehiclePlateNumber") ?: ""
-                    val phoneNumber = doc.getString("phoneNumber") ?: ""
-                    val driverProfileUrl = doc.getString("driverProfileUrl") ?: ""
-                    val carBrand = doc.getString("carBrand") ?: ""
-                    val carColor = doc.getString("carColor") ?: ""
-
-                    DriverOffer(
-                        name = driverName,
-                        fareLabel = "RM $fare",
-                        carBrand = carBrand,
-                        carName = vehicleType,
-                        carColor = carColor,
-                        plate = vehiclePlateNumber,
-                        driverId = driverId,
-                        driverPhone = phoneNumber,
-                        driverProfileUrl = driverProfileUrl
-                    )
-                }
-                rideOffers = offers
-            }
-        }
-    }
-
-    // Request permission when screen loads if not already granted
     LaunchedEffect(Unit) {
-        if (!hasLocationPermission) {
-            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
         recentPlaces = RecentPlaceRepository.getRecentPlaces()
-        
-        // Auto-restore active booking if none provided in navigation
-        if (effectiveBookingId.isNullOrEmpty()) {
-            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-            if (currentUser != null) {
-                // Task 5: Fetch preferred payment method
-                scope.launch {
-                    val profile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
-                    if (profile != null) {
-                        selectedPaymentMethod = when (profile.preferredPaymentMethod) {
-                            "QR_DUITNOW" -> PaymentMethod.QR_DUITNOW
-                            else -> PaymentMethod.CASH
-                        }
-                    }
-                }
-
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                db.collection("bookings")
-                    .whereEqualTo("userId", currentUser.uid)
-                    .whereIn("status", listOf("PENDING", "OFFERED", "ACCEPTED", "ONGOING"))
-                    .limit(1)
-                    .get()
-                    .addOnSuccessListener { snapshot ->
-                        if (snapshot != null && !snapshot.isEmpty) {
-                            val doc = snapshot.documents.first()
-                            currentBookingId = doc.id
-                            isSearching = true
-                        }
-                    }
-            }
-        }
     }
 
     // Automatically fetch location and geocode when permission is granted
@@ -292,29 +158,43 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                     if (location != null) {
                         val latLng = LatLng(location.latitude, location.longitude)
-                        // Reverse Geocoding
                         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            try {
-                                val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
-                                @Suppress("DEPRECATION")
-                                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                                if (!addresses.isNullOrEmpty()) {
-                                    val addressText = addresses[0].getAddressLine(0) ?: addresses[0].featureName
-                                    scope.launch {
-                                        pickupLocation = LocationInfo(
-                                            address = addressText,
-                                            latLng = latLng,
-                                            placeId = "auto_detect"
-                                        )
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                             try {
+                                 val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                                 @Suppress("DEPRECATION")
+                                 val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                 if (!addresses.isNullOrEmpty()) {
+                                     val addressText = addresses[0].getAddressLine(0) ?: addresses[0].featureName
+                                     viewModel.setPickupLatLng(latLng, addressText)
+                                 }
+                             } catch (e: Exception) { }
                         }
                     }
                 }
             } catch (e: SecurityException) { }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasLocationPermission) {
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    // Set active booking if passed
+    LaunchedEffect(activeBookingId) {
+        if (activeBookingId != null) {
+            viewModel.setBookingId(activeBookingId)
+        }
+    }
+
+    // Navigate on accepted
+    LaunchedEffect(navToJourney) {
+        navToJourney?.let { id ->
+            viewModel.onNavigatedToJourney()
+            navController.navigate("cust_journey_details/${id}/${selectedPaymentMethod?.name ?: "CASH"}?paymentStatus=PENDING") {
+                popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
+            }
         }
     }
 
@@ -416,29 +296,11 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             AutocompleteTextField(
                                 label = "Pickup Location",
                                 value = pickupLocation.address,
-                                onValueChange = { query ->
-                                    pickupLocation = pickupLocation.copy(address = query, placeId = null, latLng = null)
-                                    scope.launch {
-                                        pickupPredictions = placesRepository.getPredictions(query)
-                                    }
-                                },
+                                onValueChange = { query -> viewModel.updatePickup(query) },
                                 predictions = pickupPredictions,
                                 recentPlaces = recentPlaces,
-                                onRecentPlaceSelect = { place ->
-                                    pickupLocation = pickupLocation.copy(
-                                        address = place.address,
-                                        latLng = LatLng(place.lat, place.lng),
-                                        placeId = "recent"
-                                    )
-                                },
-                                onPredictionSelect = { placeId, address ->
-                                    pickupLocation = pickupLocation.copy(address = address, placeId = placeId)
-                                    pickupPredictions = emptyList()
-                                    scope.launch {
-                                        val place = placesRepository.getPlaceDetails(placeId)
-                                        pickupLocation = pickupLocation.copy(latLng = place?.latLng)
-                                    }
-                                },
+                                onRecentPlaceSelect = { place -> viewModel.selectPickupFromRecent(place) },
+                                onPredictionSelect = { placeId, address -> viewModel.selectPickup(placeId, address) },
                                 leadingIcon = Icons.Default.Send,
                                 trailingIcon = {
                                     IconButton(onClick = { isSelectingPickupOnMap = true }) {
@@ -455,29 +317,11 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             AutocompleteTextField(
                                 label = "Enter Drop-off Location",
                                 value = dropOffLocation.address,
-                                onValueChange = { query ->
-                                    dropOffLocation = dropOffLocation.copy(address = query, placeId = null, latLng = null)
-                                    scope.launch {
-                                        dropOffPredictions = placesRepository.getPredictions(query, pickupLocation.latLng)
-                                    }
-                                },
+                                onValueChange = { query -> viewModel.updateDropOff(query) },
                                 predictions = dropOffPredictions,
                                 recentPlaces = recentPlaces,
-                                onRecentPlaceSelect = { place ->
-                                    dropOffLocation = dropOffLocation.copy(
-                                        address = place.address,
-                                        latLng = LatLng(place.lat, place.lng),
-                                        placeId = "recent"
-                                    )
-                                },
-                                onPredictionSelect = { placeId, address ->
-                                    dropOffLocation = dropOffLocation.copy(address = address, placeId = placeId)
-                                    dropOffPredictions = emptyList() // Hide list
-                                    scope.launch {
-                                        val place = placesRepository.getPlaceDetails(placeId)
-                                        dropOffLocation = dropOffLocation.copy(latLng = place?.latLng)
-                                    }
-                                },
+                                onRecentPlaceSelect = { place -> viewModel.selectDropOffFromRecent(place) },
+                                onPredictionSelect = { placeId, address -> viewModel.selectDropOff(placeId, address) },
                                 leadingIcon = Icons.Default.Place
                             )
                         }
@@ -500,24 +344,14 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                 title = "DuitNow",
                                 icon = Icons.Default.QrCode,
                                 isSelected = selectedPaymentMethod == PaymentMethod.QR_DUITNOW,
-                                onClick = { 
-                                    selectedPaymentMethod = PaymentMethod.QR_DUITNOW 
-                                    scope.launch {
-                                        com.example.goukm.ui.userprofile.UserProfileRepository.updatePreferredPaymentMethod("QR_DUITNOW")
-                                    }
-                                },
+                                onClick = { viewModel.setPaymentMethod(PaymentMethod.QR_DUITNOW) },
                                 modifier = Modifier.weight(1f)
                             )
                             PaymentMethodCard(
                                 title = "Cash",
                                 icon = Icons.Default.AttachMoney,
                                 isSelected = selectedPaymentMethod == PaymentMethod.CASH,
-                                onClick = { 
-                                    selectedPaymentMethod = PaymentMethod.CASH 
-                                    scope.launch {
-                                        com.example.goukm.ui.userprofile.UserProfileRepository.updatePreferredPaymentMethod("CASH")
-                                    }
-                                },
+                                onClick = { viewModel.setPaymentMethod(PaymentMethod.CASH) },
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -568,103 +402,42 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         rideOffers.forEach { offer ->
                             OfferCard(
                                 offer = offer,
-                                onAccept = {
-                                    scope.launch {
-                                        try {
-                                            val bookingId = effectiveBookingId?.takeIf { it.isNotEmpty() } ?: return@launch
-                                        
-                                            // Update booking with the accepted offer details
-                                            val acceptedOffer = com.example.goukm.ui.booking.Offer(
-                                                driverId = offer.driverId,
-                                                driverName = offer.name,
-                                                vehicleType = offer.carBrand,
-                                                vehiclePlateNumber = offer.plate,
-                                                phoneNumber = offer.driverPhone,
-                                                fare = offer.fareLabel.replace("RM ", "")
-                                            )
-                                            
-                                            // 1. Create Chat Room FIRST to ensure it exists when driver gets the update
-                                            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-                                            if (currentUser != null) {
-                                                val customerProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(currentUser.uid)
-                                                com.example.goukm.ui.chat.ChatRepository.createChatRoom(
-                                                    bookingId = bookingId,
-                                                    customerId = currentUser.uid,
-                                                    driverId = offer.driverId,
-                                                    customerName = customerProfile?.name ?: "Customer",
-                                                    driverName = offer.name,
-                                                    customerPhone = customerProfile?.phoneNumber ?: "",
-                                                    driverPhone = offer.driverPhone
-                                                )
-                                            }
-
-                                            // 2. Then Update Booking Status
-                                            bookingRepository.acceptOffer(bookingId, acceptedOffer)
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                            android.widget.Toast.makeText(context, "Acceptance error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
-                                        }
-                                    }
-                                }
+                                onAccept = { viewModel.acceptOffer(offer, context) }
                             )
                             Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
 
-                var showValidationToast by remember { mutableStateOf(false) }
 
                 Button(
                     onClick = {
                         if (isCreatingBooking) return@Button
                         if (isSearching) {
-                            // Show confirmation dialog
                             showCancelDialog = true
                         } else {
                             // VALIDATION LOGIC
                             val isPickupValid = pickupLocation.latLng != null && pickupLocation.address.isNotBlank()
-                            val isDropOffValid = dropOffLocation.latLng != null && dropOffLocation.placeId != null
+                            val isDropOffValid = dropOffLocation.latLng != null && dropOffLocation.address.isNotBlank()
 
                             when {
                                 !isPickupValid -> {
                                     android.widget.Toast.makeText(context, "Please select a valid pickup location", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                                 !isDropOffValid -> {
-                                    android.widget.Toast.makeText(context, "Please search and select a drop-off location from the suggestions", android.widget.Toast.LENGTH_LONG).show()
+                                    android.widget.Toast.makeText(context, "Please select a valid drop-off location", android.widget.Toast.LENGTH_LONG).show()
                                 }
                                 pickupLocation.latLng == dropOffLocation.latLng -> {
                                     android.widget.Toast.makeText(context, "Pickup and Drop-off cannot be the same", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                                 else -> {
-                                    // Safety check to prevent double booking
-                                    if (isSearching || currentBookingId != null) {
-                                        android.widget.Toast.makeText(context, "You already have an active request", android.widget.Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        // All Valid
-                                        scope.launch {
-                                        isCreatingBooking = true
-                                            val result = bookingRepository.createBooking(
-                                                pickup = pickupLocation.address,
-                                                dropOff = dropOffLocation.address,
-                                                seatType = selectedSeat,
-                                                pickupLat = pickupLocation.latLng!!.latitude,
-                                                pickupLng = pickupLocation.latLng!!.longitude,
-                                                dropOffLat = dropOffLocation.latLng!!.latitude,
-                                                dropOffLng = dropOffLocation.latLng!!.longitude,
-                                                paymentMethod = selectedPaymentMethod?.name ?: "CASH"
-                                            )
-
-                                        result.onSuccess { bookingId ->
-                                            currentBookingId = bookingId
-                                            isSearching = true
-                                            android.widget.Toast.makeText(context, "Booking Request Sent!", android.widget.Toast.LENGTH_SHORT).show()
-                                        }.onFailure { e ->
-                                            android.widget.Toast.makeText(context, "Failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                    viewModel.createBooking(
+                                        seatType = selectedSeat,
+                                        onError = { error ->
+                                            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
                                         }
-                                        isCreatingBooking = false
-                                    }
+                                    )
                                 }
-                            }
                             }
                         }
                     },
@@ -673,7 +446,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                         .height(54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = accentYellow),
                     shape = RoundedCornerShape(12.dp),
-                    enabled = (isSearching || selectedPaymentMethod != null) && !isCreatingBooking // Disable if no payment method selected when not searching or while submitting
+                    enabled = (isSearching || selectedPaymentMethod != null) && !isCreatingBooking // Disable while submitting
                 ) {
                     Text(
                         if (isSearching) "Cancel Booking" else "Booking Ride",
@@ -806,11 +579,7 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                             onClick = {
                                 val target = cameraPositionState.position.target
                                 isSelectingPickupOnMap = false
-                                pickupLocation = pickupLocation.copy(
-                                    latLng = target,
-                                    address = "Fetching address...",
-                                    placeId = "manual"
-                                )
+                                viewModel.setPickupLatLng(target, "Fetching address...")
                                 
                                 // Reverse Geocode
                                 scope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -821,19 +590,9 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                                         if (!addresses.isNullOrEmpty()) {
                                             val address = addresses[0]
                                             val addressText = address.getAddressLine(0) ?: address.featureName
-                                            scope.launch {
-                                                pickupLocation = pickupLocation.copy(
-                                                    address = addressText,
-                                                    placeId = "manual_selection"
-                                                )
-                                            }
+                                            viewModel.setPickupLatLng(target, addressText)
                                         } else {
-                                            scope.launch {
-                                                pickupLocation = pickupLocation.copy(
-                                                    address = "${target.latitude}, ${target.longitude}",
-                                                    placeId = "manual_selection"
-                                                )
-                                            }
+                                            viewModel.setPickupLatLng(target, "${target.latitude}, ${target.longitude}")
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()
@@ -872,21 +631,8 @@ fun BookingRequestScreen(navController: NavHostController, activeBookingId: Stri
                     confirmButton = {
                         Button(
                             onClick = {
-                                scope.launch {
-                                    if (currentBookingId != null) {
-                                        val result = bookingRepository.updateStatus(currentBookingId!!, BookingStatus.CANCELLED_BY_CUSTOMER)
-                                        result.onSuccess {
-                                            android.widget.Toast.makeText(context, "Booking Cancelled", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                    // Reset UI State but KEEP Location Data for easy re-booking
-                                    showCancelDialog = false
-                                    isSearching = false
-                                    currentBookingId = null
-                                    rideOffers = emptyList() 
-                                    
-                                    // Removed input resets to retain user data as requested
-                                }
+                                viewModel.cancelBooking()
+                                showCancelDialog = false
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD32F2F)

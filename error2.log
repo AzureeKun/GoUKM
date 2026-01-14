@@ -1,0 +1,110 @@
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/booking/RideRequest.kt:51:5 None of the following candidates is applicable:
+@Composable() @ComposableInferredTarget(...) fun Card(onClick: () -> Unit, modifier: Modifier = ..., enabled: Boolean = ..., shape: Shape = ..., colors: CardColors = ..., elevation: CardElevation = ..., border: BorderStroke? = ..., interactionSource: MutableInteractionSource = ..., content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+@Composable() @ComposableInferredTarget(...) fun Card(modifier: Modifier = ..., shape: Shape = ..., colors: CardColors = ..., elevation: CardElevation = ..., border: BorderStroke? = ..., content: @Composable() ComposableFunction1<ColumnScope, Unit>): Unit
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/booking/RideRequest.kt:96:10 Syntax error: Expecting ')'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/booking/RideRequest.kt:98:1 Syntax error: Expecting a top level declaration.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:29:9 Conflicting declarations:
+dropOffLat: Double = ...
+dropOffLat: Double = ...
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:29:9 Conflicting declarations:
+val dropOffLat: Double
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:30:9 Conflicting declarations:
+dropOffLat: Double = ...
+dropOffLat: Double = ...
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:30:9 Conflicting declarations:
+val dropOffLat: Double
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:66:17 Argument already passed for this parameter.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:105:13 Unresolved reference 'bookingsCollection'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:114:23 Unresolved reference 'bookingsCollection'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:114:68 None of the following candidates is applicable:
+suspend fun <T> Task<T>.await(): T
+@ExperimentalCoroutinesApi() suspend fun <T> Task<T>.await(cancellationTokenSource: CancellationTokenSource): T
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:115:21 Unresolved reference 'exists'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:117:30 Unresolved reference 'id'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:118:34 Unresolved reference 'getString'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:119:34 Unresolved reference 'getString'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:120:35 Unresolved reference 'getString'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:121:36 Unresolved reference 'getString'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:122:34 Unresolved reference 'getString'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:123:39 Unresolved reference 'getString'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:124:36 Unresolved reference 'getString'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:125:37 Unresolved reference 'getDate'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:126:37 Unresolved reference 'getDouble'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:127:37 Unresolved reference 'getDouble'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:128:38 Unresolved reference 'getDouble'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:129:21 Argument already passed for this parameter.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:129:38 Unresolved reference 'getDouble'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:130:38 Unresolved reference 'getDouble'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:131:41 Unresolved reference 'getBoolean'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/booking/BookingRepository.kt:141:1 Syntax error: Expecting a top level declaration.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:273:42 'if' must have both main and 'else' branches when used as an expression.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:273:42 Argument type mismatch: actual type is 'kotlin.Unit', but 'kotlin.Function0<kotlin.Unit>?' was expected.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:280:101 Unresolved reference 'encodedName'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:281:38 Syntax error: Expecting ')'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:282:35 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:283:33 Unresolved reference 'onArrive'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:285:60 Unresolved reference 'updateDriverArrived'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:285:80 Unresolved reference 'request'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:288:30 Syntax error: Expecting an element.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:295:25 Unresolved reference 'item'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:296:29 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:298:55 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:303:26 None of the following candidates is applicable:
+@ComposableInferredTarget(...) fun <T> LazyListScope.items(items: Array<T>, noinline key: ((@ParameterName(...) T) -> Any)? = ..., noinline contentType: (@ParameterName(...) T) -> Any? = ..., crossinline itemContent: @Composable() ComposableFunction2<LazyItemScope, @ParameterName(...) T, Unit>): Unit
+@ComposableInferredTarget(...) fun <T> LazyListScope.items(items: List<T>, noinline key: ((@ParameterName(...) T) -> Any)? = ..., noinline contentType: (@ParameterName(...) T) -> Any? = ..., crossinline itemContent: @Composable() ComposableFunction2<LazyItemScope, @ParameterName(...) T, Unit>): Unit
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:303:51 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:304:30 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:308:81 Unresolved reference 'id'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:323:25 Unresolved reference 'item'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:325:29 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:327:55 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:331:25 None of the following candidates is applicable:
+@ComposableInferredTarget(...) fun <T> LazyListScope.items(items: Array<T>, noinline key: ((@ParameterName(...) T) -> Any)? = ..., noinline contentType: (@ParameterName(...) T) -> Any? = ..., crossinline itemContent: @Composable() ComposableFunction2<LazyItemScope, @ParameterName(...) T, Unit>): Unit
+@ComposableInferredTarget(...) fun <T> LazyListScope.items(items: List<T>, noinline key: ((@ParameterName(...) T) -> Any)? = ..., noinline contentType: (@ParameterName(...) T) -> Any? = ..., crossinline itemContent: @Composable() ComposableFunction2<LazyItemScope, @ParameterName(...) T, Unit>): Unit
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:331:47 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:332:29 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:336:80 Unresolved reference 'id'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:345:80 Unresolved reference 'id'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:348:75 Unresolved reference 'customerName'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:348:99 Unresolved reference 'pickupPoint'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:348:122 Unresolved reference 'dropOffPoint'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:348:146 Unresolved reference 'seats'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:348:163 Unresolved reference 'id'.
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:358:15 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:360:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/Azrai%20Aizam%20Bin%20Ahma/Downloads/Sem%205/Software%20Development/GoUKM/app/src/main/java/com/example/goukm/ui/dashboard/DriverDash.kt:421:1 Syntax error: Expecting a top level declaration.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3s
+15 actionable tasks: 1 executed, 14 up-to-date

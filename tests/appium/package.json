@@ -1,0 +1,15 @@
+{
+  "name": "goukm-appium-tests",
+  "version": "1.0.0",
+  "description": "Appium tests for GoUKM Android app",
+  "main": "login.test.js",
+  "scripts": {
+    "test": "mocha login.test.js"
+  },
+  "dependencies": {
+    "webdriverio": "^8.0.0",
+    "appium": "^2.0.0",
+    "mocha": "^10.0.0",
+    "chai": "^4.3.0"
+  }
+}

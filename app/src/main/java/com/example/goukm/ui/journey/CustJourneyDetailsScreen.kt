@@ -53,6 +53,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import com.example.goukm.navigation.NavRoutes
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -75,168 +76,62 @@ fun CustomerJourneyDetailsScreen(
     onChatClick: (chatId: String, name: String, phone: String) -> Unit,
     navController: NavHostController,
     paymentMethod: String,
-    initialPaymentStatus: String = "PENDING" // Passed from nav or backend
+    initialPaymentStatus: String = "PENDING"
 ) {
-    val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val bookingId = navController.currentBackStackEntry?.arguments?.getString("bookingId") ?: ""
-    val bookingRepository = remember { com.example.goukm.ui.booking.BookingRepository() }
-    val placesRepository = remember { PlacesRepository(context) }
+    val viewModel: CustJourneyDetailsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 
-    var paymentStatus by remember { mutableStateOf(initialPaymentStatus) }
-    var showArrivedAlert by remember { mutableStateOf(false) }
-    var showDriverCancelledAlert by remember { mutableStateOf(false) }
-    var isDriverArrived by remember { mutableStateOf(false) }
-    var isTripCompleted by remember { mutableStateOf(false) }
-    var hasNavigated by remember { mutableStateOf(false) }
-    var driverLatLng by remember { mutableStateOf<LatLng?>(null) }
-    var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+    LaunchedEffect(bookingId) {
+        if (bookingId.isNotEmpty()) {
+            viewModel.initialize(bookingId, initialPaymentStatus)
+        }
+    }
 
-    var driverName by remember { mutableStateOf("Driver") }
-    var driverPhone by remember { mutableStateOf("") }
-    var chatRoomId by remember { mutableStateOf("") }
-    var carBrand by remember { mutableStateOf("Brand") }
-    var carModel by remember { mutableStateOf("Model") }
-    var carColor by remember { mutableStateOf("Color") }
-    var carPlate by remember { mutableStateOf("Plate") }
-    var driverProfileUrl by remember { mutableStateOf("") }
-    var pickupAddress by remember { mutableStateOf("Loading...") }
-    var dropOffAddress by remember { mutableStateOf("Loading...") }
-    var fareAmount by remember { mutableStateOf("...") }
-    var passengerName by remember { mutableStateOf("Passenger") }
-    var passengerProfileUrl by remember { mutableStateOf("") }
-    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
-    var dropOffLatLng by remember { mutableStateOf<LatLng?>(null) }
-    var driverRating by remember { mutableStateOf("New") }
-    var isLoading by remember { mutableStateOf(false) }
+    // Observers
+    val paymentStatus by viewModel.paymentStatus.collectAsState()
+    val driverArrived by viewModel.driverArrived.collectAsState()
+    val driverLatLng by viewModel.driverLatLng.collectAsState()
+    val routePoints by viewModel.routePoints.collectAsState()
+    
+    val driverName by viewModel.driverName.collectAsState()
+    val driverPhone by viewModel.driverPhone.collectAsState()
+    val chatRoomId by viewModel.chatRoomId.collectAsState()
+    val carBrand by viewModel.carBrand.collectAsState()
+    val carModel by viewModel.carModel.collectAsState()
+    val carColor by viewModel.carColor.collectAsState()
+    val carPlate by viewModel.carPlate.collectAsState()
+    val driverProfileUrl by viewModel.driverProfileUrl.collectAsState()
+    val driverRating by viewModel.driverRating.collectAsState()
+    
+    val pickupAddress by viewModel.pickupAddress.collectAsState()
+    val dropOffAddress by viewModel.dropOffAddress.collectAsState()
+    val fareAmount by viewModel.fareAmount.collectAsState()
+    val passengerName by viewModel.passengerName.collectAsState()
+    val passengerProfileUrl by viewModel.passengerProfileUrl.collectAsState()
+    val pickupLatLng by viewModel.pickupLatLng.collectAsState()
+    val dropOffLatLng by viewModel.dropOffLatLng.collectAsState()
+    
+    val showArrivedAlert by viewModel.showArrivedAlert.collectAsState()
+    val showDriverCancelledAlert by viewModel.showDriverCancelledAlert.collectAsState()
+    val navToRating by viewModel.navToRating.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     val currentPaymentStatus = navController.currentBackStackEntry?.savedStateHandle
         ?.getStateFlow("paymentStatus", initialPaymentStatus)
         ?.collectAsState()?.value ?: initialPaymentStatus
 
-    // --- NAVIGATION FIX (Task 6) ---
+    // Navigation Logic
     BackHandler {
         navController.navigate(NavRoutes.CustomerDashboard.route) {
             popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = true }
         }
     }
 
-    // MONITOR BOOKING STATUS FOR COMPLETION
-    LaunchedEffect(bookingId) {
-        if (bookingId.isNotEmpty()) {
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            val docRef = db.collection("bookings").document(bookingId)
-            val registration = docRef.addSnapshotListener { snapshot, e ->
-                if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
-                
-                val status = snapshot.getString("status")
-                val pStatus = snapshot.getString("paymentStatus") ?: "PENDING"
-                val arrived = snapshot.getBoolean("driverArrived") ?: false
-                val dLat = snapshot.getDouble("currentDriverLat") ?: 0.0
-                val dLng = snapshot.getDouble("currentDriverLng") ?: 0.0
-
-                paymentStatus = pStatus
-                isDriverArrived = arrived
-                isTripCompleted = status == "COMPLETED"
-
-                // Auto-Navigate to Rating Screen if Completed AND Paid
-                if (status == "COMPLETED" && pStatus == "PAID" && !hasNavigated) {
-                     hasNavigated = true
-                     navController.navigate("ride_done/$bookingId") {
-                        popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
-                     }
-                }
-
-                if (dLat != 0.0 && dLng != 0.0) {
-                    driverLatLng = LatLng(dLat, dLng)
-                }
-
-                if (status == "COMPLETED") {
-                    if (pStatus != "PAID") {
-                        showArrivedAlert = true
-                    }
-                } else if (status == com.example.goukm.ui.booking.BookingStatus.CANCELLED_BY_DRIVER.name) {
-                    showDriverCancelledAlert = true
-                }
-            }
-        }
-    }
-
-    // Fetch Route from Driver to Destination
-    LaunchedEffect(driverLatLng, isDriverArrived, pickupLatLng, dropOffLatLng) {
-        val driverLoc = driverLatLng ?: return@LaunchedEffect
-        val targetLoc = if (isDriverArrived) dropOffLatLng else pickupLatLng
-
-        if (targetLoc != null) {
-            val result = placesRepository.getRoute(driverLoc, targetLoc)
-            result.onSuccess { routeResult ->
-                routePoints = routeResult.polyline
-            }
-        }
-    }
-
-    LaunchedEffect(currentPaymentStatus) {
-        if (currentPaymentStatus == "PAID") {
-             paymentStatus = "PAID"
-        }
-    }
-
-    LaunchedEffect(bookingId) {
-        if (bookingId.isNotEmpty()) {
-            isLoading = true
-            scope.launch {
-                // Fetch booking data first as it provides driverId
-                val result = bookingRepository.getBooking(bookingId)
-                val booking = result.getOrNull()
-                
-                if (booking != null) {
-                    pickupAddress = booking.pickup
-                    dropOffAddress = booking.dropOff
-                    fareAmount = "RM ${booking.offeredFare}"
-                    pickupLatLng = LatLng(booking.pickupLat, booking.pickupLng)
-                    dropOffLatLng = LatLng(booking.dropOffLat, booking.dropOffLng)
-
-                    // Parallelize subsequent fetches (Task 4)
-                    val customerProfileJob = async { com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.userId) }
-                    
-                    val driverDataJob = if (!booking.driverId.isNullOrEmpty()) {
-                        async {
-                            val userProfile = com.example.goukm.ui.userprofile.UserProfileRepository.getUserProfile(booking.driverId)
-                            val stats = com.example.goukm.ui.booking.RatingRepository.getDriverStats(booking.driverId)
-                            val chatRoomResult = com.example.goukm.ui.chat.ChatRepository.getChatRoomByBookingId(bookingId)
-                            Triple(userProfile, stats, chatRoomResult)
-                        }
-                    } else null
-
-                    // Handle Customer Profile
-                    customerProfileJob.await()?.let { profile ->
-                        passengerName = profile.name
-                        passengerProfileUrl = profile.profilePictureUrl ?: ""
-                    }
-
-                    // Handle Driver Data
-                    driverDataJob?.await()?.let { (profile, stats, chatRoomResult) ->
-                        profile?.let {
-                            driverName = it.name
-                            driverPhone = it.phoneNumber
-                            carBrand = it.carBrand
-                            carModel = it.vehicleType
-                            carColor = it.carColor
-                            carPlate = it.vehiclePlateNumber
-                            driverProfileUrl = it.profilePictureUrl ?: ""
-                        }
-                        
-                        driverRating = if (stats.totalReviews > 0) {
-                            String.format("%.1f", stats.averageRating)
-                        } else "New"
-                        
-                        chatRoomResult.onSuccess { room ->
-                            if (room != null) chatRoomId = room.id
-                        }
-                    }
-                }
-                isLoading = false
-            }
+    LaunchedEffect(navToRating) {
+        if (navToRating) {
+             navController.navigate("ride_done/$bookingId") {
+                popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
+             }
         }
     }
 
@@ -429,7 +324,7 @@ fun CustomerJourneyDetailsScreen(
             }
             
             // Optional: Floating Pill "Your driver is on the way"
-            if (!isDriverArrived) {
+            if (!driverArrived) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -450,7 +345,7 @@ fun CustomerJourneyDetailsScreen(
     // Trip Finished Alert
     if (showArrivedAlert && paymentStatus != "PAID") {
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { /* Don't allow dismissal if not paid */ },
+            onDismissRequest = { viewModel.dismissArrivedAlert() },
             title = { Text("Trip Finished!", fontWeight = FontWeight.Bold) },
             text = { Text("Your driver has arrived at the destination. Please complete your payment to finish the trip.") },
             confirmButton = {
@@ -477,7 +372,7 @@ fun CustomerJourneyDetailsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        showDriverCancelledAlert = false
+                        viewModel.dismissDriverCancelled()
                         navController.navigate(NavRoutes.BookingRequest.route) {
                             popUpTo(NavRoutes.CustomerDashboard.route) { inclusive = false }
                         }
